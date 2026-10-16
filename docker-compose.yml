@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: src/Gateway/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__apiCluster__Destinations__api1__Address=http://api:80
+      - ReverseProxy__Clusters__geoCluster__Destinations__geo1__Address=http://geo:80
+    depends_on:
+      - api
+      - geo
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    ports:
+      - "5100:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Jwt__Secret=SuperSecretCareerArchitectureDemoJwtSigningKey2026!
+      - ConnectionStrings__DefaultConnection=Data Source=/data/careerplatform.db
+    volumes:
+      - api_data:/data
+
+  geo:
+    build:
+      context: .
+      dockerfile: src/Geo/Dockerfile
+    ports:
+      - "5200:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+
+volumes:
+  api_data:
