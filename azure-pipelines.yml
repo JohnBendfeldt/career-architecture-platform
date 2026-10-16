@@ -1,0 +1,92 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '7.0.x'
+  nodeVersion: '20.x'
+
+stages:
+- stage: BuildAndTest
+  displayName: 'Build & Test Suite'
+  jobs:
+  - job: TestBackend
+    displayName: 'Test .NET Microservices'
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: $(dotnetVersion)
+
+    - script: dotnet restore CareerPlatform.sln
+      displayName: 'Restore NuGet Packages'
+
+    - script: dotnet build CareerPlatform.sln --configuration $(buildConfiguration) --no-restore
+      displayName: 'Build Solution'
+
+    - script: dotnet test tests/Api.Tests/CareerPlatform.Api.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=test_results.trx"
+      displayName: 'Execute Automated Tests'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/test_results.trx'
+
+  - job: BuildFrontend
+    displayName: 'Build React Vite Frontend'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: $(nodeVersion)
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd web
+        npm ci
+        npm run build
+      displayName: 'NPM Install & Build SPA'
+
+- stage: DockerContainers
+  displayName: 'Docker Build & Registry Push'
+  dependsOn: BuildAndTest
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: BuildContainers
+    displayName: 'Build Microservice Images'
+    steps:
+    - task: Docker@2
+      displayName: 'Build Gateway Image'
+      inputs:
+        command: build
+        dockerfile: 'src/Gateway/Dockerfile'
+        repository: 'careerplatform-gateway'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build API Image'
+      inputs:
+        command: build
+        dockerfile: 'src/Api/Dockerfile'
+        repository: 'careerplatform-api'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build Geo Image'
+      inputs:
+        command: build
+        dockerfile: 'src/Geo/Dockerfile'
+        repository: 'careerplatform-geo'
+        tags: |
+          $(Build.BuildId)
+          latest
