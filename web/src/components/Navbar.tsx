@@ -38,7 +38,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const headerSubtitle = isPersonal
     ? `BY JOHN BENDFELDT // ${activeProfile.name.toUpperCase()}`
     : 'BY JOHN BENDFELDT';
-  const headerBadge = isPersonal ? 'PERSONAL WORKSPACE' : '.NET 10 & YARP';
   const navGithubUrl = isPersonal
     ? (activeProfile.githubUrl || 'https://github.com')
     : 'https://github.com/johnbendfeldt';
@@ -75,9 +74,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               lineHeight: 1.2
             }}>
               Career Architecture Platform
-            </span>
-            <span className="badge badge-cyan" style={{ fontSize: '0.62rem', padding: '2px 7px' }}>
-              {headerBadge}
             </span>
           </div>
           <p style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', margin: '2px 0 0 0', letterSpacing: '0.02em', lineHeight: 1.3 }}>
