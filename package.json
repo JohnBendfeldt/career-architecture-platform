@@ -1,0 +1,13 @@
+{
+  "name": "career-architecture-platform",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix web run dev",
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web install && npm --prefix web run build",
+    "test": "npm --prefix web test && dotnet test",
+    "test:web": "npm --prefix web test",
+    "test:dotnet": "dotnet test"
+  }
+}
+

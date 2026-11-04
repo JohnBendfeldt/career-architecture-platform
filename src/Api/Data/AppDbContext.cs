@@ -20,23 +20,24 @@ public class AppDbContext : DbContext
         {
             Id = 1,
             Name = "John F. Bendfeldt",
-            Headline = "Senior Full-Stack Software Engineer",
-            Bio = "Senior Full-Stack Engineer with 9+ years of expertise architecting, building, and maintaining high-performance SaaS applications and distributed systems. Specializes in scalable C#/.NET enterprise backends, modern React and TypeScript frontends, and automated CI/CD pipelines. Proven track record leading major codebase modernizations, designing robust REST/Minimal APIs, and shipping mission-critical e-commerce and financial workflows.",
-            Location = "Hutto, TX",
+            Headline = "Senior Software Developer",
+            Bio = "Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.",
+            Location = "Austin, TX",
             Email = "jfbendfeldt@gmail.com",
             AvatarUrl = "/john-bendfeldt.jpg",
-            GithubUrl = "https://github.com/johnbendfeldt",
+            GithubUrl = "https://github.com/JohnBendfeldt",
             LinkedinUrl = "https://linkedin.com/in/johnbendfeldt",
             WebsiteUrl = "https://johnbendfeldt.com",
-            LiveProjectUrl = "https://basicrussian.org",
+            LiveProjectUrl = "https://basiclanguage.school",
             SkillsJson = JsonSerializer.Serialize(new[]
             {
-                "C#", ".NET (Core, 6, 10)", "React", "TypeScript", "JavaScript (ES6+)",
-                "Azure DevOps", "Docker", "SQL Server", "CI/CD Pipelines", "Vite",
-                "System Architecture", "REST & Minimal APIs", "TDD & Integration Testing", "YARP Reverse Proxy"
+                "C#", "JavaScript (Vanilla/ES6+)", "TypeScript", "HTML/CSS", "SQL", "PostgreSQL",
+                ".NET (Core, 6, 10)", "React", "Node.js", "Vite",
+                "Git", "Docker", "Azure DevOps", "SQL Server", "CI/CD pipelines", "GitHub Copilot",
+                "Claude Code & Gemini CLI", "Agile/Scrum", "Test-Driven Development (TDD)", "Unit & Integration Testing"
             }),
             ExperienceYears = 9,
-            UpdatedAt = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)
+            UpdatedAt = new DateTime(2026, 11, 3, 0, 0, 0, DateTimeKind.Utc)
         });
 
         // Seed Technical & Engineering Goals (Reflecting Authentic Enterprise & Production Work)
@@ -44,44 +45,44 @@ public class AppDbContext : DbContext
             new Goal
             {
                 Id = 1,
-                Title = "Enterprise Codebase Modernization (.NET 10)",
-                Description = "Spearheading codebase modernization initiatives to transition legacy enterprise systems to current .NET and modern web standards, optimizing accounting and membership workflows.",
+                Title = "Enterprise Accounting & Membership Platform (C# / .NET)",
+                Description = "Engineering core web features for non-profit organizations to manage memberships, commerce, fundraising, and donations. Focused on C# and .NET development for checkout and subscription accounting, improving invoice handling efficiency, and optimizing client financial workflows.",
                 Category = "Technical",
-                Progress = 90,
+                Progress = 95,
                 TargetDate = "Present",
                 Status = "InProgress",
-                TagsJson = JsonSerializer.Serialize(new[] { ".NET 10", "C#", "Modernization", "Azure DevOps" }),
+                TagsJson = JsonSerializer.Serialize(new[] { "C#", ".NET", "SaaS", "Accounting", "Financial Workflows", "Azure DevOps" }),
                 CreatedAt = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)
             },
             new Goal
             {
                 Id = 2,
                 Title = "Training Hour Tracking Application (trainingtracker.advsol.com)",
-                Description = "Architected and built an internal Training Hour Tracking application to streamline HR processes, engineered with .NET 10, vanilla JavaScript, HTML, and Vite.",
+                Description = "Architected and built an internal Training Hour Tracking application using .NET 10, Vite, and vanilla JavaScript, leveraging AI-assisted development workflows to accelerate delivery and automate manual HR tracking.",
                 Category = "Technical",
                 Progress = 100,
                 TargetDate = "Deployed",
                 Status = "Completed",
-                TagsJson = JsonSerializer.Serialize(new[] { "trainingtracker.advsol.com", ".NET 10", "Vite", "JavaScript", "HR Tech" }),
+                TagsJson = JsonSerializer.Serialize(new[] { "trainingtracker.advsol.com", ".NET 10", "Vite", "JavaScript", "AI Workflows", "HR Tech" }),
                 CreatedAt = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)
             },
             new Goal
             {
                 Id = 3,
-                Title = "Russian Language Learning Platform (basicrussian.org)",
-                Description = "Architected and shipped an active production language immersion platform featuring spaced repetition drills, phonetics, grammar mastery, and interactive learning architecture.",
+                Title = "Basic Language School (basiclanguage.school)",
+                Description = "Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, interactive active-recall quizzes with custom virtual keyboards, and Supabase cloud sync.",
                 Category = "Personal",
-                Progress = 85,
+                Progress = 100,
                 TargetDate = "Live in Production",
                 Status = "Completed",
-                TagsJson = JsonSerializer.Serialize(new[] { "basicrussian.org", "Russian", "Language Learning", "React", "Full-Stack" }),
+                TagsJson = JsonSerializer.Serialize(new[] { "basiclanguage.school", "PWA", "Language Learning", "Supabase", "Vitest", "Playwright" }),
                 CreatedAt = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)
             },
             new Goal
             {
                 Id = 4,
                 Title = "International Address & Province Data (country-province-data)",
-                Description = "Published and maintained zero-dependency npm package powering international checkout flows with 1,300+ weekly downloads and 0 bugs over 8 years.",
+                Description = "Published and maintained zero-dependency npm package powering international checkout flows, downloaded hundreds of times a week and thousands of times a year with 0 bugs over 8 years.",
                 Category = "Technical",
                 Progress = 100,
                 TargetDate = "Published (8 yrs active)",

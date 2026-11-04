@@ -56,8 +56,7 @@ public class AiSkillExtractor : IAiSkillExtractor
 
     private async Task<List<string>> CallGeminiApiAsync(string text, string apiKey, CancellationToken ct)
     {
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
-
+        var models = new[] { "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite" };
         var prompt = "Extract all key technical skills, architectural concepts, languages, frameworks, and engineering tools from this text. Return a JSON object with a 'skills' string array.\nText:\n" + text;
 
         var payload = new
@@ -89,38 +88,49 @@ public class AiSkillExtractor : IAiSkillExtractor
         };
 
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(url, content, ct);
 
-        if (!response.IsSuccessStatusCode)
+        foreach (var model in models)
         {
-            _logger.LogWarning("Gemini API returned status code {StatusCode}", response.StatusCode);
-            return new List<string>();
-        }
-
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var parsed = JsonNode.Parse(json);
-        var rawText = parsed?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>();
-
-        if (string.IsNullOrWhiteSpace(rawText))
-        {
-            return new List<string>();
-        }
-
-        var result = JsonNode.Parse(rawText);
-        var skillsArray = result?["skills"]?.AsArray();
-
-        if (skillsArray != null)
-        {
-            var list = skillsArray
-                .Select(s => s?.GetValue<string>()?.Trim())
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .Select(s => s!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (list.Count > 0)
+            try
             {
-                return list;
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+                var response = await _httpClient.PostAsync(url, content, ct);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var parsed = JsonNode.Parse(json);
+                var rawText = parsed?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>();
+
+                if (string.IsNullOrWhiteSpace(rawText))
+                {
+                    continue;
+                }
+
+                var result = JsonNode.Parse(rawText);
+                var skillsArray = result?["skills"]?.AsArray();
+
+                if (skillsArray != null)
+                {
+                    var list = skillsArray
+                        .Select(s => s?.GetValue<string>()?.Trim())
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    if (list.Count > 0)
+                    {
+                        return list;
+                    }
+                }
+            }
+            catch
+            {
+                // try next model
             }
         }
 

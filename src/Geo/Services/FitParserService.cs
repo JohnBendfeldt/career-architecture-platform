@@ -125,6 +125,42 @@ public class FitParserService : IFitParserService
             ? (int)(endTime.Value - startTime.Value).TotalMinutes 
             : Math.Max(1, rawPoints.Count / 60);
 
+        // Privacy Zone Geofence: trim start and end points within 400m (~0.25 miles) of residence
+        const double PrivacyLat = 30.50474;
+        const double PrivacyLon = -97.57253;
+        const double PrivacyRadiusM = 400.0;
+
+        static double HaversineM(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000.0;
+            var dLat = (lat2 - lat1) * Math.PI / 180.0;
+            var dLon = (lon2 - lon1) * Math.PI / 180.0;
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        while (rawPoints.Count > 0 && HaversineM(rawPoints[0].Lat, rawPoints[0].Lon, PrivacyLat, PrivacyLon) < PrivacyRadiusM)
+        {
+            rawPoints.RemoveAt(0);
+        }
+
+        int endIdx = rawPoints.Count;
+        for (int i = rawPoints.Count - 1; i >= 0; i--)
+        {
+            if (HaversineM(rawPoints[i].Lat, rawPoints[i].Lon, PrivacyLat, PrivacyLon) < PrivacyRadiusM)
+            {
+                endIdx = i;
+            }
+        }
+        if (endIdx < rawPoints.Count && endIdx > 0)
+        {
+            rawPoints = rawPoints.Take(endIdx).ToList();
+        }
+        rawPoints = rawPoints.Where(p => HaversineM(p.Lat, p.Lon, PrivacyLat, PrivacyLon) >= PrivacyRadiusM).ToList();
+
         // Downsample points if list is very large (> 1500) to keep Leaflet rendering at 60fps
         var points = rawPoints;
         if (rawPoints.Count > 1500)
@@ -319,6 +355,8 @@ public class FitParserService : IFitParserService
     {
         return rawName switch
         {
+            "75 Mile Trainer with the Boys turned First Century" => "First Century / 186 km",
+            "Sunday Morning Ride with Christian" => "Sunday Morning Ride with Christian",
             "Country Roads with friends" => "Country Roads with Friends",
             "Early Bird Sundaze" => "Early Bird Sundaze",
             "Salado Sunday with friends" => "Salado Sunday with Friends",

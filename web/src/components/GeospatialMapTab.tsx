@@ -1,13 +1,28 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { RouteData, RideSummary } from '../types';
 import { ApiService } from '../services/api';
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Download, Compass, Activity, Navigation, Mountain, Clock, Upload, CheckCircle2, Sparkles } from 'lucide-react';
+import {
+  Download,
+  Compass,
+  Activity,
+  Navigation,
+  Mountain,
+  Clock,
+  Upload,
+  CheckCircle2,
+  Sparkles,
+  ChevronDown,
+  Check,
+  SlidersHorizontal,
+  LayoutGrid,
+  Loader2
+} from 'lucide-react';
 
 // Custom Map Marker Icons using Leaflet divIcon
 const createCustomIcon = (type: string) => {
-  let bg = '#6366f1';
+  let bg = '#2563eb';
   let label = '📍';
   if (type === 'start') { bg = '#10b981'; label = '🏁'; }
   if (type === 'checkpoint') { bg = '#f59e0b'; label = '☕'; }
@@ -34,51 +49,143 @@ const createCustomIcon = (type: string) => {
   });
 };
 
-export const GeospatialMapTab: React.FC = () => {
+// Smooth Map Viewport Transition Component
+const MapUpdater: React.FC<{ points: { lat: number; lon: number }[] }> = ({ points }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (points && points.length > 0) {
+      const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
+      map.fitBounds(bounds, { padding: [45, 45], maxZoom: 13, animate: true });
+    }
+  }, [points, map]);
+  return null;
+};
+
+interface GeospatialMapTabProps {
+  workspaceMode?: 'portfolio' | 'personal';
+  userName?: string;
+}
+
+const PERSONAL_SAMPLE_RIDE: RideSummary = {
+  id: 'sample-demo-route',
+  title: 'Hill Country Loop (Sample)',
+  distanceKm: 83.9,
+  elevationGainM: 723,
+  durationMinutes: 274,
+  date: 'Starter Route'
+};
+
+export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
+  workspaceMode = 'portfolio',
+  userName = 'My'
+}) => {
   const [route, setRoute] = useState<RouteData | null>(null);
   const [rides, setRides] = useState<RideSummary[]>([]);
+  const [customRoutesMap, setCustomRoutesMap] = useState<Record<string, RouteData>>({});
   const [selectedRideId, setSelectedRideId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [switchingRide, setSwitchingRide] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [useDropdown, setUseDropdown] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load available preloaded rides
+  // Close route dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  // Load available rides based on workspaceMode
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      ApiService.getRides(),
-      ApiService.getSampleRoute()
-    ]).then(([ridesList, sampleRoute]) => {
-      if (mounted) {
-        setRides(ridesList);
-        setRoute(sampleRoute);
-        if (ridesList.length > 0) {
-          setSelectedRideId(ridesList[0].id);
+    if (workspaceMode === 'personal') {
+      ApiService.getSampleRoute().then((sample) => {
+        if (!mounted) return;
+        const sampleRouteData: RouteData = {
+          ...sample,
+          activityName: 'Sample Route (Upload Your Own .FIT or .GPX Above)',
+          recordedDevice: 'Sample GPS Telemetry Stream'
+        };
+        setRides([PERSONAL_SAMPLE_RIDE]);
+        setSelectedRideId(PERSONAL_SAMPLE_RIDE.id);
+        setRoute(sampleRouteData);
+        setInitialLoading(false);
+      });
+      return () => { mounted = false; };
+    }
+
+    ApiService.getRides().then(async (ridesList) => {
+      if (!mounted) return;
+      setRides(ridesList);
+      if (ridesList.length > 0) {
+        const firstRide = ridesList[0];
+        setSelectedRideId(firstRide.id);
+        try {
+          const firstRoute = await ApiService.getRideById(firstRide.id);
+          if (mounted) {
+            setRoute(firstRoute);
+            setInitialLoading(false);
+          }
+        } catch {
+          const sample = await ApiService.getSampleRoute();
+          if (mounted) {
+            setRoute(sample);
+            setInitialLoading(false);
+          }
         }
-        setLoading(false);
+      } else {
+        const sample = await ApiService.getSampleRoute();
+        if (mounted) {
+          setRoute(sample);
+          setInitialLoading(false);
+        }
       }
     });
     return () => { mounted = false; };
-  }, []);
+  }, [workspaceMode]);
 
   const handleSelectRide = async (ride: RideSummary) => {
+    if (selectedRideId === ride.id && !switchingRide) return;
     setSelectedRideId(ride.id);
-    setLoading(true);
+    setSwitchingRide(true);
     setUploadMessage(null);
     try {
-      const data = await ApiService.getRideById(ride.id);
-      setRoute(data);
+      if (customRoutesMap[ride.id]) {
+        setRoute(customRoutesMap[ride.id]);
+      } else if (ride.id === PERSONAL_SAMPLE_RIDE.id) {
+        const sample = await ApiService.getSampleRoute();
+        setRoute({
+          ...sample,
+          activityName: 'Sample Route (Upload Your Own .FIT or .GPX Above)',
+          recordedDevice: 'Sample GPS Telemetry Stream'
+        });
+      } else {
+        const data = await ApiService.getRideById(ride.id);
+        setRoute(data);
+      }
     } catch (e) {
       console.error('Failed to load ride', e);
     } finally {
-      setLoading(false);
+      setSwitchingRide(false);
     }
   };
 
   const handleFileUpload = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.fit')) {
-      alert('Please upload a valid Garmin binary .fit file.');
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.fit') && !lowerName.endsWith('.gpx')) {
+      alert('Please upload a valid Garmin binary .fit or .gpx file.');
       return;
     }
 
@@ -86,11 +193,22 @@ export const GeospatialMapTab: React.FC = () => {
     setUploadMessage(null);
     try {
       const parsedRoute = await ApiService.uploadFitFile(file);
+      const customId = `custom-${Date.now()}`;
+      const newSummary: RideSummary = {
+        id: customId,
+        title: parsedRoute.activityName || file.name,
+        distanceKm: parsedRoute.distanceKm,
+        elevationGainM: parsedRoute.elevationGainM,
+        durationMinutes: parsedRoute.durationMinutes,
+        date: 'Uploaded Just Now'
+      };
+      setCustomRoutesMap(prev => ({ ...prev, [customId]: parsedRoute }));
+      setRides(prev => [newSummary, ...prev]);
       setRoute(parsedRoute);
-      setSelectedRideId('custom-upload');
-      setUploadMessage(`Successfully parsed ${file.name} (${parsedRoute.distanceKm} km)!`);
+      setSelectedRideId(customId);
+      setUploadMessage(`Successfully parsed ${file.name} (${parsedRoute.distanceKm} km, +${parsedRoute.elevationGainM}m)!`);
     } catch (e: any) {
-      alert(`Error parsing .fit file: ${e.message || 'Unknown error'}`);
+      alert(`Error parsing telemetry file: ${e.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -104,7 +222,7 @@ export const GeospatialMapTab: React.FC = () => {
 <gpx version="1.1" creator="CareerPlatform.Geo" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>${route.activityName}</name>
-    <desc>Garmin Forerunner 255 Music Telemetry Export - John F. Bendfeldt</desc>
+    <desc>Garmin Forerunner 255 Music Telemetry Export - John Bendfeldt</desc>
     <time>${new Date().toISOString()}</time>
   </metadata>
   <trk>
@@ -130,7 +248,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
     URL.revokeObjectURL(url);
   };
 
-  if (loading || !route) {
+  if (initialLoading || !route) {
     return (
       <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
         <Activity size={32} color="var(--accent-cyan)" className="animate-spin" style={{ margin: '0 auto 16px' }} />
@@ -140,20 +258,22 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
   }
 
   const polylinePositions: [number, number][] = route.points.map(p => [p.lat, p.lon]);
-  const centerLat = route.points[Math.floor(route.points.length / 2)].lat;
-  const centerLon = route.points[Math.floor(route.points.length / 2)].lon;
+  const centerLat = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lat : 30.5;
+  const centerLon = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lon : -97.5;
 
   const hours = Math.floor(route.durationMinutes / 60);
   const minutes = route.durationMinutes % 60;
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
+  const activeRide = rides.find(r => r.id === selectedRideId);
+
   return (
     <div style={{ marginBottom: '36px' }}>
-      {/* Hidden File Input for .FIT uploads */}
+      {/* Hidden File Input for .FIT and .GPX uploads */}
       <input
         type="file"
         ref={fileInputRef}
-        accept=".fit"
+        accept=".fit,.gpx"
         style={{ display: 'none' }}
         onChange={(e) => {
           if (e.target.files && e.target.files[0]) {
@@ -172,21 +292,25 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
         marginBottom: '20px'
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <Activity size={24} color="var(--accent-cyan)" />
-            <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
-              Garmin Telemetry Visualizer & Binary FIT Parser
+            <h2 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              {workspaceMode === 'personal'
+                ? `${userName}'s GPS Telemetry Visualizer`
+                : 'Garmin Telemetry Visualizer & Binary FIT Parser'}
             </h2>
             <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
               Garmin.FIT.Sdk
             </span>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Binary telemetry decoded directly from John's <strong>Garmin Forerunner 255 Music</strong> into Leaflet vector polylines, elevation profiles, and GPX streams.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {workspaceMode === 'personal'
+              ? 'Click "Upload .FIT / .GPX" on the right to plot your own GPS activity files onto the interactive map, or export the sample route below to test.'
+              : <>Binary telemetry decoded directly from John's <strong>Garmin Forerunner 255 Music</strong> into Leaflet vector polylines, elevation profiles, and GPX streams.</>}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
@@ -195,14 +319,14 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
             style={{ padding: '9px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Upload size={15} />
-            <span>{uploading ? 'Parsing .FIT...' : 'Upload .FIT File'}</span>
+            <span>{uploading ? 'Parsing Telemetry...' : 'Upload .FIT / .GPX'}</span>
           </button>
 
           <button
             onClick={handleExportGpx}
             className="btn-primary"
             id="btn-export-gpx"
-            style={{ padding: '9px 18px', fontSize: '0.85rem' }}
+            style={{ padding: '9px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Download size={15} />
             <span>Export .GPX</span>
@@ -211,61 +335,277 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
       </div>
 
       {/* Favorite Rides Selector Bar */}
-      <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={16} color="var(--accent-indigo)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>
-              John's Favorite Central Texas Rides
-            </span>
-            <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
-              {rides.length} Preloaded Rides
-            </span>
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Select a route to view interactive GPS splits & elevation
-          </span>
-        </div>
-
+      <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '20px', position: 'relative' }}>
         <div style={{
           display: 'flex',
-          gap: '10px',
-          overflowX: 'auto',
-          paddingBottom: '4px'
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '12px',
+          flexWrap: 'wrap',
+          gap: '10px'
         }}>
-          {rides.map((r) => {
-            const isSelected = selectedRideId === r.id;
-            return (
-              <button
-                key={r.id}
-                onClick={() => handleSelectRide(r)}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                  border: isSelected ? '1.5px solid var(--accent-indigo)' : '1px solid rgba(255, 255, 255, 0.08)',
-                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.2s',
-                  flexShrink: 0,
-                  minWidth: '180px'
-                }}
-              >
-                <div style={{ fontSize: '0.88rem', fontWeight: isSelected ? 700 : 600, color: isSelected ? '#ffffff' : '#cbd5e1', marginBottom: '4px' }}>
-                  🚴 {r.title}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: isSelected ? 'var(--accent-cyan)' : 'var(--text-muted)' }}>
-                  <span>{r.distanceKm} km</span>
-                  <span>•</span>
-                  <span>+{r.elevationGainM}m</span>
-                  <span>•</span>
-                  <span>{r.date}</span>
-                </div>
-              </button>
-            );
-          })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={16} color="var(--accent-crimson)" />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {workspaceMode === 'personal'
+                ? `${userName}'s Uploaded Routes & Starter Sample`
+                : "John's Favorite Central Texas Rides"}
+            </span>
+            <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
+              {workspaceMode === 'personal'
+                ? `${rides.length} ${rides.length === 1 ? 'Sample Route' : 'Routes'}`
+                : `${rides.length} Preloaded Rides`}
+            </span>
+            {switchingRide && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '0.72rem',
+                color: 'var(--accent-crimson)'
+              }}>
+                <Loader2 size={12} className="animate-spin" />
+                <span>Loading route...</span>
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Select a route to view interactive GPS splits & elevation
+            </span>
+            <button
+              onClick={() => setUseDropdown(!useDropdown)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.72rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--text-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+            >
+              {useDropdown ? (
+                <>
+                  <LayoutGrid size={12} />
+                  <span>Grid View</span>
+                </>
+              ) : (
+                <>
+                  <SlidersHorizontal size={12} />
+                  <span>Dropdown View</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* 1. DROPDOWN SELECTOR MODE */}
+        {useDropdown ? (
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-primary)',
+                border: `1.5px solid ${isDropdownOpen ? 'var(--accent-crimson)' : 'var(--border-subtle)'}`,
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🚴</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                    {activeRide?.title || route.activityName}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                    <span>{route.distanceKm} km</span>
+                    <span>•</span>
+                    <span>+{route.elevationGainM}m ascent</span>
+                    <span>•</span>
+                    <span>{durationText}</span>
+                  </div>
+                </div>
+              </div>
+              <ChevronDown
+                size={18}
+                style={{
+                  transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.25s ease',
+                  color: isDropdownOpen ? 'var(--accent-crimson)' : 'var(--text-muted)'
+                }}
+              />
+            </button>
+
+            {isDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '6px',
+                maxHeight: '340px',
+                overflowY: 'auto'
+              }}>
+                {rides.map(r => {
+                  const isSelected = selectedRideId === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        handleSelectRide(r);
+                        setIsDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isSelected ? 'var(--bg-primary)' : 'transparent',
+                        border: isSelected ? '1px solid var(--accent-crimson)' : '1px solid transparent',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        marginBottom: '3px',
+                        transition: 'all 0.18s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = 'var(--bg-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: isSelected ? 700 : 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                          🚴 {r.title}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                          <span>{r.distanceKm} km</span>
+                          <span>•</span>
+                          <span>+{r.elevationGainM}m</span>
+                          <span>•</span>
+                          <span>{r.durationMinutes} min</span>
+                          <span>•</span>
+                          <span>{r.date}</span>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: 'var(--accent-crimson)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Check size={12} strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* 2. RESPONSIVE GRID / TABS MODE: Wraps cleanly into 2 rows, no awkward overflow or horizontal scrollbar */
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            gap: '10px'
+          }}>
+            {rides.map((r) => {
+              const isSelected = selectedRideId === r.id;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => handleSelectRide(r)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: isSelected ? 'var(--bg-primary)' : 'var(--bg-card)',
+                    border: isSelected ? '1.5px solid var(--accent-crimson)' : '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--text-primary)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    }
+                  }}
+                >
+                  <div style={{
+                    fontSize: '0.86rem',
+                    fontWeight: isSelected ? 700 : 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '6px',
+                    lineHeight: 1.3
+                  }}>
+                    🚴 {r.title}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '4px',
+                    fontSize: '0.69rem',
+                    color: isSelected ? 'var(--accent-crimson)' : 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    <span style={{ fontWeight: 600 }}>{r.distanceKm} km</span>
+                    <span>•</span>
+                    <span>+{r.elevationGainM}m</span>
+                    <span>•</span>
+                    <span>{r.date}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Upload Notification Message */}
@@ -273,7 +613,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
         <div style={{
           background: 'rgba(16, 185, 129, 0.15)',
           border: '1px solid rgba(16, 185, 129, 0.3)',
-          color: '#34d399',
+          color: 'var(--accent-emerald)',
           padding: '12px 18px',
           borderRadius: 'var(--radius-md)',
           marginBottom: '20px',
@@ -292,34 +632,36 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '14px',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        transition: 'opacity 0.2s',
+        opacity: switchingRide ? 0.65 : 1
       }}>
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Navigation size={16} color="var(--accent-cyan)" />
+            <Navigation size={16} color="var(--accent-crimson)" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Distance</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ffffff' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {route.distanceKm} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>km</span>
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Mountain size={16} color="var(--accent-indigo)" />
+            <Mountain size={16} color="var(--text-primary)" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Ascent</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ffffff' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             +{route.elevationGainM} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>m</span>
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Clock size={16} color="var(--accent-violet)" />
+            <Clock size={16} color="var(--text-primary)" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Duration</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#ffffff' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {durationText}
           </div>
         </div>
@@ -329,7 +671,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
             <Compass size={16} color="var(--accent-emerald)" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Recording Device</span>
           </div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             {route.recordedDevice}
           </div>
         </div>
@@ -343,8 +685,29 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
           overflow: 'hidden',
           position: 'relative'
         }}>
+          {switchingRide && (
+            <div style={{
+              position: 'absolute',
+              top: '14px',
+              right: '14px',
+              zIndex: 1000,
+              background: 'var(--bg-card)',
+              backdropFilter: 'blur(8px)',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--accent-crimson)',
+              fontSize: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <Loader2 size={13} className="animate-spin" />
+              <span>Panning route...</span>
+            </div>
+          )}
+
           <MapContainer
-            key={`${route.activityName}-${route.distanceKm}`}
             center={[centerLat, centerLon]}
             zoom={11}
             scrollWheelZoom={false}
@@ -355,11 +718,14 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Glowing cyan polyline trace */}
+            {/* Smooth Map Viewport Transition on Route Selection */}
+            <MapUpdater points={route.points} />
+
+            {/* Uniqlo Crimson / High-Contrast Polyline Trace */}
             <Polyline
               positions={polylinePositions}
               pathOptions={{
-                color: '#06b6d4',
+                color: '#E60012',
                 weight: 5,
                 opacity: 0.9,
                 lineCap: 'round',
@@ -379,7 +745,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
                     <div style={{
                       fontSize: '0.75rem',
                       fontWeight: 700,
-                      color: '#38bdf8',
+                      color: 'var(--accent-crimson)',
                       textTransform: 'uppercase',
                       marginBottom: '4px'
                     }}>
@@ -388,13 +754,13 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
                       {ann.type === 'highlight' && 'Peak Elevation Segment'}
                       {ann.type === 'finish' && 'Ride Finish'}
                     </div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
                       {ann.title}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                       {ann.text}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
                       Lat: {ann.lat.toFixed(4)}, Lon: {ann.lon.toFixed(4)}
                     </div>
                   </div>
@@ -407,18 +773,23 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
         {/* Map Legend Overlay */}
         <div style={{
           position: 'absolute',
-          bottom: '28px',
-          left: '28px',
-          background: 'rgba(15, 23, 42, 0.9)',
+          bottom: '22px',
+          left: '22px',
+          right: '22px',
+          width: 'fit-content',
+          maxWidth: 'calc(100% - 44px)',
+          background: 'var(--bg-card)',
           backdropFilter: 'blur(10px)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
-          padding: '10px 16px',
+          padding: '8px 12px',
           zIndex: 1000,
           display: 'flex',
-          gap: '14px',
-          fontSize: '0.75rem',
-          color: 'var(--text-secondary)'
+          flexWrap: 'wrap',
+          gap: '10px',
+          fontSize: '0.72rem',
+          color: 'var(--text-secondary)',
+          boxShadow: 'var(--shadow-md)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />

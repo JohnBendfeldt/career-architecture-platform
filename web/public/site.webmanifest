@@ -1,0 +1,27 @@
+{
+  "name": "Career Architecture Platform by JB",
+  "short_name": "CAP/BJB",
+  "description": "Portfolio & verified production systems for John Bendfeldt. Senior Software Developer with 9 years of experience in .NET (Core, 6, 10), C#, React, TypeScript, and modernizing legacy codebases.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070A11",
+  "theme_color": "#070A11",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/capbjb-logo-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ]
+}

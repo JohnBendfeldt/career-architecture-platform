@@ -1,0 +1,5 @@
+# Netlify Serverless Function for AI Skill Extraction (force redirect for POST)
+/api/skills/extract    /.netlify/functions/extract-skills    200!
+
+# SPA Routing Fallback for all client-side pages
+/*                     /index.html                           200
