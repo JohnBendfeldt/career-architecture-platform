@@ -13,15 +13,15 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
     {
       title: "Step 1: The 'Aha' Pre-Seeded Architecture Dashboard",
       subtitle: "Zero Empty State for Recruiters",
-      icon: <Layers size={24} color="#6366f1" />,
-      content: "Welcome! As a guest recruiter, you have full read-only access to John Bendfeldt's pre-populated engineering portfolio. Explore enterprise technical goals (.NET 10 Minimal APIs, React performance) and personal disciplines (Hangul language fluency, 100km cycling).",
+      icon: <Layers size={24} color="#2563eb" />,
+      content: "Welcome! As a guest recruiter, you have full read-only access to John Bendfeldt's pre-populated engineering portfolio. Explore enterprise technical goals (.NET 10 Minimal APIs, React performance) and personal passions (language learning, the Cyrillic & Hangul alphabets, elementary French & Russian, and 100km cycling).",
       actionText: "Next: Explore AI Skill Extraction",
       tab: 'dashboard' as const,
     },
     {
       title: "Step 2: AI Skill Extraction & Learning Engine",
       subtitle: "Unstructured Text to Structured JSON & Video Recommendations",
-      icon: <Sparkles size={24} color="#a855f7" />,
+      icon: <Sparkles size={24} color="#06b6d4" />,
       content: "Upload or paste any job description, resume, or engineering ambition. The AI agent extracts structured skill tokens and asynchronously queries learning APIs (YouTube Data API v3 & Udemy) to curate actionable tutorial playlists.",
       actionText: "Next: Explore Geospatial Telemetry",
       tab: 'ai' as const,
@@ -50,18 +50,20 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
   return (
     <div style={{
       position: 'fixed',
-      bottom: 24,
-      right: 24,
+      bottom: 16,
+      left: 16,
+      right: 16,
+      margin: '0 auto',
       zIndex: 2000,
-      maxWidth: '480px',
-      width: 'calc(100% - 48px)',
-      background: 'rgba(15, 23, 42, 0.95)',
+      maxWidth: '460px',
+      width: 'calc(100% - 32px)',
+      background: 'var(--bg-card)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
-      border: '1.5px solid rgba(99, 102, 241, 0.5)',
+      border: '1.5px solid var(--accent-crimson)',
       borderRadius: 'var(--radius-xl)',
-      padding: '24px',
-      boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(99, 102, 241, 0.25)',
+      padding: '20px',
+      boxShadow: 'var(--shadow-lg)',
       animation: 'fadeInUp 0.3s ease-out'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
@@ -70,7 +72,7 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
             width: '42px',
             height: '42px',
             borderRadius: '12px',
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'var(--bg-primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -79,10 +81,10 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
             {current.icon}
           </div>
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-crimson)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>
               Feature Walkthrough ({step + 1} of 3)
             </div>
-            <h4 style={{ fontSize: '1rem', color: '#ffffff', margin: 0 }}>
+            <h4 style={{ fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>
               {current.title}
             </h4>
           </div>
@@ -106,7 +108,7 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
         {current.content}
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         {/* Step dots */}
         <div style={{ display: 'flex', gap: '6px' }}>
           {steps.map((_, idx) => (
@@ -116,29 +118,29 @@ export const MicroTour: React.FC<MicroTourProps> = ({ step, onNext, onClose, onS
                 width: idx === step ? '20px' : '6px',
                 height: '6px',
                 borderRadius: 'var(--radius-full)',
-                background: idx === step ? 'var(--accent-indigo)' : 'rgba(255, 255, 255, 0.2)',
+                background: idx === step ? 'var(--accent-crimson)' : 'var(--border-subtle)',
                 transition: 'all 0.3s ease'
               }}
             />
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={onClose}
             className="btn-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.8rem' }}
+            style={{ padding: '8px 12px', fontSize: '0.78rem' }}
           >
             Skip
           </button>
           <button
             onClick={handleNext}
             className="btn-primary"
-            style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            style={{ padding: '8px 14px', fontSize: '0.8rem' }}
             id="btn-tour-next"
           >
             <span>{current.actionText}</span>
-            <ChevronRight size={16} />
+            <ChevronRight size={15} />
           </button>
         </div>
       </div>

@@ -12,7 +12,7 @@ public class Profile
     public string GithubUrl { get; set; } = string.Empty;
     public string LinkedinUrl { get; set; } = string.Empty;
     public string WebsiteUrl { get; set; } = "https://johnbendfeldt.com";
-    public string LiveProjectUrl { get; set; } = "https://basicrussian.org";
+    public string LiveProjectUrl { get; set; } = "https://basiclanguage.school";
     public string SkillsJson { get; set; } = "[]";
     public int ExperienceYears { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

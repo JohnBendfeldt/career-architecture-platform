@@ -26,8 +26,8 @@ flowchart LR
 
 ### 2. Verified Production Deployments Showcase
 - **Training Hour Tracker (`trainingtracker.advsol.com`)**: Enterprise staff development and hour tracking application on corporate Advanced Solutions International (ASI) domain, verified by DOM author metadata (`<meta name="author" content="John Bendfeldt" />`) and DevTools console signature.
-- **BasicRussian.org (`basicrussian.org`)**: Live public language immersion platform featuring spaced repetition drills and interactive phonetics.
-- **country-province-data (npm)**: Open-source international address data package with **1,300+ weekly downloads** (~15,000+ annually), zero open bugs, and 8 years in continuous production use.
+- **Basic Language School (`basiclanguage.school`)**: Live public language learning PWA supporting 210 bidirectional language pairs across 15 languages with interactive active-recall quizzes and custom virtual keyboards (Cyrillic, Arabic, Indic).
+- **country-province-data (npm)**: Open-source international address data package with **hundreds of weekly downloads** (thousands of times a year), zero open bugs, and 8 years in continuous production use.
 
 ### 3. AI Skill Extraction & Dynamic Learning Catalogs
 - Asynchronously processes candidate resumes, job specs, or engineering goals via `IAiSkillExtractor`.

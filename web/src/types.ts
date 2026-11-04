@@ -1,6 +1,7 @@
 export interface Profile {
   id: number;
   name: string;
+  vanitySlug?: string;
   headline: string;
   bio: string;
   location: string;
@@ -8,6 +9,8 @@ export interface Profile {
   avatarUrl: string;
   githubUrl: string;
   linkedinUrl: string;
+  websiteUrl?: string;
+  liveProjectUrl?: string;
   skills: string[];
   experienceYears: number;
   updatedAt: string;
@@ -90,5 +93,7 @@ export interface LearningResourcesResponse {
 
 export interface ExtractSkillsResponse {
   skills: string[];
+  source?: 'gemini' | 'backend' | 'client_fallback';
+  model?: string;
 }
 

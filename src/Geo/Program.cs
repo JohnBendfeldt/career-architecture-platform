@@ -1,6 +1,32 @@
 using CareerPlatform.Geo.Services;
 using Microsoft.AspNetCore.Http.Features;
 
+if (args.Contains("--dump-all-rides"))
+{
+    var parser = new FitParserService();
+    var rides = parser.GetPreloadedRides();
+    var outDir = Path.Combine(Directory.GetCurrentDirectory(), "web", "public", "rides");
+    Directory.CreateDirectory(outDir);
+    var jsonOptions = new System.Text.Json.JsonSerializerOptions 
+    { 
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+        WriteIndented = false 
+    };
+
+    foreach (var r in rides)
+    {
+        var ride = parser.GetRideById(r.Id);
+        if (ride != null)
+        {
+            var cleanId = r.Id.TrimEnd('-');
+            var filePath = Path.Combine(outDir, $"{cleanId}.json");
+            System.IO.File.WriteAllText(filePath, System.Text.Json.JsonSerializer.Serialize(ride, jsonOptions));
+            Console.WriteLine($"Dumped {cleanId} -> {filePath}");
+        }
+    }
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Register FitParserService

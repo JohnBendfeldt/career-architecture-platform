@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Goal } from '../types';
 import { ApiService } from '../services/api';
-import { Calendar, Plus, ShieldAlert, Code, Heart, X } from 'lucide-react';
+import { Calendar, Plus, ShieldAlert, Code, Heart, X, Trash2, TrendingUp } from 'lucide-react';
 
 interface GoalsSectionProps {
   goals: Goal[];
@@ -9,6 +9,9 @@ interface GoalsSectionProps {
 }
 
 export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) => {
+  const currentUser = ApiService.getUser();
+  const isAuthenticated = currentUser?.role === 'admin';
+
   const [filter, setFilter] = useState<'All' | 'Technical' | 'Personal'>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [readOnlyNotice, setReadOnlyNotice] = useState<string | null>(null);
@@ -18,6 +21,9 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<'Technical' | 'Personal'>('Technical');
   const [newDescription, setNewDescription] = useState('');
+  const [newTargetDate, setNewTargetDate] = useState('Q4 2026');
+  const [newProgress, setNewProgress] = useState(25);
+  const [newTags, setNewTags] = useState('Architecture, Milestone');
 
   const filteredGoals = goals.filter((g) => {
     if (filter === 'All') return true;
@@ -29,14 +35,19 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
     setIsSubmitting(true);
     setReadOnlyNotice(null);
 
+    const parsedTags = newTags
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+
     const result = await ApiService.createGoal({
       title: newTitle || 'New Candidate Goal',
-      description: newDescription || 'Test goal for guest write protection',
+      description: newDescription || 'Custom milestone tracked in Career Architecture Platform.',
       category: newCategory,
-      progress: 25,
-      targetDate: '2027',
-      status: 'Upcoming',
-      tags: ['Demo', newCategory],
+      progress: Number(newProgress) || 25,
+      targetDate: newTargetDate || '2026',
+      status: Number(newProgress) >= 100 ? 'Completed' : 'InProgress',
+      tags: parsedTags.length > 0 ? parsedTags : ['Custom', newCategory],
     });
 
     setIsSubmitting(false);
@@ -46,9 +57,22 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
         result.message || 'Guest accounts have read-only demo access. Writes are protected by ASP.NET Core authorization policies.'
       );
     } else {
+      setNewTitle('');
+      setNewDescription('');
       setIsModalOpen(false);
       onRefresh();
     }
+  };
+
+  const handleIncrementProgress = (goal: Goal) => {
+    const next = goal.progress >= 100 ? 25 : Math.min(100, goal.progress + 25);
+    ApiService.updateGoalProgress(goal.id, next);
+    onRefresh();
+  };
+
+  const handleDeleteCustomGoal = (goalId: number) => {
+    ApiService.deleteCustomGoal(goalId);
+    onRefresh();
   };
 
   return (
@@ -63,7 +87,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
         marginBottom: '20px'
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
               Architecture & Life Goals
             </h2>
@@ -76,11 +100,12 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Category Filter Chips */}
           <div style={{
             display: 'flex',
-            background: 'rgba(255, 255, 255, 0.04)',
+            flexWrap: 'wrap',
+            background: 'var(--bg-card)',
             padding: '4px',
             borderRadius: 'var(--radius-full)',
             border: '1px solid var(--border-subtle)'
@@ -88,8 +113,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
             <button
               onClick={() => setFilter('All')}
               style={{
-                background: filter === 'All' ? 'var(--accent-indigo)' : 'transparent',
-                color: filter === 'All' ? '#ffffff' : 'var(--text-secondary)',
+                background: filter === 'All' ? 'var(--text-primary)' : 'transparent',
+                color: filter === 'All' ? 'var(--bg-card)' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 'var(--radius-full)',
                 padding: '6px 14px',
@@ -104,8 +129,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
             <button
               onClick={() => setFilter('Technical')}
               style={{
-                background: filter === 'Technical' ? 'var(--accent-indigo)' : 'transparent',
-                color: filter === 'Technical' ? '#ffffff' : 'var(--text-secondary)',
+                background: filter === 'Technical' ? 'var(--text-primary)' : 'transparent',
+                color: filter === 'Technical' ? 'var(--bg-card)' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 'var(--radius-full)',
                 padding: '6px 14px',
@@ -124,8 +149,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
             <button
               onClick={() => setFilter('Personal')}
               style={{
-                background: filter === 'Personal' ? 'var(--accent-indigo)' : 'transparent',
-                color: filter === 'Personal' ? '#ffffff' : 'var(--text-secondary)',
+                background: filter === 'Personal' ? 'var(--text-primary)' : 'transparent',
+                color: filter === 'Personal' ? 'var(--bg-card)' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 'var(--radius-full)',
                 padding: '6px 14px',
@@ -160,11 +185,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
       </div>
 
       {/* Goal Cards Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-        gap: '20px'
-      }}>
+      <div className="responsive-card-grid">
         {filteredGoals.map((goal) => (
           <div
             key={goal.id}
@@ -186,9 +207,51 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                   {goal.category}
                 </span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   <Calendar size={13} />
                   <span>{goal.targetDate}</span>
+                  {isAuthenticated && goal.id > 100 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleIncrementProgress(goal)}
+                        title="Advance goal progress (+25%)"
+                        style={{
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-subtle)',
+                          color: 'var(--text-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '2px 6px',
+                          fontSize: '0.68rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                      >
+                        <TrendingUp size={11} color="var(--accent-crimson)" />
+                        <span>+25%</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomGoal(goal.id)}
+                        title="Remove custom goal"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -227,7 +290,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                     style={{
                       fontSize: '0.7rem',
                       padding: '2px 8px',
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
                       color: 'var(--text-muted)',
                       borderRadius: 'var(--radius-sm)',
                       fontFamily: 'var(--font-mono)'
@@ -262,15 +326,15 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
           <div className="glass-panel" style={{
             maxWidth: '520px',
             width: '100%',
-            background: 'var(--bg-surface)',
+            background: 'var(--bg-card)',
             padding: '30px',
             borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-glow)'
+            border: '1px solid var(--border-subtle)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Plus size={22} color="var(--accent-indigo)" />
-                <h3 style={{ fontSize: '1.25rem', color: '#ffffff' }}>Add New Architecture Goal</h3>
+                <Plus size={22} color="var(--accent-crimson)" />
+                <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Add New Architecture Goal</h3>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -285,19 +349,19 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
               <div style={{
                 padding: '14px',
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
+                background: 'rgba(230, 0, 18, 0.08)',
+                border: '1px solid rgba(230, 0, 18, 0.3)',
                 marginBottom: '18px',
                 display: 'flex',
                 gap: '12px',
                 alignItems: 'flex-start'
               }}>
-                <ShieldAlert size={20} color="#f87171" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <ShieldAlert size={20} color="var(--accent-crimson)" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fca5a5' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-crimson)' }}>
                     ASP.NET Core 403 Forbidden Policy
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#fecaca', lineHeight: 1.4, marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: '2px' }}>
                     {readOnlyNotice}
                   </div>
                 </div>
@@ -318,9 +382,9 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--bg-primary)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.9rem'
                   }}
@@ -328,27 +392,90 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Category
-                </label>
-                <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value as 'Technical' | 'Personal')}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: '#1e293b',
-                    border: '1px solid var(--border-subtle)',
-                    color: '#ffffff',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  <option value="Technical">Technical Architecture</option>
-                  <option value="Personal">Personal Milestone</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Category
+                  </label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as 'Technical' | 'Personal')}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    <option value="Technical">Technical Architecture</option>
+                    <option value="Personal">Personal Milestone</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Target Date / Quarter
+                  </label>
+                  <input
+                    type="text"
+                    value={newTargetDate}
+                    onChange={(e) => setNewTargetDate(e.target.value)}
+                    placeholder="e.g. Q4 2026"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.9rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Initial Progress ({newProgress}%)
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={newProgress}
+                    onChange={(e) => setNewProgress(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '10px', accentColor: 'var(--accent-crimson)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={newTags}
+                    onChange={(e) => setNewTags(e.target.value)}
+                    placeholder="e.g. .NET 10, Cloud"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.82rem'
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ marginBottom: '24px' }}>
@@ -364,9 +491,9 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--bg-primary)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontFamily: 'var(--font-body)',
                     fontSize: '0.9rem',
                     resize: 'none'
@@ -388,7 +515,11 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({ goals, onRefresh }) 
                   className="btn-primary"
                   id="btn-submit-goal"
                 >
-                  {isSubmitting ? 'Evaluating Authorization...' : 'Submit to API (Test Write Lock)'}
+                  {isSubmitting
+                    ? 'Saving...'
+                    : isAuthenticated
+                      ? 'Save Goal to Workspace'
+                      : 'Submit to API (Test Write Lock)'}
                 </button>
               </div>
             </form>
