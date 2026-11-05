@@ -43,12 +43,12 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
   const [editAvatar, setEditAvatar] = useState(profile.avatarUrl);
   const [editGithub, setEditGithub] = useState(profile.githubUrl);
 
-  const currentSlug = profile.vanitySlug || (profile.name || 'architect').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const currentSlug = profile.vanitySlug || (profile.name || 'professional').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
   useEffect(() => {
     setImgError(false);
     setEditName(profile.name);
-    setEditSlug(profile.vanitySlug || (profile.name || 'architect').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
+    setEditSlug(profile.vanitySlug || (profile.name || 'professional').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
     setEditHeadline(profile.headline);
     setEditLocation(profile.location);
     setEditYears(profile.experienceYears);
@@ -354,14 +354,14 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
-            }} title="Active & Open to High-Impact Architecture Roles">
+            }} title="Verified Professional Profile">
               <CheckCircle size={16} />
             </div>
           </div>
 
           <div style={{ marginTop: '10px', textAlign: 'center' }}>
             <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
-              VERIFIED ARCHITECT
+              VERIFIED PROFESSIONAL
             </span>
           </div>
         </div>
