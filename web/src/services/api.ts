@@ -98,11 +98,11 @@ export class ApiService {
   }
 
   static toVanitySlug(name: string): string {
-    return (name || 'architect')
+    return (name || 'professional')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'architect';
+      .replace(/^-+|-+$/g, '') || 'professional';
   }
 
   static getCustomProfile(user: User): Profile {
@@ -128,7 +128,7 @@ export class ApiService {
     const slug = this.toVanitySlug(user.name);
     const defaultCustom: Profile = {
       id: 999,
-      name: user.name || 'Authenticated Architect',
+      name: user.name || 'Verified Professional',
       vanitySlug: slug,
       headline: 'Software Engineer & Systems Builder',
       bio: `Full-stack engineer focused on scalable cloud systems, automated delivery pipelines, and continuous technical growth.`,
@@ -168,7 +168,7 @@ export class ApiService {
     return slug
       .trim()
       .replace(/[-_]+/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase()) || 'Architect';
+      .replace(/\b\w/g, (c) => c.toUpperCase()) || 'Professional';
   }
 
   static getProfileBySlug(slug: string): Profile | null {
