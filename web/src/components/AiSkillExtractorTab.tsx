@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, BookOpen, ExternalLink, RefreshCw, CheckCircle, Zap, Check, Plus } from 'lucide-react';
+import { Sparkles, BookOpen, ExternalLink, RefreshCw, CheckCircle, Zap, Check, Plus, ShieldCheck } from 'lucide-react';
 import { YoutubeIcon } from './Icons';
 import { ApiService } from '../services/api';
 import type { LearningResource } from '../types';
@@ -11,6 +11,8 @@ interface AiSkillExtractorTabProps {
 }
 
 const PORTFOLIO_BIO = `Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.`;
+
+const SAMPLE_DOTNET_REACT_JOB = `Seeking a Senior Full-Stack Software Engineer to architect and deliver enterprise SaaS features using C#, .NET Core / .NET 10, React, TypeScript, and SQL Server / PostgreSQL. Candidates should have strong experience with CI/CD pipelines in Azure DevOps, Docker containerization, legacy codebase modernization, and automated unit/integration testing.`;
 
 const PERSONAL_SAMPLE_BIO = `We are looking for a Cloud & AI Systems Engineer to design distributed microservices using TypeScript, Node.js, Python, and FastAPI. Ideal candidates have experience with Docker, Kubernetes, PostgreSQL, AWS Cloud Architecture, and building AI Agent & LLM pipelines.`;
 
@@ -29,6 +31,57 @@ const PERSONAL_SAMPLE_SKILLS = [
   'AWS Cloud Architecture',
   'AI Agents & LLM Pipelines'
 ];
+
+interface SkillMatchResult {
+  matched: boolean;
+  evidence: string;
+}
+
+function evaluatePortfolioSkillMatch(skill: string): SkillMatchResult {
+  const s = skill.toLowerCase();
+
+  if (s.includes('c#') || s.includes('.net') || s.includes('asp.net') || s.includes('entity framework') || s.includes('yarp') || s.includes('minimal api')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production (9+ yrs): Enterprise C#/.NET SaaS at Advanced Solutions International (ASI), .NET 10 Training Hour Tracker (trainingtracker.advsol.com), and YARP microservice gateways.'
+    };
+  }
+  if (s.includes('react') || s.includes('typescript') || s.includes('javascript') || s.includes('vite') || s.includes('html') || s.includes('css') || s.includes('frontend') || s.includes('node')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production (9+ yrs): React 19, TypeScript, Vite & ES6+ across enterprise SaaS, Basic Language School PWA (basiclanguage.school), and the country-province-data npm package.'
+    };
+  }
+  if (s.includes('sql') || s.includes('postgres') || s.includes('database') || s.includes('supabase') || s.includes('sqlite')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production (9+ yrs): SQL Server, PostgreSQL & Supabase schema architecture, Row-Level Security (RLS), and high-volume financial/membership query optimization.'
+    };
+  }
+  if (s.includes('ci/cd') || s.includes('devops') || s.includes('azure') || s.includes('docker') || s.includes('git') || s.includes('pipeline') || s.includes('cloud')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production: Multi-stage Docker builds, Azure DevOps & GitHub Actions CI/CD pipelines, and cloud microservice deployments.'
+    };
+  }
+  if (s.includes('legacy') || s.includes('moderniz') || s.includes('saas') || s.includes('architect') || s.includes('agile') || s.includes('scrum') || s.includes('test') || s.includes('tdd')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production (9+ yrs): Modernizing large-scale legacy SaaS codebases with 1,000+ automated Vitest, Playwright, and xUnit integration tests.'
+    };
+  }
+  if (s.includes('ai') || s.includes('llm') || s.includes('gemini') || s.includes('claude') || s.includes('copilot') || s.includes('agent')) {
+    return {
+      matched: true,
+      evidence: 'Verified in Production: Built Gemini AI structured extraction pipelines and leveraged Claude Code, Gemini CLI & GitHub Copilot to accelerate production delivery.'
+    };
+  }
+
+  return {
+    matched: false,
+    evidence: 'Growth / Upskill Pathway: Not a primary focus in John\'s core C#/.NET & React/TypeScript stack — explore the curated study searches below.'
+  };
+}
 
 export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   workspaceMode = 'portfolio',
@@ -123,6 +176,20 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
     }
   };
 
+  const matchedCount = extractedSkills.filter(
+    (s) => evaluatePortfolioSkillMatch(s).matched
+  ).length;
+  const matchPercentage = extractedSkills.length > 0
+    ? Math.round((matchedCount / extractedSkills.length) * 100)
+    : 0;
+  const activeSkillMatch = evaluatePortfolioSkillMatch(activeSkill);
+
+  const handleLoadPreset = (presetText: string, presetSkills: string[]) => {
+    setInputText(presetText);
+    setExtractedSkills(presetSkills);
+    setActiveSkill(presetSkills[0]);
+  };
+
   return (
     <div style={{ marginBottom: '36px' }}>
       <div style={{ marginBottom: '20px' }}>
@@ -134,21 +201,54 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
               : 'AI Skill Extraction & Automated Curriculum'}
           </h2>
           <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
-            SKILL GAP & STUDY PLANNER
+            JOB MATCH &amp; STUDY PLANNER
           </span>
         </div>
         <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-          Paste a job description or resume to extract required skills, launch targeted instructor searches, or save skills to your Goals board.
+          Paste any job description or resume to evaluate stack overlap, inspect production proof, or launch curated study searches.
         </p>
       </div>
 
       <div className="ai-extractor-grid">
         {/* Left Column: Text Input & Skill Chips */}
         <div className="glass-panel" style={{ padding: '24px' }}>
-          <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
-            <span>1. Job Description or Resume Bio</span>
-            <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>Step 1 of 2</span>
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              1. Job Description or Resume Bio
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleLoadPreset(SAMPLE_DOTNET_REACT_JOB, [
+                  'C# & .NET 10',
+                  'React & TypeScript',
+                  'SQL Server & PostgreSQL',
+                  'CI/CD & Azure DevOps',
+                  'Docker & Automated Testing'
+                ])}
+                className="btn-secondary"
+                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+              >
+                Sample: .NET / React Job
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoadPreset(PERSONAL_SAMPLE_BIO, PERSONAL_SAMPLE_SKILLS)}
+                className="btn-secondary"
+                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+              >
+                Sample: Cloud / AI Job
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLoadPreset(PORTFOLIO_BIO, PORTFOLIO_SKILLS)}
+                className="btn-secondary"
+                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+              >
+                John&apos;s Bio
+              </button>
+            </div>
+          </div>
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -168,7 +268,7 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
             }}
           />
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
               Identifies languages, frameworks, cloud tools &amp; architecture patterns
             </span>
@@ -193,10 +293,49 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
             </button>
           </div>
 
+          {/* Recruiter Job-Match Scorecard */}
+          {workspaceMode === 'portfolio' && extractedSkills.length > 0 && (
+            <div style={{
+              padding: '14px 16px',
+              marginBottom: '18px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <ShieldCheck size={16} color="#16a34a" />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Recruiter Job-Match Score
+                  </span>
+                </div>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: matchPercentage >= 70 ? 'rgba(22, 163, 74, 0.12)' : 'rgba(230, 0, 18, 0.1)',
+                  color: matchPercentage >= 70 ? '#16a34a' : 'var(--accent-crimson)'
+                }}>
+                  {matchPercentage}% Stack Match ({matchedCount}/{extractedSkills.length} Verified)
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: 'var(--border-subtle)', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${matchPercentage}%`,
+                  height: '100%',
+                  background: matchPercentage >= 70 ? '#16a34a' : 'var(--accent-crimson)',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+          )}
+
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Extracted Skill Tokens ({extractedSkills.length}) • Click a skill to view study searches
+                Extracted Skill Tokens ({extractedSkills.length}) • Click a skill to inspect
               </div>
               {extractionMeta?.source === 'gemini' && (
                 <span className="badge badge-emerald" style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -207,11 +346,13 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {extractedSkills.map((skill, sIdx) => {
                 const isActive = activeSkill === skill;
+                const matchInfo = evaluatePortfolioSkillMatch(skill);
                 return (
                   <button
                     key={sIdx}
                     type="button"
                     onClick={() => setActiveSkill(skill)}
+                    title={workspaceMode === 'portfolio' ? matchInfo.evidence : undefined}
                     style={{
                       padding: '8px 14px',
                       borderRadius: 'var(--radius-full)',
@@ -238,8 +379,10 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                     }}>
                       {isActive ? (
                         <CheckCircle size={13} color="var(--accent-crimson)" />
+                      ) : workspaceMode === 'portfolio' && matchInfo.matched ? (
+                        <CheckCircle size={13} color="#16a34a" />
                       ) : (
-                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-muted)' }} />
                       )}
                     </span>
                     <span>{skill}</span>
@@ -276,10 +419,10 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
         {/* Right Column: Curated Learning Pathways */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '440px' }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
               <div>
                 <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>
-                  2. CURATED STUDY SEARCHES FOR SELECTED SKILL
+                  2. SKILL EVIDENCE &amp; CURATED STUDY SEARCHES
                 </span>
                 <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginTop: '4px' }}>
                   {activeSkill}
@@ -298,6 +441,24 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                 </button>
               </div>
             </div>
+
+            {workspaceMode === 'portfolio' && (
+              <div style={{
+                padding: '12px 14px',
+                marginBottom: '14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-primary)',
+                borderLeft: `3px solid ${activeSkillMatch.matched ? '#16a34a' : 'var(--accent-crimson)'}`,
+                borderTop: '1px solid var(--border-subtle)',
+                borderRight: '1px solid var(--border-subtle)',
+                borderBottom: '1px solid var(--border-subtle)',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.45
+              }}>
+                {activeSkillMatch.evidence}
+              </div>
+            )}
 
             {savedNotice && (
               <div style={{
