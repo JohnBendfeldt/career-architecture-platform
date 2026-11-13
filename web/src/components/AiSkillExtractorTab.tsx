@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Sparkles, BookOpen, ExternalLink, RefreshCw, CheckCircle, Zap, Check, Plus, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Sparkles, BookOpen, ExternalLink, RefreshCw, CheckCircle, Zap, Check, Plus, ShieldCheck, Mic, MicOff } from 'lucide-react';
 import { YoutubeIcon } from './Icons';
 import { ApiService } from '../services/api';
 import type { LearningResource } from '../types';
@@ -105,6 +105,131 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   const [extractionMeta, setExtractionMeta] = useState<{ source?: string; model?: string } | null>(null);
   const [customSkillInput, setCustomSkillInput] = useState('');
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [isListeningBio, setIsListeningBio] = useState(false);
+  const [isListeningSkill, setIsListeningSkill] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const toggleVoiceBio = () => {
+    setVoiceError(null);
+    if (isListeningBio && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListeningBio(false);
+      return;
+    }
+
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setVoiceError('Browser Speech Recognition is unavailable in this browser (use Chrome, Edge, or Safari, or press Fn twice on macOS).');
+      return;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let baseText = '';
+    recognition.onstart = () => {
+      setIsListeningBio(true);
+      setIsListeningSkill(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInputText(baseText ? `${baseText} ${transcript}`.trim() : transcript.trim());
+    };
+
+    recognition.onerror = () => {
+      setIsListeningBio(false);
+    };
+
+    recognition.onend = () => {
+      setIsListeningBio(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const toggleVoiceSkill = () => {
+    setVoiceError(null);
+    if (isListeningSkill && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListeningSkill(false);
+      return;
+    }
+
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      setVoiceError('Browser Speech Recognition is unavailable in this browser (use Chrome, Edge, or Safari, or press Fn twice on macOS).');
+      return;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListeningSkill(true);
+      setIsListeningBio(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const raw = event.results?.[0]?.[0]?.transcript?.trim() || '';
+      const cleaned = raw.replace(/[.?!]+$/, '').trim();
+      if (cleaned) {
+        setCustomSkillInput(cleaned);
+        setExtractedSkills((prev) => (prev.includes(cleaned) ? prev : [cleaned, ...prev]));
+        setActiveSkill(cleaned);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListeningSkill(false);
+    };
+
+    recognition.onend = () => {
+      setIsListeningSkill(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
 
   // Switch sample text and skills when workspaceMode changes
   useEffect(() => {
@@ -247,8 +372,38 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
               >
                 John&apos;s Bio
               </button>
+              <button
+                type="button"
+                onClick={toggleVoiceBio}
+                className={isListeningBio ? 'btn-primary' : 'btn-secondary'}
+                style={{
+                  padding: '3px 10px',
+                  fontSize: '0.7rem',
+                  fontFamily: 'var(--font-mono)',
+                  background: isListeningBio ? 'var(--accent-crimson)' : undefined,
+                  color: isListeningBio ? '#ffffff' : undefined
+                }}
+                title="Speak a job description or bio using live browser speech recognition"
+              >
+                {isListeningBio ? <MicOff size={12} /> : <Mic size={12} color="var(--accent-crimson)" />}
+                <span>{isListeningBio ? 'Listening... (Stop)' : 'Voice Input'}</span>
+              </button>
             </div>
           </div>
+
+          {voiceError && (
+            <div style={{
+              padding: '8px 12px',
+              marginBottom: '10px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--accent-crimson)',
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)'
+            }}>
+              {voiceError}
+            </div>
+          )}
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -392,14 +547,15 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
             </div>
 
             {/* Quick Custom Skill Builder */}
-            <form onSubmit={handleAddCustomSkill} style={{ display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+            <form onSubmit={handleAddCustomSkill} style={{ display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
               <input
                 type="text"
                 value={customSkillInput}
                 onChange={(e) => setCustomSkillInput(e.target.value)}
-                placeholder="Add any custom skill (e.g. Kubernetes, Rust, System Design)..."
+                placeholder="Add or speak any skill (e.g. Kubernetes, Rust)..."
                 style={{
                   flex: 1,
+                  minWidth: '180px',
                   padding: '8px 12px',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--bg-primary)',
@@ -408,6 +564,22 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                   fontSize: '0.82rem'
                 }}
               />
+              <button
+                type="button"
+                onClick={toggleVoiceSkill}
+                className={isListeningSkill ? 'btn-primary' : 'btn-secondary'}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '0.8rem',
+                  whiteSpace: 'nowrap',
+                  background: isListeningSkill ? 'var(--accent-crimson)' : undefined,
+                  color: isListeningSkill ? '#ffffff' : undefined
+                }}
+                title="Speak a skill name to add it hands-free"
+              >
+                {isListeningSkill ? <MicOff size={14} /> : <Mic size={14} color="var(--accent-crimson)" />}
+                <span>{isListeningSkill ? 'Listening...' : 'Speak'}</span>
+              </button>
               <button type="submit" className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                 <Plus size={14} />
                 <span>Add Skill</span>
