@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { Profile, User } from '../types';
 import { ApiService } from '../services/api';
+import { exportPrintableResume } from './ResumeTimeline';
 import { GithubIcon, LinkedinIcon } from './Icons';
-import { MapPin, CheckCircle, ExternalLink, ChevronDown, UserCheck, Edit3, X, Briefcase, Link2, Check, LogIn, Globe } from 'lucide-react';
+import { MapPin, CheckCircle, ExternalLink, ChevronDown, UserCheck, Edit3, X, Briefcase, Link2, Check, LogIn, Globe, Printer } from 'lucide-react';
 
 interface ProfileHeroProps {
   profile: Profile;
@@ -431,19 +432,30 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
             </div>
 
             {workspaceMode === 'personal' ? (
-              <a
-                href={profile.githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="social-link"
-                style={{ padding: '8px 16px', fontSize: '0.84rem' }}
-              >
-                <GithubIcon size={15} />
-                <span style={{ fontWeight: 600 }}>
-                  {profile.githubUrl.replace(/^https?:\/\/(www\.)?/, '') || 'github.com'}
-                </span>
-                <ExternalLink size={12} style={{ opacity: 0.7 }} />
-              </a>
+              <>
+                <button
+                  type="button"
+                  onClick={() => exportPrintableResume({ workspaceMode: 'personal', profile })}
+                  className="btn-secondary"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <Printer size={15} />
+                  <span>Resume PDF</span>
+                </button>
+                <a
+                  href={profile.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="social-link"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <GithubIcon size={15} />
+                  <span style={{ fontWeight: 600 }}>
+                    {profile.githubUrl.replace(/^https?:\/\/(www\.)?/, '') || 'github.com'}
+                  </span>
+                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                </a>
+              </>
             ) : (
               <>
                 {/* Primary Editorial Contact Button */}
@@ -463,6 +475,18 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   <span>Message on LinkedIn</span>
                   <ExternalLink size={12} style={{ opacity: 0.8 }} />
                 </a>
+
+                {/* 1-Click Printable / PDF Resume Button */}
+                <button
+                  type="button"
+                  onClick={() => exportPrintableResume({ workspaceMode: 'portfolio', profile })}
+                  className="btn-secondary"
+                  id="hero-resume-pdf-btn"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <Printer size={15} />
+                  <span>Resume PDF</span>
+                </button>
 
                 {/* Outbound GitHub Link */}
                 <a
