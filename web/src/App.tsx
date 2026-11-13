@@ -396,6 +396,7 @@ export function App() {
             <ResumeTimeline
               workspaceMode={workspaceMode}
               userName={activeDisplayName}
+              profile={workspaceMode === 'personal' && customProfile ? customProfile : profile}
             />
           )}
 

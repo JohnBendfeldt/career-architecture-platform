@@ -3,7 +3,7 @@ import type { Profile, User } from '../types';
 import { ApiService } from '../services/api';
 import { exportPrintableResume } from './ResumeTimeline';
 import { GithubIcon, LinkedinIcon } from './Icons';
-import { MapPin, CheckCircle, ExternalLink, ChevronDown, UserCheck, Edit3, X, Briefcase, Link2, Check, LogIn, Globe, Printer } from 'lucide-react';
+import { MapPin, CheckCircle, ExternalLink, ChevronDown, UserCheck, Edit3, X, Briefcase, Link2, Check, LogIn, Globe, Download } from 'lucide-react';
 
 interface ProfileHeroProps {
   profile: Profile;
@@ -130,6 +130,17 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 )}
                 <button
                   type="button"
+                  onClick={() => exportPrintableResume({ workspaceMode, profile })}
+                  className="btn-primary"
+                  id="btn-workspace-download-resume-owner"
+                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                  title="Download / Print ATS-Ready Resume PDF"
+                >
+                  <Download size={13} />
+                  <span>Download Resume</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleCopyVanityUrl}
                   className="btn-secondary"
                   style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
@@ -202,6 +213,18 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                     <span>My Profile</span>
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => exportPrintableResume({ workspaceMode, profile })}
+                  className="btn-primary"
+                  id="btn-workspace-download-resume"
+                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                  title="Download / Print ATS-Ready Resume PDF"
+                >
+                  <Download size={13} />
+                  <span>{workspaceMode === 'personal' ? 'Download My Resume' : 'Download Resume'}</span>
+                </button>
 
                 {workspaceMode === 'personal' && (
                   <>
@@ -436,11 +459,12 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 <button
                   type="button"
                   onClick={() => exportPrintableResume({ workspaceMode: 'personal', profile })}
-                  className="btn-secondary"
+                  className="btn-primary"
+                  id="hero-personal-resume-pdf-btn"
                   style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                 >
-                  <Printer size={15} />
-                  <span>Resume PDF</span>
+                  <Download size={15} />
+                  <span>Download Resume (PDF)</span>
                 </button>
                 <a
                   href={profile.githubUrl}
@@ -484,8 +508,8 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   id="hero-resume-pdf-btn"
                   style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                 >
-                  <Printer size={15} />
-                  <span>Resume PDF</span>
+                  <Download size={15} color="var(--accent-crimson)" />
+                  <span>Download Resume (PDF)</span>
                 </button>
 
                 {/* Outbound GitHub Link */}

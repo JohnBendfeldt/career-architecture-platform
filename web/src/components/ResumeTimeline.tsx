@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Award, GraduationCap, MapPin, CheckCircle2, ExternalLink, Code2, Globe, Plus, Trash2, X, Printer } from 'lucide-react';
+import { Briefcase, Award, GraduationCap, MapPin, CheckCircle2, ExternalLink, Code2, Globe, Plus, Trash2, X, Download } from 'lucide-react';
 import { ApiService } from '../services/api';
 import type { Profile } from '../types';
 
 interface ResumeTimelineProps {
   workspaceMode?: 'portfolio' | 'personal';
   userName?: string;
+  profile?: Profile | null;
 }
 
 export interface ExperienceItem {
@@ -365,7 +366,8 @@ const STARTER_PERSONAL_EXPERIENCES: ExperienceItem[] = [
 
 export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
   workspaceMode = 'portfolio',
-  userName = 'My'
+  userName = 'My',
+  profile
 }) => {
   const [personalExperiences, setPersonalExperiences] = useState<ExperienceItem[]>(() => {
     const raw = localStorage.getItem('cap_personal_experiences');
@@ -522,13 +524,14 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
             onClick={() =>
               exportPrintableResume({
                 workspaceMode,
+                profile: profile || undefined,
                 experiences: activeExperiences
               })
             }
             className={workspaceMode === 'personal' ? 'btn-secondary' : 'btn-primary'}
             style={{ padding: '10px 20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            <Printer size={16} />
+            <Download size={16} color={workspaceMode === 'personal' ? 'var(--accent-crimson)' : undefined} />
             <span>Download / Print PDF Resume</span>
           </button>
 

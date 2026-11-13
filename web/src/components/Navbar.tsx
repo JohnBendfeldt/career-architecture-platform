@@ -1,6 +1,7 @@
 import React from 'react';
-import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn } from 'lucide-react';
+import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn, Download } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from './Icons';
+import { exportPrintableResume } from './ResumeTimeline';
 import type { User, Profile } from '../types';
 
 interface NavbarProps {
@@ -109,6 +110,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           <LinkedinIcon size={16} />
           <span style={{ display: 'inline-block' }}>LinkedIn</span>
         </a>
+
+        {/* 1-Click Download Resume Button */}
+        <button
+          type="button"
+          onClick={() =>
+            exportPrintableResume({
+              workspaceMode,
+              profile: activeProfile || undefined
+            })
+          }
+          className="btn-secondary"
+          id="btn-nav-download-resume"
+          style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }}
+          title={`Download ${navOwnerName}'s Resume (PDF)`}
+        >
+          <Download size={15} color="var(--accent-crimson)" />
+          <span>Download Resume</span>
+        </button>
 
         {/* Theme Toggle Button (Zen Light / Halo Dark) */}
         {onToggleTheme && (
