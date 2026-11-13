@@ -114,6 +114,29 @@ function geminiDevPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), geminiDevPlugin()],
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('leaflet') || id.includes('fit-file-parser')) {
+              return 'vendor-geo';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('react')) {
+              return 'vendor-react';
+            }
+          }
+          return undefined;
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     proxy: {

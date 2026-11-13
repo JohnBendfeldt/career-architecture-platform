@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { User, Profile, Goal } from './types';
 import { ApiService } from './services/api';
 import { getOrInitSupabaseClient, signOutFromSupabase, consumeGoogleIdTokenFromHash } from './services/supabase';
@@ -6,15 +6,29 @@ import { Navbar } from './components/Navbar';
 import { ProfileHero } from './components/ProfileHero';
 import { VerifiedDeployments } from './components/VerifiedDeployments';
 import { ResumeTimeline } from './components/ResumeTimeline';
-import { GoalsSection } from './components/GoalsSection';
-import { AiSkillExtractorTab } from './components/AiSkillExtractorTab';
-import { GeospatialMapTab } from './components/GeospatialMapTab';
 import { FeatureTabs } from './components/FeatureTabs';
-import { LoginModal } from './components/LoginModal';
-import { MicroTour } from './components/MicroTour';
-import { LegalModal, type LegalTab } from './components/LegalModal';
+import type { LegalTab } from './components/LegalModal';
 import { GithubIcon, LinkedinIcon } from './components/Icons';
 import { Terminal } from 'lucide-react';
+
+const GoalsSection = lazy(() =>
+  import('./components/GoalsSection').then((m) => ({ default: m.GoalsSection }))
+);
+const AiSkillExtractorTab = lazy(() =>
+  import('./components/AiSkillExtractorTab').then((m) => ({ default: m.AiSkillExtractorTab }))
+);
+const GeospatialMapTab = lazy(() =>
+  import('./components/GeospatialMapTab').then((m) => ({ default: m.GeospatialMapTab }))
+);
+const LoginModal = lazy(() =>
+  import('./components/LoginModal').then((m) => ({ default: m.LoginModal }))
+);
+const MicroTour = lazy(() =>
+  import('./components/MicroTour').then((m) => ({ default: m.MicroTour }))
+);
+const LegalModal = lazy(() =>
+  import('./components/LegalModal').then((m) => ({ default: m.LegalModal }))
+);
 
 const isExternalOAuthUser = (u: User | null): boolean => {
   if (!u || u.role !== 'admin') return false;
@@ -297,23 +311,27 @@ export function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Optional On-Demand Sign-In Modal (Never blocks initial page load!) */}
       {showLoginModal && (
-        <LoginModal
-          onLoginSuccess={handleLoginSuccess}
-          onClose={() => setShowLoginModal(false)}
-          onOpenLegal={(tab) => {
-            setShowLoginModal(false);
-            handleOpenLegal(tab);
-          }}
-        />
+        <Suspense fallback={null}>
+          <LoginModal
+            onLoginSuccess={handleLoginSuccess}
+            onClose={() => setShowLoginModal(false)}
+            onOpenLegal={(tab) => {
+              setShowLoginModal(false);
+              handleOpenLegal(tab);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Privacy Policy & Terms of Service Modal (/privacy & /terms) */}
       {legalTab && (
-        <LegalModal
-          initialTab={legalTab}
-          onClose={handleCloseLegal}
-          onSwitchTab={handleOpenLegal}
-        />
+        <Suspense fallback={null}>
+          <LegalModal
+            initialTab={legalTab}
+            onClose={handleCloseLegal}
+            onSwitchTab={handleOpenLegal}
+          />
+        </Suspense>
       )}
 
       {/* Sticky Navigation Bar */}
@@ -367,44 +385,54 @@ export function App() {
         />
 
         {/* Tab Content Panes */}
-        {activeTab === 'experience' && (
-          <ResumeTimeline
-            workspaceMode={workspaceMode}
-            userName={activeDisplayName}
-          />
-        )}
+        <Suspense
+          fallback={
+            <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Loading section...
+            </div>
+          }
+        >
+          {activeTab === 'experience' && (
+            <ResumeTimeline
+              workspaceMode={workspaceMode}
+              userName={activeDisplayName}
+            />
+          )}
 
-        {activeTab === 'dashboard' && (
-          <GoalsSection
-            goals={workspaceMode === 'personal' ? personalGoals : goals}
-            onRefresh={loadData}
-          />
-        )}
+          {activeTab === 'dashboard' && (
+            <GoalsSection
+              goals={workspaceMode === 'personal' ? personalGoals : goals}
+              onRefresh={loadData}
+            />
+          )}
 
-        {activeTab === 'ai' && (
-          <AiSkillExtractorTab
-            workspaceMode={workspaceMode}
-            userName={activeDisplayName}
-            onGoalCreated={loadData}
-          />
-        )}
+          {activeTab === 'ai' && (
+            <AiSkillExtractorTab
+              workspaceMode={workspaceMode}
+              userName={activeDisplayName}
+              onGoalCreated={loadData}
+            />
+          )}
 
-        {activeTab === 'map' && (
-          <GeospatialMapTab
-            workspaceMode={workspaceMode}
-            userName={activeDisplayName}
-          />
-        )}
+          {activeTab === 'map' && (
+            <GeospatialMapTab
+              workspaceMode={workspaceMode}
+              userName={activeDisplayName}
+            />
+          )}
+        </Suspense>
       </main>
 
       {/* Interactive Micro-Tour Walkthrough */}
       {tourStep !== null && (
-        <MicroTour
-          step={tourStep}
-          onNext={handleTourNext}
-          onClose={handleTourClose}
-          onSelectTab={(tab) => handleTabSwitch(tab, true)}
-        />
+        <Suspense fallback={null}>
+          <MicroTour
+            step={tourStep}
+            onNext={handleTourNext}
+            onClose={handleTourClose}
+            onSelectTab={(tab) => handleTabSwitch(tab, true)}
+          />
+        </Suspense>
       )}
 
       {/* Application Footer */}
