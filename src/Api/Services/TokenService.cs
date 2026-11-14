@@ -13,15 +13,24 @@ public interface ITokenService
 public class TokenService : ITokenService
 {
     private readonly IConfiguration _config;
+    private readonly IHostEnvironment _env;
 
-    public TokenService(IConfiguration config)
+    public TokenService(IConfiguration config, IHostEnvironment env)
     {
         _config = config;
+        _env = env;
     }
 
     public string GenerateGuestToken()
     {
-        var secret = _config["Jwt:Secret"] ?? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256";
+        var configuredSecret = _config["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(configuredSecret) && !_env.IsDevelopment())
+        {
+            throw new InvalidOperationException("Jwt:Secret must be configured in non-Development environments.");
+        }
+        var secret = string.IsNullOrWhiteSpace(configuredSecret)
+            ? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256"
+            : configuredSecret;
         var issuer = _config["Jwt:Issuer"] ?? "CareerPlatform.Api";
         var audience = _config["Jwt:Audience"] ?? "CareerPlatform.Web";
         var expiryHours = int.TryParse(_config["Jwt:ExpiryHours"], out var hours) ? hours : 24;

@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using CareerPlatform.Api.Data;
 using CareerPlatform.Api.Models;
 using CareerPlatform.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -24,8 +26,14 @@ builder.Services.AddHttpClient<IAiSkillExtractor, AiSkillExtractor>();
 builder.Services.AddHttpClient<ILearningResourceService, LearningResourceService>();
 
 // JWT Authentication configuration
-var jwtSecret = builder.Configuration["Jwt:Secret"] 
-    ?? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256";
+var configuredJwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(configuredJwtSecret) && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("Jwt:Secret must be configured in non-Development environments.");
+}
+var jwtSecret = string.IsNullOrWhiteSpace(configuredJwtSecret)
+    ? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256"
+    : configuredJwtSecret;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CareerPlatform.Api";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CareerPlatform.Web";
 
@@ -36,7 +44,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -69,14 +77,37 @@ builder.Services.AddAuthorization(options =>
 });
 
 // CORS
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[]
+    {
+        "https://johnbendfeldt.com",
+        "https://www.johnbendfeldt.com",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5050",
+        "http://localhost:3000"
+    };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowedOrigins", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
+    });
+});
+
+// Rate Limiting on public endpoints
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("PublicApiLimit", opt =>
+    {
+        opt.PermitLimit = 30;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
     });
 });
 
@@ -89,7 +120,8 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-app.UseCors("AllowAll");
+app.UseCors("AllowedOrigins");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -240,7 +272,7 @@ app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkill
 {
     var skills = await extractor.ExtractSkillsAsync(request?.Text ?? "");
     return Results.Ok(new ExtractSkillsResponse(skills));
-});
+}).RequireRateLimiting("PublicApiLimit");
 
 // Dynamic Learning Resources (YouTube Data API v3 + Curated Pathways)
 app.MapGet("/api/resources", async (string? skill, ILearningResourceService resourceService) =>
@@ -248,7 +280,7 @@ app.MapGet("/api/resources", async (string? skill, ILearningResourceService reso
     var term = string.IsNullOrWhiteSpace(skill) ? "C# .NET 10 Minimal APIs" : skill;
     var resources = await resourceService.GetResourcesAsync(term);
     return Results.Ok(new LearningResourcesResponse(term, resources));
-});
+}).RequireRateLimiting("PublicApiLimit");
 
 app.Run();
 

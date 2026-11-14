@@ -1,5 +1,7 @@
+using System.Threading.RateLimiting;
 using CareerPlatform.Geo.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 
 if (args.Contains("--dump-all-rides"))
 {
@@ -32,14 +34,37 @@ var builder = WebApplication.CreateBuilder(args);
 // Register FitParserService
 builder.Services.AddScoped<IFitParserService, FitParserService>();
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[]
+    {
+        "https://johnbendfeldt.com",
+        "https://www.johnbendfeldt.com",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5050",
+        "http://localhost:3000"
+    };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowedOrigins", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
+    });
+});
+
+// Rate Limiting on telemetry upload endpoints
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("GeoUploadLimit", opt =>
+    {
+        opt.PermitLimit = 20;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
     });
 });
 
@@ -51,7 +76,8 @@ builder.Services.Configure<FormOptions>(options =>
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowedOrigins");
+app.UseRateLimiter();
 
 // Health check endpoints
 app.MapGet("/health", () => Results.Ok(new
@@ -116,7 +142,7 @@ app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fit
     var result = fitParser.ParseFitStream(stream, file.FileName);
 
     return Results.Ok(result);
-});
+}).RequireRateLimiting("GeoUploadLimit");
 
 app.Run();
 
