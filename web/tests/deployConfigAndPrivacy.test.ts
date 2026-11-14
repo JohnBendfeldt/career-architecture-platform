@@ -77,7 +77,7 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
     () => {
       const sql = fs.readFileSync(path.join(repoRoot, 'infra', 'supabase-schema.sql'), 'utf-8');
 
-      for (const table of ['profiles', 'goals', 'user_roles']) {
+      for (const table of ['profiles', 'goals', 'categories', 'career_entries', 'user_roles']) {
         expect(sql).toContain(`REVOKE ALL ON public.${table} FROM anon, authenticated;`);
         expect(sql).toContain(`ALTER TABLE public.${table} ENABLE ROW LEVEL SECURITY;`);
       }
