@@ -2,7 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 
-const fnFilePath = path.resolve(import.meta.dirname, '../../netlify/functions/extract-skills.ts');
+const candidatePaths = [
+  path.resolve(import.meta.dirname, '../../netlify/functions/extract-skills.ts'),
+  path.resolve(process.cwd(), '../netlify/functions/extract-skills.ts'),
+  path.resolve(process.cwd(), 'netlify/functions/extract-skills.ts'),
+  path.resolve('/opt/build/repo/netlify/functions/extract-skills.ts'),
+];
+
+const fnFilePath = candidatePaths.find((p) => fs.existsSync(p)) ?? candidatePaths[0];
+const isFunctionAvailable = fs.existsSync(fnFilePath);
+
 type ExtractSkillsEvent = {
   httpMethod: string;
   body: string | null;
@@ -18,7 +27,7 @@ type ExtractSkillsResponse = {
 type HandlerFn = (event: ExtractSkillsEvent) => Promise<ExtractSkillsResponse>;
 let handler: HandlerFn;
 
-describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extract-skills', () => {
+describe.skipIf(!isFunctionAvailable)('Netlify Serverless Function: extract-skills', () => {
   const originalEnv = process.env.GEMINI_API_KEY;
   const originalSiteName = process.env.SITE_NAME;
   const originalAllowedNetlifySite = process.env.ALLOWED_NETLIFY_SITE;
@@ -27,7 +36,8 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
   const originalDeployUrl = process.env.DEPLOY_URL;
 
   beforeAll(async () => {
-    const mod = (await import(fnFilePath)) as { handler: HandlerFn };
+    if (!isFunctionAvailable) return;
+    const mod = (await import(/* @vite-ignore */ fnFilePath)) as { handler: HandlerFn };
     handler = mod.handler;
   });
 
