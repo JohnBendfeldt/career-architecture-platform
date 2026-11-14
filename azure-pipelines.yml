@@ -8,8 +8,8 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  dotnetVersion: '7.0.x'
-  nodeVersion: '20.x'
+  dotnetVersion: '10.0.x'
+  nodeVersion: '22.x'
 
 stages:
 - stage: BuildAndTest

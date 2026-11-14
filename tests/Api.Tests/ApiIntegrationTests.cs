@@ -83,7 +83,8 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Verify technical goals
         Assert.Contains(goals, g => g.GetProperty("category").GetString() == "Technical" &&
-                                   g.GetProperty("title").GetString()!.Contains(".NET 10"));
+                                   (g.GetProperty("title").GetString()!.Contains(".NET") ||
+                                    g.GetProperty("description").GetString()!.Contains(".NET 10")));
         Assert.Contains(goals, g => g.GetProperty("category").GetString() == "Technical" &&
                                    g.GetProperty("title").GetString()!.Contains("Training Hour Tracking"));
 

@@ -45,7 +45,7 @@ flowchart LR
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- .NET SDK (7.0+ / 10.0)
+- .NET 10.0 SDK
 - Node.js 18+ & npm
 - Docker (optional for containerized orchestration)
 
@@ -100,6 +100,6 @@ All 7 integration tests validate health endpoints, JWT claims, seeded profiles, 
 
 ## Production Deployment
 
-- **Frontend**: Configured for Netlify with [`web/netlify.toml`](file:///Users/johnbendfeldt/.gemini/antigravity-ide/scratch/career-architecture-platform/web/netlify.toml).
+- **Frontend**: Configured for Netlify with [`web/netlify.toml`](web/netlify.toml).
 - **Backend Services**: Multi-stage Dockerfiles in `src/Api/Dockerfile`, `src/Gateway/Dockerfile`, and `src/Geo/Dockerfile`.
-- **CI/CD Pipeline**: Azure DevOps [`azure-pipelines.yml`](file:///Users/johnbendfeldt/.gemini/antigravity-ide/scratch/career-architecture-platform/azure-pipelines.yml).
+- **CI/CD Pipeline**: Azure DevOps [`azure-pipelines.yml`](azure-pipelines.yml).
