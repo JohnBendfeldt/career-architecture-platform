@@ -18,12 +18,12 @@ using Xunit;
 
 namespace CareerPlatform.Api.Tests;
 
-public class ApiServicesAndAuthTests : IClassFixture<WebApplicationFactory<Program>>
+public class ApiServicesAndAuthTests : IClassFixture<IsolatedApiFactory>
 {
     private const string DevJwtSecret = "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256";
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly IsolatedApiFactory _factory;
 
-    public ApiServicesAndAuthTests(WebApplicationFactory<Program> factory)
+    public ApiServicesAndAuthTests(IsolatedApiFactory factory)
     {
         _factory = factory;
     }

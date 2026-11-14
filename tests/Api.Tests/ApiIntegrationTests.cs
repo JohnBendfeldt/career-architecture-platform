@@ -9,12 +9,12 @@ using Xunit;
 
 namespace CareerPlatform.Api.Tests;
 
-public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class ApiIntegrationTests : IClassFixture<IsolatedApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly IsolatedApiFactory _factory;
     private readonly HttpClient _client;
 
-    public ApiIntegrationTests(WebApplicationFactory<Program> factory)
+    public ApiIntegrationTests(IsolatedApiFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();
