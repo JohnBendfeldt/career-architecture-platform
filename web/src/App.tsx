@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import type { User, Profile, Goal } from './types';
+import type { User, Profile, Goal, CareerEntry } from './types';
 import { ApiService } from './services/api';
 import { getOrInitSupabaseClient, signOutFromSupabase, consumeGoogleIdTokenFromHash } from './services/supabase';
 import { isSafeImageUrl } from './utils/security';
@@ -69,6 +69,8 @@ export function App() {
   });
   const [goals, setGoals] = useState<Goal[]>([]);
   const [personalGoals, setPersonalGoals] = useState<Goal[]>(() => ApiService.getPersonalGoals());
+  const [careerEntries, setCareerEntries] = useState<CareerEntry[]>(() => ApiService.getDefaultPortfolioEntries());
+  const [personalEntries, setPersonalEntries] = useState<CareerEntry[]>(() => ApiService.getPersonalEntries());
   const [activeTab, setActiveTab] = useState<'experience' | 'dashboard' | 'ai' | 'map'>('experience');
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -151,15 +153,31 @@ export function App() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Load profile and goals
+  // Load profile, goals, and career entries
   const loadData = async () => {
-    const [profData, goalsData] = await Promise.all([
+    const [profData, goalsData, entriesData] = await Promise.all([
       ApiService.getProfile(),
       ApiService.getGoals(),
+      ApiService.getCareerEntries(),
     ]);
     setProfile(profData);
     setGoals(goalsData);
     setPersonalGoals(ApiService.getPersonalGoals());
+    setCareerEntries(entriesData);
+    setPersonalEntries(ApiService.getPersonalEntries());
+  };
+
+  const handleAnnualGoalHoursChange = async (hours: number) => {
+    const res = await ApiService.updateAnnualGoalHours(hours);
+    if (res.success && typeof res.annualGoalHours === 'number') {
+      if (workspaceMode === 'personal' && customProfile) {
+        const updated = { ...customProfile, annualGoalHours: res.annualGoalHours };
+        setCustomProfile(updated);
+      } else if (profile) {
+        setProfile({ ...profile, annualGoalHours: res.annualGoalHours });
+      }
+      await loadData();
+    }
   };
 
   // Supabase Auth listener
@@ -407,6 +425,14 @@ export function App() {
           {activeTab === 'dashboard' && (
             <GoalsSection
               goals={workspaceMode === 'personal' ? personalGoals : goals}
+              entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
+              workspaceMode={workspaceMode}
+              annualGoalHours={
+                workspaceMode === 'personal'
+                  ? (customProfile?.annualGoalHours ?? 45)
+                  : (profile?.annualGoalHours ?? 55)
+              }
+              onAnnualGoalHoursChange={handleAnnualGoalHoursChange}
               onRefresh={loadData}
             />
           )}

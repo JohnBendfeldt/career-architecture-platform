@@ -23,6 +23,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [editHeadline, setEditHeadline] = useState(profile.headline);
   const [editLocation, setEditLocation] = useState(profile.location);
   const [editYears, setEditYears] = useState(profile.experienceYears);
+  const [editAnnualGoalHours, setEditAnnualGoalHours] = useState(profile.annualGoalHours ?? 45);
   const [editBio, setEditBio] = useState(profile.bio);
   const [editAvatar, setEditAvatar] = useState(profile.avatarUrl);
   const [editGithub, setEditGithub] = useState(profile.githubUrl);
@@ -33,6 +34,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     setEditHeadline(profile.headline);
     setEditLocation(profile.location);
     setEditYears(profile.experienceYears);
+    setEditAnnualGoalHours(profile.annualGoalHours ?? 45);
     setEditBio(profile.bio);
     setEditAvatar(profile.avatarUrl);
     setEditGithub(profile.githubUrl);
@@ -54,6 +56,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         headline: editHeadline.trim().slice(0, 200) || profile.headline,
         location: editLocation.trim().slice(0, 120) || profile.location,
         experienceYears: Math.max(0, Math.min(80, Number(editYears) || 1)),
+        annualGoalHours: Math.max(1, Math.min(2000, Number(editAnnualGoalHours) || 45)),
         bio: editBio.trim().slice(0, 2000) || profile.bio,
         avatarUrl: safeAvatar,
         githubUrl: safeGithub
@@ -122,7 +125,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '12px', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 130px', gap: '12px', marginBottom: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Location</label>
               <input
@@ -141,6 +144,24 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
                 max={80}
                 value={editYears}
                 onChange={(e) => setEditYears(Number(e.target.value))}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="profile-annual-goal-hours"
+                style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}
+              >
+                Annual Goal (hrs)
+              </label>
+              <input
+                id="profile-annual-goal-hours"
+                type="number"
+                min={1}
+                max={2000}
+                step={0.5}
+                value={editAnnualGoalHours}
+                onChange={(e) => setEditAnnualGoalHours(Number(e.target.value))}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
               />
             </div>

@@ -13,6 +13,7 @@ export interface Profile {
   liveProjectUrl?: string;
   skills: string[];
   experienceYears: number;
+  annualGoalHours?: number;
   updatedAt: string;
 }
 
@@ -22,10 +23,56 @@ export interface Goal {
   description: string;
   category: 'Technical' | 'Personal';
   progress: number;
+  targetHours?: number | null;
+  loggedHours?: number;
+  entryCount?: number;
   targetDate: string;
   status: 'InProgress' | 'Completed' | 'Upcoming';
   tags: string[];
   createdAt: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  description: string;
+  displayOrder: number;
+}
+
+export interface CareerEntry {
+  id: number;
+  title: string;
+  description?: string | null;
+  startDate: string;
+  endDate: string;
+  hours: number;
+  categoryId?: number | null;
+  category?: string | null;
+  goalId?: number | null;
+  goalTitle?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CreateCareerEntryInput {
+  title: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  hours: number;
+  categoryId?: number | null;
+  goalId?: number | null;
+}
+
+export interface AnnualProgress {
+  annualGoalHours: number;
+  completedHours: number;
+  percentComplete: number;
+  totalEntries: number;
+  year: number;
+  isOnTrack: boolean;
+  expectedProgressPercent: number;
+  quarterLabel: string;
 }
 
 export interface User {

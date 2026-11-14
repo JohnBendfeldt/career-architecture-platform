@@ -122,11 +122,23 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
-// Ensure DB is created and seeded
+// Ensure DB is created and seeded (recreate if local dev schema changed)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    try
+    {
+        _ = db.Categories.Any();
+        _ = db.CareerDevelopmentEntries.Any();
+        _ = db.Goals.Select(g => g.TargetHours).FirstOrDefault();
+        _ = db.Profiles.Select(p => p.AnnualGoalHours).FirstOrDefault();
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException)
+    {
+        db.Database.EnsureDeleted();
+        db.Database.EnsureCreated();
+    }
 }
 
 app.UseForwardedHeaders();
@@ -217,25 +229,63 @@ app.MapGet("/api/profile", async (AppDbContext db) =>
         profile.LiveProjectUrl,
         Skills = skills,
         profile.ExperienceYears,
+        profile.AnnualGoalHours,
         profile.UpdatedAt
     });
 });
 
+app.MapPut("/api/profile/goal-hours", async (UpdateAnnualGoalHoursRequest request, AppDbContext db) =>
+{
+    if (request.AnnualGoalHours < 1m || request.AnnualGoalHours > 999.99m)
+    {
+        return Results.BadRequest(new { error = "Annual goal hours must be between 1 and 999.99." });
+    }
+
+    var profile = await db.Profiles.FirstOrDefaultAsync();
+    if (profile == null)
+    {
+        return Results.NotFound(new { message = "Profile not found" });
+    }
+
+    profile.AnnualGoalHours = Math.Round(request.AnnualGoalHours, 2);
+    profile.UpdatedAt = DateTime.UtcNow;
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { annualGoalHours = profile.AnnualGoalHours });
+}).RequireAuthorization("RequireWriteAccess");
+
 // Goals Endpoints
 app.MapGet("/api/goals", async (AppDbContext db) =>
 {
-    var goals = await db.Goals.OrderBy(g => g.Id).ToListAsync();
-    var response = goals.Select(g => new
+    var goals = await db.Goals.AsNoTracking().OrderBy(g => g.Id).ToListAsync();
+    var linkedEntries = await db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Where(e => e.GoalId != null)
+        .Select(e => new { GoalId = e.GoalId!.Value, e.Hours })
+        .ToListAsync();
+
+    var hoursByGoal = linkedEntries
+        .GroupBy(e => e.GoalId)
+        .ToDictionary(g => g.Key, g => (Hours: g.Sum(x => x.Hours), Count: g.Count()));
+
+    var response = goals.Select(g =>
     {
-        g.Id,
-        g.Title,
-        g.Description,
-        g.Category,
-        g.Progress,
-        g.TargetDate,
-        g.Status,
-        Tags = JsonSerializer.Deserialize<List<string>>(g.TagsJson) ?? new List<string>(),
-        g.CreatedAt
+        hoursByGoal.TryGetValue(g.Id, out var stats);
+        return new
+        {
+            g.Id,
+            g.Title,
+            g.Description,
+            g.Category,
+            g.Progress,
+            g.TargetHours,
+            LoggedHours = stats.Hours,
+            EntryCount = stats.Count,
+            g.TargetDate,
+            g.Status,
+            Tags = JsonSerializer.Deserialize<List<string>>(g.TagsJson) ?? new List<string>(),
+            g.CreatedAt
+        };
     });
 
     return Results.Ok(response);
@@ -274,6 +324,11 @@ static IResult? ValidateGoalRequest(CreateGoalRequest request)
         return Results.BadRequest(new { error = "Goals may include at most 20 tags of up to 50 characters each." });
     }
 
+    if (request.TargetHours.HasValue && (request.TargetHours.Value < 0.5m || request.TargetHours.Value > 9999m))
+    {
+        return Results.BadRequest(new { error = "Target hours must be between 0.5 and 9,999." });
+    }
+
     return null;
 }
 
@@ -284,12 +339,17 @@ app.MapPost("/api/goals", async (CreateGoalRequest request, AppDbContext db) =>
         return validationError;
     }
 
+    decimal? normalizedTargetHours = request.TargetHours is > 0m
+        ? Math.Round(request.TargetHours.Value, 2)
+        : null;
+
     var goal = new Goal
     {
         Title = request.Title.Trim(),
         Description = request.Description ?? "",
         Category = request.Category,
         Progress = Math.Clamp(request.Progress, 0, 100),
+        TargetHours = normalizedTargetHours,
         TargetDate = request.TargetDate,
         Status = request.Status,
         TagsJson = JsonSerializer.Serialize(request.Tags ?? new List<string>())
@@ -298,7 +358,21 @@ app.MapPost("/api/goals", async (CreateGoalRequest request, AppDbContext db) =>
     db.Goals.Add(goal);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/api/goals/{goal.Id}", goal);
+    return Results.Created($"/api/goals/{goal.Id}", new
+    {
+        goal.Id,
+        goal.Title,
+        goal.Description,
+        goal.Category,
+        goal.Progress,
+        goal.TargetHours,
+        LoggedHours = 0m,
+        EntryCount = 0,
+        goal.TargetDate,
+        goal.Status,
+        Tags = request.Tags ?? new List<string>(),
+        goal.CreatedAt
+    });
 }).RequireAuthorization("RequireWriteAccess");
 
 app.MapPut("/api/goals/{id:int}", async (int id, CreateGoalRequest request, AppDbContext db) =>
@@ -315,11 +389,22 @@ app.MapPut("/api/goals/{id:int}", async (int id, CreateGoalRequest request, AppD
     goal.Description = request.Description ?? "";
     goal.Category = request.Category;
     goal.Progress = Math.Clamp(request.Progress, 0, 100);
+    goal.TargetHours = request.TargetHours is > 0m ? Math.Round(request.TargetHours.Value, 2) : null;
     goal.TargetDate = request.TargetDate;
     goal.Status = request.Status;
     goal.TagsJson = JsonSerializer.Serialize(request.Tags ?? new List<string>());
 
     await db.SaveChangesAsync();
+
+    if (goal.TargetHours is > 0m)
+    {
+        var hasEntries = await db.CareerDevelopmentEntries.AnyAsync(e => e.GoalId == goal.Id);
+        if (hasEntries)
+        {
+            await AdvancementCalculator.RecalculateGoalProgressAsync(db, goal.Id);
+        }
+    }
+
     return Results.Ok(goal);
 }).RequireAuthorization("RequireWriteAccess");
 
@@ -330,6 +415,238 @@ app.MapDelete("/api/goals/{id:int}", async (int id, AppDbContext db) =>
 
     db.Goals.Remove(goal);
     await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization("RequireWriteAccess");
+
+// Career Advancement Endpoints (Tandem with Goals)
+static CareerEntryDto MapCareerEntryDto(CareerDevelopmentEntry e) => new(
+    e.Id,
+    e.Title,
+    e.Description,
+    e.StartDate.ToString("yyyy-MM-dd"),
+    e.EndDate.ToString("yyyy-MM-dd"),
+    e.Hours,
+    e.CategoryId,
+    e.CategoryNavigation?.Name,
+    e.GoalId,
+    e.GoalNavigation?.Title,
+    e.CreatedAt,
+    e.UpdatedAt
+);
+
+app.MapGet("/api/advancement/categories", async (AppDbContext db) =>
+{
+    var categories = await db.Categories
+        .AsNoTracking()
+        .Where(c => c.IsActive)
+        .OrderBy(c => c.DisplayOrder)
+        .Select(c => new CategoryDto(c.Id, c.Name, c.Description, c.DisplayOrder))
+        .ToListAsync();
+
+    return Results.Ok(categories);
+});
+
+app.MapGet("/api/advancement/progress", async (int? year, AppDbContext db) =>
+{
+    var targetYear = year ?? DateTime.UtcNow.Year;
+    var annualGoalHours = (await db.Profiles.AsNoTracking().FirstOrDefaultAsync())?.AnnualGoalHours ?? 50m;
+
+    var hoursList = await db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Where(e => e.StartDate.Year == targetYear)
+        .Select(e => e.Hours)
+        .ToListAsync();
+
+    var completedHours = hoursList.Sum();
+    var percentComplete = AdvancementCalculator.CalculatePercentComplete(completedHours, annualGoalHours);
+    var now = DateTime.UtcNow;
+    var (expectedProgress, quarterLabel) = AdvancementCalculator.GetQuarterlyCheckpoint(now, targetYear);
+    var isOnTrack = AdvancementCalculator.IsOnTrack(percentComplete, now, targetYear);
+
+    return Results.Ok(new AnnualProgressDto(
+        annualGoalHours,
+        completedHours,
+        percentComplete,
+        hoursList.Count,
+        targetYear,
+        isOnTrack,
+        expectedProgress,
+        quarterLabel
+    ));
+});
+
+app.MapGet("/api/advancement/entries", async (int? year, int? categoryId, int? goalId, AppDbContext db) =>
+{
+    var query = db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Include(e => e.CategoryNavigation)
+        .Include(e => e.GoalNavigation)
+        .AsQueryable();
+
+    if (year.HasValue)
+    {
+        query = query.Where(e => e.StartDate.Year == year.Value);
+    }
+
+    if (categoryId.HasValue)
+    {
+        query = query.Where(e => e.CategoryId == categoryId.Value);
+    }
+
+    if (goalId.HasValue)
+    {
+        query = query.Where(e => e.GoalId == goalId.Value);
+    }
+
+    var entries = await query
+        .OrderByDescending(e => e.StartDate)
+        .ThenByDescending(e => e.Id)
+        .ToListAsync();
+
+    var dtoList = entries.Select(MapCareerEntryDto).ToList();
+
+    return Results.Ok(new CareerEntriesListResponse(
+        dtoList,
+        dtoList.Sum(x => x.Hours),
+        dtoList.Count,
+        year ?? DateTime.UtcNow.Year
+    ));
+});
+
+app.MapPost("/api/advancement/entries", async (CreateCareerEntryRequest request, AppDbContext db) =>
+{
+    if (AdvancementCalculator.ValidateEntry(request) is { } validationError)
+    {
+        return Results.BadRequest(new { error = validationError });
+    }
+
+    if (request.CategoryId.HasValue)
+    {
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == request.CategoryId.Value && c.IsActive);
+        if (!categoryExists)
+        {
+            return Results.BadRequest(new { error = "Selected category was not found." });
+        }
+    }
+
+    if (request.GoalId.HasValue)
+    {
+        var goalExists = await db.Goals.AnyAsync(g => g.Id == request.GoalId.Value);
+        if (!goalExists)
+        {
+            return Results.BadRequest(new { error = "Selected goal was not found." });
+        }
+    }
+
+    var entry = new CareerDevelopmentEntry
+    {
+        Title = request.Title.Trim(),
+        Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+        StartDate = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc),
+        EndDate = DateTime.SpecifyKind(request.EndDate.Date, DateTimeKind.Utc),
+        Hours = Math.Round(request.Hours, 2),
+        CategoryId = request.CategoryId,
+        GoalId = request.GoalId,
+        CreatedAt = DateTime.UtcNow
+    };
+
+    db.CareerDevelopmentEntries.Add(entry);
+    await db.SaveChangesAsync();
+
+    if (entry.GoalId.HasValue)
+    {
+        await AdvancementCalculator.RecalculateGoalProgressAsync(db, entry.GoalId.Value);
+    }
+
+    var loaded = await db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Include(e => e.CategoryNavigation)
+        .Include(e => e.GoalNavigation)
+        .FirstAsync(e => e.Id == entry.Id);
+
+    return Results.Created($"/api/advancement/entries/{entry.Id}", MapCareerEntryDto(loaded));
+}).RequireAuthorization("RequireWriteAccess");
+
+app.MapPut("/api/advancement/entries/{id:int}", async (int id, CreateCareerEntryRequest request, AppDbContext db) =>
+{
+    var entry = await db.CareerDevelopmentEntries.FindAsync(id);
+    if (entry == null)
+    {
+        return Results.NotFound();
+    }
+
+    if (AdvancementCalculator.ValidateEntry(request) is { } validationError)
+    {
+        return Results.BadRequest(new { error = validationError });
+    }
+
+    if (request.CategoryId.HasValue)
+    {
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == request.CategoryId.Value && c.IsActive);
+        if (!categoryExists)
+        {
+            return Results.BadRequest(new { error = "Selected category was not found." });
+        }
+    }
+
+    if (request.GoalId.HasValue)
+    {
+        var goalExists = await db.Goals.AnyAsync(g => g.Id == request.GoalId.Value);
+        if (!goalExists)
+        {
+            return Results.BadRequest(new { error = "Selected goal was not found." });
+        }
+    }
+
+    var oldGoalId = entry.GoalId;
+
+    entry.Title = request.Title.Trim();
+    entry.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+    entry.StartDate = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc);
+    entry.EndDate = DateTime.SpecifyKind(request.EndDate.Date, DateTimeKind.Utc);
+    entry.Hours = Math.Round(request.Hours, 2);
+    entry.CategoryId = request.CategoryId;
+    entry.GoalId = request.GoalId;
+    entry.UpdatedAt = DateTime.UtcNow;
+
+    await db.SaveChangesAsync();
+
+    if (oldGoalId.HasValue && oldGoalId != entry.GoalId)
+    {
+        await AdvancementCalculator.RecalculateGoalProgressAsync(db, oldGoalId.Value);
+    }
+
+    if (entry.GoalId.HasValue)
+    {
+        await AdvancementCalculator.RecalculateGoalProgressAsync(db, entry.GoalId.Value);
+    }
+
+    var loaded = await db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Include(e => e.CategoryNavigation)
+        .Include(e => e.GoalNavigation)
+        .FirstAsync(e => e.Id == entry.Id);
+
+    return Results.Ok(MapCareerEntryDto(loaded));
+}).RequireAuthorization("RequireWriteAccess");
+
+app.MapDelete("/api/advancement/entries/{id:int}", async (int id, AppDbContext db) =>
+{
+    var entry = await db.CareerDevelopmentEntries.FindAsync(id);
+    if (entry == null)
+    {
+        return Results.NotFound();
+    }
+
+    var oldGoalId = entry.GoalId;
+    db.CareerDevelopmentEntries.Remove(entry);
+    await db.SaveChangesAsync();
+
+    if (oldGoalId.HasValue)
+    {
+        await AdvancementCalculator.RecalculateGoalProgressAsync(db, oldGoalId.Value);
+    }
+
     return Results.NoContent();
 }).RequireAuthorization("RequireWriteAccess");
 

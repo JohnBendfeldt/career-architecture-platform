@@ -1,4 +1,17 @@
-import type { Profile, Goal, AuthResponse, RouteData, RideSummary, User, LearningResource, ExtractSkillsResponse, LearningResourcesResponse } from '../types';
+import type {
+  Profile,
+  Goal,
+  AuthResponse,
+  RouteData,
+  RideSummary,
+  User,
+  LearningResource,
+  ExtractSkillsResponse,
+  LearningResourcesResponse,
+  Category,
+  CareerEntry,
+  CreateCareerEntryInput
+} from '../types';
 import { getOrInitSupabaseClient } from './supabase';
 import {
   isSafeImageUrl,
@@ -6,6 +19,11 @@ import {
   safeParseStorageObject,
   safeParseStorageArray,
 } from '../utils/security';
+import {
+  DEFAULT_CATEGORIES,
+  enrichGoalsWithEntries,
+  validateCareerEntry,
+} from '../utils/advancementUtils';
 
 const API_BASE = ''; // proxied by Vite in dev to Gateway
 
@@ -41,11 +59,31 @@ function normalizeGoalList(goals: Goal[]): Goal[] {
   }));
 }
 
+function isValidCareerEntryShape(item: unknown): item is CareerEntry {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.title === 'string' &&
+    typeof candidate.startDate === 'string' &&
+    typeof candidate.endDate === 'string' &&
+    typeof candidate.hours === 'number'
+  );
+}
+
 export class ApiService {
   private static TOKEN_KEY = 'cap_auth_token';
   private static USER_KEY = 'cap_auth_user';
   private static CUSTOM_GOALS_KEY = 'cap_custom_goals';
+  private static CUSTOM_ENTRIES_KEY = 'cap_custom_entries';
+  private static OWNER_ENTRIES_KEY = 'cap_owner_portfolio_entries';
   private static CUSTOM_PROFILE_PREFIX = 'cap_custom_profile_';
+  private static lastGeneratedId = 0;
+
+  private static nextLocalId(): number {
+    const next = Math.max(Date.now(), this.lastGeneratedId + 1);
+    this.lastGeneratedId = next;
+    return next;
+  }
 
   static getToken(): string | null {
     try {
@@ -137,6 +175,7 @@ export class ApiService {
         'Unit & Integration Testing',
       ],
       experienceYears: 9,
+      annualGoalHours: 55,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -179,6 +218,7 @@ export class ApiService {
       linkedinUrl: 'https://linkedin.com',
       skills: ['TypeScript', 'React', '.NET', 'Cloud Architecture', 'AI Workflows'],
       experienceYears: 5,
+      annualGoalHours: 45,
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem(`cap_profile_slug_${slug}`, JSON.stringify(defaultCustom));
@@ -239,14 +279,65 @@ export class ApiService {
       linkedinUrl: 'https://linkedin.com',
       skills: ['TypeScript', 'React', '.NET', 'Cloud Architecture', 'AI Workflows'],
       experienceYears: 5,
+      annualGoalHours: 45,
       updatedAt: new Date().toISOString(),
     };
   }
 
-  static getPersonalGoals(): Goal[] {
-    const parsed = safeParseStorageArray<Goal>(localStorage.getItem(this.CUSTOM_GOALS_KEY), isValidGoalShape);
+  static getPersonalEntries(): CareerEntry[] {
+    const parsed = safeParseStorageArray<CareerEntry>(
+      localStorage.getItem(this.CUSTOM_ENTRIES_KEY),
+      isValidCareerEntryShape
+    );
     if (parsed) {
-      return normalizeGoalList(parsed);
+      return parsed;
+    }
+    const starterEntries: CareerEntry[] = [
+      {
+        id: 2001,
+        title: 'AI Skill Extraction & Learning Roadmap Setup',
+        description: 'Analyzed target engineering role requirements and started curated study track.',
+        startDate: '2026-10-20',
+        endDate: '2026-10-20',
+        hours: 2.5,
+        categoryId: 1,
+        category: 'Development',
+        goalId: 1002,
+        goalTitle: 'Step 2: Extract Skills & Curated Courses from Any Job Spec',
+        createdAt: new Date('2026-10-20T16:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 2002,
+        title: 'System Architecture Review & Career Baseline',
+        description: 'Audited production experience, milestones, and annual study hour targets.',
+        startDate: '2026-09-14',
+        endDate: '2026-09-14',
+        hours: 4,
+        categoryId: 3,
+        category: 'Leadership',
+        goalId: null,
+        goalTitle: null,
+        createdAt: new Date('2026-09-14T16:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+    ];
+    this.saveStoredCustomEntries(starterEntries);
+    return starterEntries;
+  }
+
+  private static saveStoredCustomEntries(entries: CareerEntry[]): void {
+    localStorage.setItem(this.CUSTOM_ENTRIES_KEY, JSON.stringify(entries));
+  }
+
+  static getPersonalGoals(): Goal[] {
+    const entries = this.getPersonalEntries();
+    const parsed = safeParseStorageArray<Goal>(
+      localStorage.getItem(this.CUSTOM_GOALS_KEY),
+      isValidGoalShape
+    );
+    if (parsed) {
+      return enrichGoalsWithEntries(normalizeGoalList(parsed), entries);
     }
     const starterGoals: Goal[] = [
       {
@@ -255,6 +346,7 @@ export class ApiService {
         description: 'Click "Edit My Profile" in the top hero card to set your own Display Name, Headline, Bio, Location, and GitHub / LinkedIn URLs. Click "+25%" on this card to mark your progress!',
         category: 'Personal',
         progress: 50,
+        targetHours: null,
         targetDate: 'Getting Started',
         status: 'InProgress',
         tags: ['Onboarding', 'Personal Profile', 'Try +25% Button'],
@@ -263,9 +355,10 @@ export class ApiService {
       {
         id: 1002,
         title: 'Step 2: Extract Skills & Curated Courses from Any Job Spec',
-        description: 'Open "03 / AI Skill Pipeline", paste your own resume bio or a target job description, and click "+ Track as Goal" on any skill token to add it to this board.',
+        description: 'Open "03 / AI Skill Pipeline", paste your own resume bio or a target job description, and track study hours against this 10-hour learning milestone.',
         category: 'Technical',
         progress: 25,
+        targetHours: 10,
         targetDate: 'AI Pipeline',
         status: 'InProgress',
         tags: ['Gemini AI', 'YouTube & Udemy', 'Skill Extractor'],
@@ -274,9 +367,10 @@ export class ApiService {
       {
         id: 1003,
         title: 'Step 3: Add Your Own Goals, Roles & GPS Routes',
-        description: 'Click "+ Add Goal" above to create your own milestone, add your work history in "01 / Experience", or upload a .FIT / .GPX file in "04 / Garmin Geospatial". You can delete these starter cards anytime using the trash icon.',
+        description: 'Click "+ Add Goal" above to create your own milestone, log career development hours, add work history in "01 / Experience", or upload a .FIT / .GPX file in "04 / Garmin Geospatial".',
         category: 'Technical',
         progress: 25,
+        targetHours: null,
         targetDate: 'Your Sandbox',
         status: 'InProgress',
         tags: ['Custom Goals', 'Resume Builder', 'Garmin FIT / GPX'],
@@ -284,7 +378,7 @@ export class ApiService {
       },
     ];
     this.saveStoredCustomGoals(starterGoals);
-    return starterGoals;
+    return enrichGoalsWithEntries(starterGoals, entries);
   }
 
   private static saveStoredCustomGoals(goals: Goal[]): void {
@@ -342,6 +436,7 @@ export class ApiService {
               ? data.skills
               : (safeParseStorageArray<string>(data.skills, (s): s is string => typeof s === 'string') || []),
             experienceYears: data.experience_years,
+            annualGoalHours: data.annual_goal_hours != null ? Number(data.annual_goal_hours) : 55,
             updatedAt: data.updated_at,
           });
         }
@@ -354,55 +449,155 @@ export class ApiService {
       const res = await fetch(`${API_BASE}/api/profile`);
       if (isJson(res)) {
         const apiProfile: Profile = await res.json();
-        return sanitizeStoredProfile(apiProfile);
+        return sanitizeStoredProfile({
+          ...apiProfile,
+          annualGoalHours: apiProfile.annualGoalHours ?? 55,
+        });
       }
     } catch {
       // Backend unavailable, using verified profile data
     }
 
-    return {
-      id: 1,
-      name: 'John F. Bendfeldt',
-      headline: 'Senior Software Developer',
-      bio: 'Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.',
-      location: 'Austin, TX',
-      email: 'jfbendfeldt@gmail.com',
-      avatarUrl: '/john-bendfeldt.jpg',
-      githubUrl: 'https://github.com/JohnBendfeldt',
-      linkedinUrl: 'https://linkedin.com/in/johnbendfeldt',
-      skills: [
-        'C#',
-        'JavaScript (Vanilla/ES6+)',
-        'TypeScript',
-        'HTML/CSS',
-        'SQL',
-        'PostgreSQL',
-        '.NET (Core, 6, 10)',
-        'React',
-        'Node.js',
-        'Vite',
-        'Git',
-        'Docker',
-        'Azure DevOps',
-        'SQL Server',
-        'CI/CD pipelines',
-        'GitHub Copilot',
-        'AI-Assisted Development (Claude Code & Gemini CLI)',
-        'Agile/Scrum',
-        'Test-Driven Development (TDD)',
-        'Unit & Integration Testing',
-      ],
-      experienceYears: 9,
-      updatedAt: new Date().toISOString(),
-    };
+    return this.getDefaultPortfolioProfile();
+  }
+
+  private static getStoredOwnerEntries(baseEntries?: CareerEntry[]): CareerEntry[] {
+    const parsed = safeParseStorageArray<CareerEntry>(
+      localStorage.getItem(this.OWNER_ENTRIES_KEY),
+      isValidCareerEntryShape
+    );
+    if (parsed) {
+      return parsed;
+    }
+    return baseEntries ?? this.getDefaultPortfolioEntries();
+  }
+
+  private static saveStoredOwnerEntries(entries: CareerEntry[]): void {
+    localStorage.setItem(this.OWNER_ENTRIES_KEY, JSON.stringify(entries));
   }
 
   private static getOwnerPortfolioGoals(baseGoals: Goal[]): Goal[] {
-    const parsed = safeParseStorageArray<Goal>(localStorage.getItem('cap_owner_portfolio_goals'), isValidGoalShape);
-    if (parsed && parsed.length > 0) {
-      return normalizeGoalList(parsed);
+    const parsedGoals = safeParseStorageArray<Goal>(
+      localStorage.getItem('cap_owner_portfolio_goals'),
+      isValidGoalShape
+    );
+    const resolvedGoals =
+      parsedGoals && parsedGoals.length > 0 ? normalizeGoalList(parsedGoals) : baseGoals;
+
+    const rawEntries = localStorage.getItem(this.OWNER_ENTRIES_KEY);
+    if (rawEntries) {
+      return enrichGoalsWithEntries(resolvedGoals, this.getStoredOwnerEntries());
     }
-    return baseGoals;
+
+    const needsClientEnrichment = resolvedGoals.some(
+      (g) => (g.targetHours ?? 0) > 0 && g.loggedHours === undefined
+    );
+    return needsClientEnrichment
+      ? enrichGoalsWithEntries(resolvedGoals, this.getDefaultPortfolioEntries())
+      : resolvedGoals;
+  }
+
+  static getDefaultPortfolioEntries(): CareerEntry[] {
+    return [
+      {
+        id: 1,
+        title: 'Subscription Ledger & Checkout Accounting Architecture',
+        description: 'Deep-dive on idempotent invoice pipelines, double-entry journal reconciliation, and EF Core query optimization.',
+        startDate: '2026-02-10',
+        endDate: '2026-02-12',
+        hours: 11,
+        categoryId: 1,
+        category: 'Development',
+        goalId: 1,
+        goalTitle: 'Enterprise Accounting & Membership Platform (C# / .NET)',
+        createdAt: new Date('2026-02-12T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 2,
+        title: '.NET 10 Financial Workflow Optimization & Unit Testing',
+        description: 'Refactored legacy billing handlers with deterministic xUnit regression suites and covering SQL indexes.',
+        startDate: '2026-04-18',
+        endDate: '2026-04-19',
+        hours: 8,
+        categoryId: 1,
+        category: 'Development',
+        goalId: 1,
+        goalTitle: 'Enterprise Accounting & Membership Platform (C# / .NET)',
+        createdAt: new Date('2026-04-19T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 3,
+        title: 'YARP Reverse Proxy & Distributed Gateway Patterns',
+        description: 'Implemented cluster routing, health checks, and sub-millisecond gateway proxying in .NET 10.',
+        startDate: '2026-06-05',
+        endDate: '2026-06-07',
+        hours: 12.5,
+        categoryId: 4,
+        category: 'Cloud Computing',
+        goalId: 5,
+        goalTitle: 'Cloud Architecture & Microservices (.NET & YARP)',
+        createdAt: new Date('2026-06-07T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 4,
+        title: 'Containerized Azure Microservices & JWT Hardening',
+        description: 'Multi-stage Dockerfiles, strict CORS/rate-limiting policies, and claim-based read-only demo enforcement.',
+        startDate: '2026-08-22',
+        endDate: '2026-08-23',
+        hours: 6.5,
+        categoryId: 6,
+        category: 'Security',
+        goalId: 5,
+        goalTitle: 'Cloud Architecture & Microservices (.NET & YARP)',
+        createdAt: new Date('2026-08-23T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 5,
+        title: 'Garmin FIT Binary Decoding & Geospatial Telemetry Pipelines',
+        description: 'Decoded 32-bit semicircle coordinates, elevation splits, and interactive Leaflet vector layers.',
+        startDate: '2026-10-12',
+        endDate: '2026-10-14',
+        hours: 12,
+        categoryId: 5,
+        category: 'Data Science',
+        goalId: 6,
+        goalTitle: 'Geospatial Binary Data Pipelines (Garmin FIT)',
+        createdAt: new Date('2026-10-14T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 6,
+        title: 'Docker & Container Orchestration Deep Dive',
+        description: 'Multi-stage container builds, Docker Compose networking, and healthchecks for .NET 10 services.',
+        startDate: '2025-09-18',
+        endDate: '2025-09-19',
+        hours: 12,
+        categoryId: 4,
+        category: 'Cloud Computing',
+        goalId: null,
+        goalTitle: null,
+        createdAt: new Date('2025-09-19T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+      {
+        id: 7,
+        title: 'Automated E2E Testing with Playwright & Vitest',
+        description: 'Deterministic browser verification, network mocking, and CI pipeline integration.',
+        startDate: '2025-11-14',
+        endDate: '2025-11-14',
+        hours: 8,
+        categoryId: 2,
+        category: 'Quality Assurance',
+        goalId: null,
+        goalTitle: null,
+        createdAt: new Date('2025-11-14T18:00:00Z').toISOString(),
+        updatedAt: null,
+      },
+    ];
   }
 
   static async getGoals(): Promise<Goal[]> {
@@ -416,12 +611,13 @@ export class ApiService {
           .is('user_id', null)
           .order('id', { ascending: true });
         if (data && !error && data.length > 0) {
-          const mapped = data.map((g: Record<string, unknown>, idx: number) => ({
+          const mapped: Goal[] = data.map((g: Record<string, unknown>, idx: number) => ({
             id: typeof g.id === 'number' ? g.id : idx + 1,
             title: typeof g.title === 'string' ? g.title : 'Milestone',
             description: typeof g.description === 'string' ? g.description : '',
             category: (g.category === 'Personal' ? 'Personal' : 'Technical') as Goal['category'],
             progress: typeof g.progress === 'number' ? Math.max(0, Math.min(100, g.progress)) : 0,
+            targetHours: g.target_hours != null && Number.isFinite(Number(g.target_hours)) ? Number(g.target_hours) : null,
             targetDate: typeof g.target_date === 'string' ? g.target_date : 'Active',
             status: (g.status === 'Completed' || g.status === 'Upcoming' ? g.status : 'InProgress') as Goal['status'],
             tags: Array.isArray(g.tags)
@@ -453,6 +649,7 @@ export class ApiService {
         description: 'Engineering core web features for non-profit organizations to manage memberships, commerce, fundraising, and donations. Focused on C# and .NET development for checkout and subscription accounting, improving invoice handling efficiency, and optimizing client financial workflows.',
         category: 'Technical',
         progress: 95,
+        targetHours: 20,
         targetDate: 'Present',
         status: 'InProgress',
         tags: ['C#', '.NET', 'SaaS', 'Accounting', 'Financial Workflows', 'Azure DevOps'],
@@ -464,6 +661,7 @@ export class ApiService {
         description: 'Architected and built an internal Training Hour Tracking application using .NET 10, Vite, and vanilla JavaScript, leveraging AI-assisted development workflows to accelerate delivery and automate manual HR tracking.',
         category: 'Technical',
         progress: 100,
+        targetHours: null,
         targetDate: 'Deployed',
         status: 'Completed',
         tags: ['trainingtracker.advsol.com', '.NET 10', 'Vite', 'JavaScript', 'AI Workflows', 'HR Tech'],
@@ -475,6 +673,7 @@ export class ApiService {
         description: 'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, interactive active-recall quizzes with custom virtual keyboards, and Supabase cloud sync.',
         category: 'Personal',
         progress: 100,
+        targetHours: null,
         targetDate: 'Live in Production',
         status: 'Completed',
         tags: ['basiclanguage.school', 'PWA', 'Language Learning', 'Supabase', 'Vitest', 'Playwright'],
@@ -486,6 +685,7 @@ export class ApiService {
         description: 'Published and maintained zero-dependency npm package powering international checkout flows, downloaded hundreds of times a week and thousands of times a year with 0 bugs over 8 years.',
         category: 'Technical',
         progress: 100,
+        targetHours: null,
         targetDate: 'Published (8 yrs active)',
         status: 'Completed',
         tags: ['npm', 'Open Source', 'E-Commerce', 'JavaScript'],
@@ -497,6 +697,7 @@ export class ApiService {
         description: 'Architecting resilient microservice gateways with YARP, asynchronous message processing, and containerized cloud services in Azure to ensure sub-millisecond routing and high availability.',
         category: 'Technical',
         progress: 95,
+        targetHours: 20,
         targetDate: 'Active',
         status: 'InProgress',
         tags: ['YARP', 'Microservices', '.NET 10', 'Cloud Architecture', 'Azure'],
@@ -508,6 +709,7 @@ export class ApiService {
         description: 'Parsing Garmin FIT binary telemetry into streamable GPS coordinate arrays, elevation profiles, and responsive Leaflet map visualizations.',
         category: 'Personal',
         progress: 75,
+        targetHours: 16,
         targetDate: 'Active',
         status: 'InProgress',
         tags: ['Garmin FIT', 'Geospatial', 'Leaflet', 'C#', 'Cycling'],
@@ -531,14 +733,28 @@ export class ApiService {
       };
     }
 
+    const parsedTargetHours =
+      typeof goal.targetHours === 'number' && Number.isFinite(goal.targetHours) && goal.targetHours > 0
+        ? Math.round(goal.targetHours * 100) / 100
+        : null;
+    const initialProgress =
+      typeof goal.progress === 'number'
+        ? Math.max(0, Math.min(100, goal.progress))
+        : parsedTargetHours
+          ? 0
+          : 25;
+
     const newGoal: Goal = {
-      id: Date.now(),
+      id: this.nextLocalId(),
       title: goal.title || 'New Architecture Goal',
       description: goal.description || 'Custom milestone tracked in Career Architecture Platform.',
       category: goal.category || 'Technical',
-      progress: typeof goal.progress === 'number' ? goal.progress : 25,
+      progress: initialProgress,
+      targetHours: parsedTargetHours,
+      loggedHours: 0,
+      entryCount: 0,
       targetDate: goal.targetDate || '2026',
-      status: (goal.progress ?? 0) >= 100 ? 'Completed' : (goal.status || 'InProgress'),
+      status: initialProgress >= 100 ? 'Completed' : (goal.status || 'InProgress'),
       tags: goal.tags && goal.tags.length > 0 ? goal.tags : [goal.category || 'Technical', 'Custom'],
       createdAt: new Date().toISOString(),
     };
@@ -593,13 +809,413 @@ export class ApiService {
 
   static deleteCustomGoal(goalId: number): void {
     if (this.isPortfolioOwner(this.getUser())) {
-      const parsed = safeParseStorageArray<Goal>(localStorage.getItem('cap_owner_portfolio_goals'), isValidGoalShape);
+      const parsed = safeParseStorageArray<Goal>(
+        localStorage.getItem('cap_owner_portfolio_goals'),
+        isValidGoalShape
+      );
       if (parsed) {
-        localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(normalizeGoalList(parsed).filter(g => g.id !== goalId)));
+        localStorage.setItem(
+          'cap_owner_portfolio_goals',
+          JSON.stringify(normalizeGoalList(parsed).filter(g => g.id !== goalId))
+        );
+      }
+      const rawOwnerEntries = localStorage.getItem(this.OWNER_ENTRIES_KEY);
+      if (rawOwnerEntries) {
+        const unlinkedOwnerEntries = this.getStoredOwnerEntries().map(e =>
+          e.goalId === goalId ? { ...e, goalId: null, goalTitle: null } : e
+        );
+        this.saveStoredOwnerEntries(unlinkedOwnerEntries);
       }
     }
     const custom = this.getPersonalGoals().filter(g => g.id !== goalId);
     this.saveStoredCustomGoals(custom);
+
+    const unlinkedPersonalEntries = this.getPersonalEntries().map(e =>
+      e.goalId === goalId ? { ...e, goalId: null, goalTitle: null } : e
+    );
+    this.saveStoredCustomEntries(unlinkedPersonalEntries);
+  }
+
+  static async getCategories(): Promise<Category[]> {
+    const sbClient = getOrInitSupabaseClient();
+    if (sbClient) {
+      try {
+        const { data, error } = await sbClient
+          .from('categories')
+          .select('id, name, description, display_order')
+          .order('display_order', { ascending: true });
+        if (data && !error && data.length > 0) {
+          return data.map((c: Record<string, unknown>, idx: number) => ({
+            id: typeof c.id === 'number' ? c.id : idx + 1,
+            name: typeof c.name === 'string' ? c.name : 'Category',
+            description: typeof c.description === 'string' ? c.description : '',
+            displayOrder: typeof c.display_order === 'number' ? c.display_order : idx + 1,
+          }));
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/categories`);
+      if (isJson(res)) {
+        const cats = await res.json();
+        if (Array.isArray(cats) && cats.length > 0) {
+          return cats;
+        }
+      }
+    } catch {
+      // Backend unavailable
+    }
+
+    return DEFAULT_CATEGORIES;
+  }
+
+  static async getCareerEntries(): Promise<CareerEntry[]> {
+    const parsedOwner = safeParseStorageArray<CareerEntry>(
+      localStorage.getItem(this.OWNER_ENTRIES_KEY),
+      isValidCareerEntryShape
+    );
+    if (parsedOwner) {
+      return parsedOwner;
+    }
+
+    const sbClient = getOrInitSupabaseClient();
+    if (sbClient) {
+      try {
+        const { data, error } = await sbClient
+          .from('career_entries')
+          .select('*, categories(name), goals(title)')
+          .is('user_id', null)
+          .order('end_date', { ascending: false });
+        if (data && !error && data.length > 0) {
+          return data.map((e: Record<string, unknown>, idx: number) => {
+            const relCat = e.categories as Record<string, unknown> | null | undefined;
+            const relGoal = e.goals as Record<string, unknown> | null | undefined;
+            return {
+              id: typeof e.id === 'number' ? e.id : idx + 1,
+              title: typeof e.title === 'string' ? e.title : 'Career Development Entry',
+              description: typeof e.description === 'string' ? e.description : '',
+              startDate: typeof e.start_date === 'string' ? e.start_date : '',
+              endDate: typeof e.end_date === 'string' ? e.end_date : '',
+              hours: Number.isFinite(Number(e.hours)) ? Number(e.hours) : 0,
+              categoryId: typeof e.category_id === 'number' ? e.category_id : null,
+              category: typeof relCat?.name === 'string' ? relCat.name : null,
+              goalId: typeof e.goal_id === 'number' ? e.goal_id : null,
+              goalTitle: typeof relGoal?.title === 'string' ? relGoal.title : null,
+              createdAt: typeof e.created_at === 'string' ? e.created_at : new Date().toISOString(),
+              updatedAt: typeof e.updated_at === 'string' ? e.updated_at : null,
+            };
+          });
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/entries`);
+      if (isJson(res)) {
+        const payload = await res.json();
+        const entries = Array.isArray(payload) ? payload : payload.entries;
+        if (Array.isArray(entries)) {
+          return entries;
+        }
+      }
+    } catch {
+      // Backend unavailable
+    }
+
+    return this.getDefaultPortfolioEntries();
+  }
+
+  private static async syncGoalsAfterEntryMutation(entries: CareerEntry[], isOwner: boolean): Promise<void> {
+    if (isOwner) {
+      const currentGoals = await this.getGoals();
+      const enriched = enrichGoalsWithEntries(currentGoals, entries);
+      localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(enriched));
+      return;
+    }
+
+    const personalGoals = this.getPersonalGoals();
+    const enriched = enrichGoalsWithEntries(personalGoals, entries);
+    this.saveStoredCustomGoals(enriched);
+  }
+
+  private static async resolveEntryMetadata(input: CreateCareerEntryInput, isOwner: boolean): Promise<{ categoryName: string | null; goalTitle: string | null }> {
+    const categories = await this.getCategories();
+    const categoryName = input.categoryId
+      ? categories.find(c => c.id === input.categoryId)?.name ?? null
+      : null;
+
+    let goalTitle: string | null = null;
+    if (input.goalId) {
+      const goals = isOwner ? await this.getGoals() : this.getPersonalGoals();
+      goalTitle = goals.find(g => g.id === input.goalId)?.title ?? null;
+    }
+
+    return { categoryName, goalTitle };
+  }
+
+  static async createCareerEntry(input: CreateCareerEntryInput): Promise<{ success: boolean; status?: number; message: string; entry?: CareerEntry }> {
+    const user = this.getUser();
+    const token = this.getToken();
+
+    if (!user || user.role === 'guest') {
+      return {
+        success: false,
+        status: 403,
+        message: 'Guest accounts have read-only demo access. Sign in with GitHub, Google, or Microsoft OAuth to log and manage career development hours.',
+      };
+    }
+
+    const validationError = validateCareerEntry(input);
+    if (validationError) {
+      return { success: false, status: 400, message: validationError };
+    }
+
+    const isOwner = this.isPortfolioOwner(user);
+    const { categoryName, goalTitle } = await this.resolveEntryMetadata(input, isOwner);
+
+    const newEntry: CareerEntry = {
+      id: this.nextLocalId(),
+      title: input.title.trim(),
+      description: input.description?.trim() || '',
+      startDate: input.startDate,
+      endDate: input.endDate,
+      hours: Math.round(Number(input.hours) * 100) / 100,
+      categoryId: input.categoryId ?? null,
+      category: categoryName,
+      goalId: input.goalId ?? null,
+      goalTitle,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/entries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          ...input,
+          clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
+        }),
+      });
+      if (res.status === 400 || res.status === 403) {
+        const errPayload = await res.json().catch(() => null);
+        return {
+          success: false,
+          status: res.status,
+          message: errPayload?.error || errPayload?.message || (res.status === 403 ? 'Guest accounts have read-only access.' : 'Invalid entry data.'),
+        };
+      }
+      if (isJson(res)) {
+        const serverEntry: CareerEntry = await res.json();
+        newEntry.id = serverEntry.id ?? newEntry.id;
+      }
+    } catch {
+      // Backend unavailable; persist via localStorage
+    }
+
+    if (isOwner) {
+      const existing = await this.getCareerEntries();
+      const updated = [newEntry, ...existing];
+      this.saveStoredOwnerEntries(updated);
+      await this.syncGoalsAfterEntryMutation(updated, true);
+    } else {
+      const existing = this.getPersonalEntries();
+      const updated = [newEntry, ...existing];
+      this.saveStoredCustomEntries(updated);
+      await this.syncGoalsAfterEntryMutation(updated, false);
+    }
+
+    return { success: true, message: 'Career entry logged to your workspace!', entry: newEntry };
+  }
+
+  static async updateCareerEntry(id: number, input: CreateCareerEntryInput): Promise<{ success: boolean; status?: number; message: string; entry?: CareerEntry }> {
+    const user = this.getUser();
+    const token = this.getToken();
+
+    if (!user || user.role === 'guest') {
+      return {
+        success: false,
+        status: 403,
+        message: 'Guest accounts have read-only demo access. Sign in with GitHub, Google, or Microsoft OAuth to edit career development hours.',
+      };
+    }
+
+    const validationError = validateCareerEntry(input);
+    if (validationError) {
+      return { success: false, status: 400, message: validationError };
+    }
+
+    const isOwner = this.isPortfolioOwner(user);
+    const { categoryName, goalTitle } = await this.resolveEntryMetadata(input, isOwner);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/entries/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          ...input,
+          clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
+        }),
+      });
+      if (res.status === 400 || res.status === 403) {
+        const errPayload = await res.json().catch(() => null);
+        return {
+          success: false,
+          status: res.status,
+          message: errPayload?.error || errPayload?.message || (res.status === 403 ? 'Guest accounts have read-only access.' : 'Invalid entry data.'),
+        };
+      }
+    } catch {
+      // Backend unavailable; persist via localStorage
+    }
+
+    let updatedEntry: CareerEntry | undefined;
+    const applyUpdate = (list: CareerEntry[]): CareerEntry[] =>
+      list.map((entry) => {
+        if (entry.id !== id) return entry;
+        updatedEntry = {
+          ...entry,
+          title: input.title.trim(),
+          description: input.description?.trim() || '',
+          startDate: input.startDate,
+          endDate: input.endDate,
+          hours: Math.round(Number(input.hours) * 100) / 100,
+          categoryId: input.categoryId ?? null,
+          category: categoryName,
+          goalId: input.goalId ?? null,
+          goalTitle,
+          updatedAt: new Date().toISOString(),
+        };
+        return updatedEntry;
+      });
+
+    if (isOwner) {
+      const next = applyUpdate(await this.getCareerEntries());
+      this.saveStoredOwnerEntries(next);
+      await this.syncGoalsAfterEntryMutation(next, true);
+    } else {
+      const next = applyUpdate(this.getPersonalEntries());
+      this.saveStoredCustomEntries(next);
+      await this.syncGoalsAfterEntryMutation(next, false);
+    }
+
+    return {
+      success: true,
+      message: 'Career entry updated!',
+      entry: updatedEntry,
+    };
+  }
+
+  static async deleteCareerEntry(id: number): Promise<{ success: boolean; status?: number; message: string }> {
+    const user = this.getUser();
+    const token = this.getToken();
+
+    if (!user || user.role === 'guest') {
+      return {
+        success: false,
+        status: 403,
+        message: 'Guest accounts have read-only demo access. Sign in with GitHub, Google, or Microsoft OAuth to delete career development entries.',
+      };
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/entries/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      });
+      if (res.status === 403) {
+        return {
+          success: false,
+          status: 403,
+          message: 'Guest accounts have read-only demo access.',
+        };
+      }
+    } catch {
+      // Backend unavailable; persist via localStorage
+    }
+
+    const isOwner = this.isPortfolioOwner(user);
+    if (isOwner) {
+      const next = (await this.getCareerEntries()).filter(e => e.id !== id);
+      this.saveStoredOwnerEntries(next);
+      await this.syncGoalsAfterEntryMutation(next, true);
+    } else {
+      const next = this.getPersonalEntries().filter(e => e.id !== id);
+      this.saveStoredCustomEntries(next);
+      await this.syncGoalsAfterEntryMutation(next, false);
+    }
+
+    return { success: true, message: 'Career entry deleted.' };
+  }
+
+  static async updateAnnualGoalHours(annualGoalHours: number): Promise<{ success: boolean; status?: number; message: string; annualGoalHours?: number }> {
+    const user = this.getUser();
+    const token = this.getToken();
+
+    if (!user || user.role === 'guest') {
+      return {
+        success: false,
+        status: 403,
+        message: 'Guest accounts have read-only demo access. Sign in with GitHub, Google, or Microsoft OAuth to customize annual hour goals.',
+      };
+    }
+
+    const rounded = Math.round(Number(annualGoalHours) * 100) / 100;
+    if (!Number.isFinite(rounded) || rounded < 1 || rounded > 2000) {
+      return {
+        success: false,
+        status: 400,
+        message: 'Annual goal hours must be between 1 and 2000.',
+      };
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/profile/goal-hours`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ annualGoalHours: rounded }),
+      });
+      if (res.status === 400 || res.status === 403) {
+        const errPayload = await res.json().catch(() => null);
+        return {
+          success: false,
+          status: res.status,
+          message: errPayload?.error || errPayload?.message || 'Unable to update annual goal hours.',
+        };
+      }
+    } catch {
+      // Backend unavailable; persist via localStorage
+    }
+
+    if (this.isPortfolioOwner(user)) {
+      const ownerProf = this.getDefaultPortfolioProfile();
+      this.saveCustomProfile(user.id, { ...ownerProf, annualGoalHours: rounded });
+    } else {
+      const personalProf = this.getCustomProfile(user);
+      this.saveCustomProfile(user.id, { ...personalProf, annualGoalHours: rounded });
+    }
+
+    return {
+      success: true,
+      message: `Annual career development goal set to ${rounded} hours.`,
+      annualGoalHours: rounded,
+    };
   }
 
   static async getRides(): Promise<RideSummary[]> {
