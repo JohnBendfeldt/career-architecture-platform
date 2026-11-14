@@ -88,15 +88,14 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
     }
   );
 
-  it('validates all public ride telemetry JSON assets and blocks raw .fit exposure', () => {
-    const publicDir = path.join(webRoot, 'public');
-    const ridesDir = path.join(publicDir, 'rides');
-    const rideFiles = fs.readdirSync(ridesDir).filter((f) => f.endsWith('.json'));
-    expect(rideFiles.length).toBeGreaterThanOrEqual(7);
+  it('validates all public and Geo service ride telemetry JSON assets and blocks raw .fit exposure', () => {
+    const rideDirs = [
+      path.join(webRoot, 'public', 'rides'),
+      path.join(repoRoot, 'src', 'Geo', 'Data', 'Rides'),
+    ];
 
-    // Ensure no raw binary .fit file is ever placed inside web/public
-    const allPublicFiles = fs.readdirSync(ridesDir);
-    expect(allPublicFiles.some((f) => f.toLowerCase().endsWith('.fit'))).toBe(false);
+    const gitignore = fs.readFileSync(path.join(repoRoot, '.gitignore'), 'utf-8');
+    expect(gitignore).toMatch(/^\*\.fit$/m);
 
     const envLat = process.env.GEO_PRIVACY_LAT ? Number(process.env.GEO_PRIVACY_LAT) : null;
     const envLon = process.env.GEO_PRIVACY_LON ? Number(process.env.GEO_PRIVACY_LON) : null;
@@ -104,37 +103,56 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
       ? Number(process.env.GEO_PRIVACY_RADIUS_M)
       : 400;
 
-    for (const file of rideFiles) {
-      const data = JSON.parse(fs.readFileSync(path.join(ridesDir, file), 'utf-8'));
-      expect(typeof data.activityName).toBe('string');
-      expect(data.distanceKm).toBeGreaterThan(0);
-      expect(Array.isArray(data.points)).toBe(true);
-      expect(data.points.length).toBeGreaterThan(10);
-      expect(data.points.length).toBeLessThanOrEqual(1500);
+    for (const ridesDir of rideDirs) {
+      expect(fs.existsSync(ridesDir), `Missing rides directory: ${ridesDir}`).toBe(true);
 
-      for (const pt of data.points) {
-        expect(pt.lat).toBeGreaterThanOrEqual(-90);
-        expect(pt.lat).toBeLessThanOrEqual(90);
-        expect(pt.lon).toBeGreaterThanOrEqual(-180);
-        expect(pt.lon).toBeLessThanOrEqual(180);
-        expect(countDecimals(pt.lat), `${file} lat precision > 5 decimals`).toBeLessThanOrEqual(5);
-        expect(countDecimals(pt.lon), `${file} lon precision > 5 decimals`).toBeLessThanOrEqual(5);
-        expect(Number.isFinite(pt.elevation)).toBe(true);
+      const allFiles = fs.readdirSync(ridesDir);
+      expect(allFiles.some((f) => f.toLowerCase().endsWith('.fit'))).toBe(false);
 
-        if (envLat !== null && envLon !== null && Number.isFinite(envLat) && Number.isFinite(envLon)) {
-          expect(haversineMeters(pt.lat, pt.lon, envLat, envLon)).toBeGreaterThanOrEqual(privacyRadiusM);
+      const rideFiles = allFiles.filter((f) => f.endsWith('.json'));
+      expect(rideFiles.length).toBeGreaterThanOrEqual(7);
+
+      for (const file of rideFiles) {
+        const data = JSON.parse(fs.readFileSync(path.join(ridesDir, file), 'utf-8'));
+        expect(typeof data.activityName).toBe('string');
+        expect(data.distanceKm).toBeGreaterThan(0);
+        expect(Array.isArray(data.points)).toBe(true);
+        expect(data.points.length).toBeGreaterThan(10);
+        expect(data.points.length).toBeLessThanOrEqual(1500);
+
+        for (const pt of data.points) {
+          expect(pt.lat).toBeGreaterThanOrEqual(-90);
+          expect(pt.lat).toBeLessThanOrEqual(90);
+          expect(pt.lon).toBeGreaterThanOrEqual(-180);
+          expect(pt.lon).toBeLessThanOrEqual(180);
+          expect(countDecimals(pt.lat), `${file} lat precision > 5 decimals`).toBeLessThanOrEqual(5);
+          expect(countDecimals(pt.lon), `${file} lon precision > 5 decimals`).toBeLessThanOrEqual(5);
+          expect(Number.isFinite(pt.elevation)).toBe(true);
+
+          if (envLat !== null && envLon !== null && Number.isFinite(envLat) && Number.isFinite(envLon)) {
+            expect(haversineMeters(pt.lat, pt.lon, envLat, envLon)).toBeGreaterThanOrEqual(privacyRadiusM);
+          }
         }
-      }
 
-      // Annotations must align with trimmed points, never untrimmed raw coordinates
-      const startAnn = data.annotations.find((a: { type: string }) => a.type === 'start');
-      const finishAnn = data.annotations.find((a: { type: string }) => a.type === 'finish');
-      expect(startAnn).toBeDefined();
-      expect(finishAnn).toBeDefined();
-      expect(startAnn.lat).toBeCloseTo(data.points[0].lat, 5);
-      expect(startAnn.lon).toBeCloseTo(data.points[0].lon, 5);
-      expect(finishAnn.lat).toBeCloseTo(data.points[data.points.length - 1].lat, 5);
-      expect(finishAnn.lon).toBeCloseTo(data.points[data.points.length - 1].lon, 5);
+        for (const ann of data.annotations) {
+          expect(countDecimals(ann.lat), `${file} annotation lat precision > 5 decimals`).toBeLessThanOrEqual(5);
+          expect(countDecimals(ann.lon), `${file} annotation lon precision > 5 decimals`).toBeLessThanOrEqual(5);
+
+          if (envLat !== null && envLon !== null && Number.isFinite(envLat) && Number.isFinite(envLon)) {
+            expect(haversineMeters(ann.lat, ann.lon, envLat, envLon)).toBeGreaterThanOrEqual(privacyRadiusM);
+          }
+        }
+
+        // Annotations must align with trimmed points, never untrimmed raw coordinates
+        const startAnn = data.annotations.find((a: { type: string }) => a.type === 'start');
+        const finishAnn = data.annotations.find((a: { type: string }) => a.type === 'finish');
+        expect(startAnn).toBeDefined();
+        expect(finishAnn).toBeDefined();
+        expect(startAnn.lat).toBeCloseTo(data.points[0].lat, 5);
+        expect(startAnn.lon).toBeCloseTo(data.points[0].lon, 5);
+        expect(finishAnn.lat).toBeCloseTo(data.points[data.points.length - 1].lat, 5);
+        expect(finishAnn.lon).toBeCloseTo(data.points[data.points.length - 1].lon, 5);
+      }
     }
   });
 

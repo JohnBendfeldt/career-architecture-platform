@@ -6,9 +6,12 @@ using System.Text;
 using System.Text.Json;
 using CareerPlatform.Geo.Models;
 using CareerPlatform.Geo.Services;
+using Dynastream.Fit;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Xunit;
+using FitDateTime = Dynastream.Fit.DateTime;
+using SysDateTime = System.DateTime;
 
 namespace CareerPlatform.Geo.Tests;
 
@@ -21,16 +24,43 @@ public class GeoIntegrationAndPrivacyTests : IClassFixture<WebApplicationFactory
         _client = factory.CreateClient();
     }
 
-    private static string FindSampleFitFile()
+    private static byte[] CreateSyntheticFitBytes()
     {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "Data", "Rides", "Sunday_Sunrise_with_friends.fit"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Geo", "Data", "Rides", "Sunday_Sunrise_with_friends.fit"),
-            Path.Combine(Directory.GetCurrentDirectory(), "src", "Geo", "Data", "Rides", "Sunday_Sunrise_with_friends.fit")
-        };
+        const double DegreeToSemicircle = 2147483648.0 / 180.0;
+        const double StartLat = 30.27470; // Public Downtown Austin / Texas Capitol coordinates
+        const double StartLon = -97.74040;
+        var startUtc = new SysDateTime(2026, 9, 1, 13, 0, 0, DateTimeKind.Utc);
 
-        return candidates.First(File.Exists);
+        using var ms = new MemoryStream();
+        var encoder = new Encode(ProtocolVersion.V20);
+        encoder.Open(ms);
+
+        var fileId = new FileIdMesg();
+        fileId.SetType(Dynastream.Fit.File.Activity);
+        fileId.SetManufacturer(Manufacturer.Garmin);
+        fileId.SetProduct(3992);
+        fileId.SetTimeCreated(new FitDateTime(startUtc));
+        encoder.Write(fileId);
+
+        for (int i = 0; i < 25; i++)
+        {
+            var lat = StartLat + (i * 0.00135);
+            var lon = StartLon + (i * 0.00025);
+            var record = new RecordMesg();
+            record.SetPositionLat((int)Math.Round(lat * DegreeToSemicircle));
+            record.SetPositionLong((int)Math.Round(lon * DegreeToSemicircle));
+            record.SetEnhancedAltitude(150.0f + (i * 3.5f));
+            record.SetTimestamp(new FitDateTime(startUtc.AddMinutes(i * 2)));
+            encoder.Write(record);
+        }
+
+        var session = new SessionMesg();
+        session.SetTotalDistance(3800.0f);
+        session.SetTotalAscent(84);
+        encoder.Write(session);
+
+        encoder.Close();
+        return ms.ToArray();
     }
 
     private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2)
@@ -74,12 +104,12 @@ public class GeoIntegrationAndPrivacyTests : IClassFixture<WebApplicationFactory
     [Fact]
     public void FitParserService_EnforcesResidentialPrivacyGeofenceTrimming()
     {
-        var fitPath = FindSampleFitFile();
+        var fitBytes = CreateSyntheticFitBytes();
 
-        // Parse once without geofence to obtain an actual coordinate along the route start
+        // Parse once without geofence to obtain the initial coordinate along the synthetic route start
         var unconfiguredParser = new FitParserService(new ConfigurationBuilder().AddInMemoryCollection().Build());
-        using var rawStream = File.OpenRead(fitPath);
-        var untrimmed = unconfiguredParser.ParseFitStream(rawStream, Path.GetFileName(fitPath));
+        using var rawStream = new MemoryStream(fitBytes);
+        var untrimmed = unconfiguredParser.ParseFitStream(rawStream, "Synthetic_Austin_Loop.fit");
         Assert.NotEmpty(untrimmed.Points);
 
         var originLat = untrimmed.Points[0].Lat;
@@ -96,8 +126,8 @@ public class GeoIntegrationAndPrivacyTests : IClassFixture<WebApplicationFactory
             .Build();
 
         var geofencedParser = new FitParserService(geofenceConfig);
-        using var secondStream = File.OpenRead(fitPath);
-        var trimmed = geofencedParser.ParseFitStream(secondStream, Path.GetFileName(fitPath));
+        using var secondStream = new MemoryStream(fitBytes);
+        var trimmed = geofencedParser.ParseFitStream(secondStream, "Synthetic_Austin_Loop.fit");
 
         Assert.NotEmpty(trimmed.Points);
         Assert.All(trimmed.Points, pt =>
@@ -150,18 +180,18 @@ public class GeoIntegrationAndPrivacyTests : IClassFixture<WebApplicationFactory
             Assert.Contains(".fit binary header signature", err.GetProperty("error").GetString());
         }
 
-        // 4. Valid Garmin .fit binary upload -> 200 OK
-        var fitBytes = await File.ReadAllBytesAsync(FindSampleFitFile());
+        // 4. Valid Garmin .fit binary upload (synthetic route fixture) -> 200 OK
+        var fitBytes = CreateSyntheticFitBytes();
         using var validForm = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(fitBytes);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        validForm.Add(fileContent, "file", "Sunday_Sunrise_with_friends.fit");
+        validForm.Add(fileContent, "file", "Synthetic_Austin_Loop.fit");
 
         var okRes = await _client.PostAsync("/geo/activities", validForm);
         Assert.Equal(HttpStatusCode.OK, okRes.StatusCode);
         var parsed = await okRes.Content.ReadFromJsonAsync<ActivityTelemetry>();
         Assert.NotNull(parsed);
-        Assert.Equal("Sunday Sunrise with Friends", parsed.ActivityName);
+        Assert.Equal("Synthetic Austin Loop", parsed.ActivityName);
         Assert.NotEmpty(parsed.Points);
         Assert.True(parsed.Points.Count <= 1500);
     }

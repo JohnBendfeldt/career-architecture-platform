@@ -16,7 +16,44 @@ function isAllowedOrigin(origin?: string): boolean {
   if (ALLOWED_ORIGINS.has(origin)) return true;
   try {
     const parsed = new URL(origin);
-    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.netlify.app');
+    if (parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    const deployUrls = [
+      process.env.URL,
+      process.env.DEPLOY_PRIME_URL,
+      process.env.DEPLOY_URL,
+    ];
+    for (const candidate of deployUrls) {
+      if (!candidate) continue;
+      try {
+        const candidateUrl = new URL(candidate);
+        if (candidateUrl.protocol === 'https:' && candidateUrl.origin === parsed.origin) {
+          return true;
+        }
+      } catch {
+        // Ignore malformed environment URL
+      }
+    }
+
+    const siteName = (process.env.ALLOWED_NETLIFY_SITE || process.env.SITE_NAME || '')
+      .trim()
+      .toLowerCase();
+    if (/^[a-z0-9-]+$/.test(siteName)) {
+      if (parsed.hostname === `${siteName}.netlify.app`) {
+        return true;
+      }
+      const previewSuffix = `--${siteName}.netlify.app`;
+      if (parsed.hostname.endsWith(previewSuffix)) {
+        const previewPrefix = parsed.hostname.slice(0, -previewSuffix.length);
+        if (/^[a-z0-9-]+$/.test(previewPrefix)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   } catch {
     return false;
   }

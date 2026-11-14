@@ -41,6 +41,10 @@ dist-ssr/
 .env.local
 .env.*.local
 **/appsettings.Local.json
+.local/
+
+# Raw Garmin telemetry binaries (use pre-trimmed JSON in repo)
+*.fit
 
 # OS
 .DS_Store

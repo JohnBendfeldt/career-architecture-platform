@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using CareerPlatform.Geo.Models;
 using Dynastream.Fit;
 using SysDateTime = System.DateTime;
@@ -157,36 +158,7 @@ public class FitParserService : IFitParserService
         // Privacy Zone Geofence: trim start and end points within configured radius of configured coordinates
         if (_privacyLat is double privacyLat && _privacyLon is double privacyLon)
         {
-            static double HaversineM(double lat1, double lon1, double lat2, double lon2)
-            {
-                const double R = 6371000.0;
-                var dLat = (lat2 - lat1) * Math.PI / 180.0;
-                var dLon = (lon2 - lon1) * Math.PI / 180.0;
-                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                        Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
-                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-                return R * c;
-            }
-
-            while (rawPoints.Count > 0 && HaversineM(rawPoints[0].Lat, rawPoints[0].Lon, privacyLat, privacyLon) < _privacyRadiusM)
-            {
-                rawPoints.RemoveAt(0);
-            }
-
-            int endIdx = rawPoints.Count;
-            for (int i = rawPoints.Count - 1; i >= 0; i--)
-            {
-                if (HaversineM(rawPoints[i].Lat, rawPoints[i].Lon, privacyLat, privacyLon) < _privacyRadiusM)
-                {
-                    endIdx = i;
-                }
-            }
-            if (endIdx < rawPoints.Count && endIdx > 0)
-            {
-                rawPoints = rawPoints.Take(endIdx).ToList();
-            }
-            rawPoints = rawPoints.Where(p => HaversineM(p.Lat, p.Lon, privacyLat, privacyLon) >= _privacyRadiusM).ToList();
+            rawPoints = FilterPointsOutsideGeofence(rawPoints, privacyLat, privacyLon);
         }
 
         // Downsample points if list is very large (> 1500) to keep Leaflet rendering at 60fps
@@ -333,6 +305,51 @@ public class FitParserService : IFitParserService
         );
     }
 
+    private List<TelemetryPoint> FilterPointsOutsideGeofence(List<TelemetryPoint> points, double privacyLat, double privacyLon)
+    {
+        var filtered = new List<TelemetryPoint>(points);
+        while (filtered.Count > 0 && HaversineMeters(filtered[0].Lat, filtered[0].Lon, privacyLat, privacyLon) < _privacyRadiusM)
+        {
+            filtered.RemoveAt(0);
+        }
+
+        int endIdx = filtered.Count;
+        for (int i = filtered.Count - 1; i >= 0; i--)
+        {
+            if (HaversineMeters(filtered[i].Lat, filtered[i].Lon, privacyLat, privacyLon) < _privacyRadiusM)
+            {
+                endIdx = i;
+            }
+        }
+        if (endIdx < filtered.Count && endIdx > 0)
+        {
+            filtered = filtered.Take(endIdx).ToList();
+        }
+
+        return filtered
+            .Where(p => HaversineMeters(p.Lat, p.Lon, privacyLat, privacyLon) >= _privacyRadiusM)
+            .ToList();
+    }
+
+    private ActivityTelemetry ApplyPrivacyGeofenceIfConfigured(ActivityTelemetry telemetry)
+    {
+        if (_privacyLat is not double privacyLat || _privacyLon is not double privacyLon)
+        {
+            return telemetry;
+        }
+
+        var filteredPoints = FilterPointsOutsideGeofence(telemetry.Points, privacyLat, privacyLon);
+        var filteredAnnotations = telemetry.Annotations
+            .Where(a => HaversineMeters(a.Lat, a.Lon, privacyLat, privacyLon) >= _privacyRadiusM)
+            .ToList();
+
+        return telemetry with
+        {
+            Points = filteredPoints,
+            Annotations = filteredAnnotations
+        };
+    }
+
     private void EnsurePreloadedRides()
     {
         if (IsInitialized) return;
@@ -344,12 +361,33 @@ public class FitParserService : IFitParserService
             var ridesDir = FindRidesDirectory();
             if (!string.IsNullOrEmpty(ridesDir) && Directory.Exists(ridesDir))
             {
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var jsonFiles = Directory.GetFiles(ridesDir, "*.json");
+                foreach (var file in jsonFiles)
+                {
+                    try
+                    {
+                        var id = Path.GetFileNameWithoutExtension(file).ToLowerInvariant().Replace('_', '-').TrimEnd('-');
+                        var json = System.IO.File.ReadAllText(file);
+                        var parsed = JsonSerializer.Deserialize<ActivityTelemetry>(json, jsonOptions);
+                        if (parsed != null)
+                        {
+                            CachedRides[id] = ApplyPrivacyGeofenceIfConfigured(parsed);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore individual corrupted JSON route
+                    }
+                }
+
+                // Also parse any untracked local .fit files if present (e.g. local --dump-all-rides generation)
                 var fitFiles = Directory.GetFiles(ridesDir, "*.fit");
                 foreach (var file in fitFiles)
                 {
                     try
                     {
-                        var id = Path.GetFileNameWithoutExtension(file).ToLowerInvariant().Replace('_', '-');
+                        var id = Path.GetFileNameWithoutExtension(file).ToLowerInvariant().Replace('_', '-').TrimEnd('-');
                         using var stream = System.IO.File.OpenRead(file);
                         var parsed = ParseFitStream(stream, Path.GetFileName(file));
                         CachedRides[id] = parsed;
@@ -403,6 +441,9 @@ public class FitParserService : IFitParserService
         }
         return total;
     }
+
+    private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2) =>
+        Haversine(lat1, lon1, lat2, lon2) * 1000.0;
 
     private static double Haversine(double lat1, double lon1, double lat2, double lon2)
     {

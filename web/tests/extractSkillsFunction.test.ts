@@ -8,6 +8,11 @@ let handler: HandlerFn;
 
 describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extract-skills', () => {
   const originalEnv = process.env.GEMINI_API_KEY;
+  const originalSiteName = process.env.SITE_NAME;
+  const originalAllowedNetlifySite = process.env.ALLOWED_NETLIFY_SITE;
+  const originalUrl = process.env.URL;
+  const originalDeployPrimeUrl = process.env.DEPLOY_PRIME_URL;
+  const originalDeployUrl = process.env.DEPLOY_URL;
 
   beforeAll(async () => {
     const mod = await import('../../netlify/functions/extract-skills');
@@ -16,18 +21,31 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
 
   beforeEach(() => {
     process.env.GEMINI_API_KEY = 'test-secret-gemini-key-123';
+    process.env.SITE_NAME = 'capbjb';
+    delete process.env.ALLOWED_NETLIFY_SITE;
+    delete process.env.URL;
+    delete process.env.DEPLOY_PRIME_URL;
+    delete process.env.DEPLOY_URL;
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.GEMINI_API_KEY;
-    } else {
-      process.env.GEMINI_API_KEY = originalEnv;
-    }
+    const restoreEnv = (key: string, prev: string | undefined) => {
+      if (prev === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = prev;
+      }
+    };
+    restoreEnv('GEMINI_API_KEY', originalEnv);
+    restoreEnv('SITE_NAME', originalSiteName);
+    restoreEnv('ALLOWED_NETLIFY_SITE', originalAllowedNetlifySite);
+    restoreEnv('URL', originalUrl);
+    restoreEnv('DEPLOY_PRIME_URL', originalDeployPrimeUrl);
+    restoreEnv('DEPLOY_URL', originalDeployUrl);
   });
 
-  it('handles OPTIONS preflight for allowed origins including HTTPS netlify previews', async () => {
+  it('handles OPTIONS preflight for allowed origins including site-scoped HTTPS netlify previews', async () => {
     const prodPreflight = await handler({
       httpMethod: 'OPTIONS',
       body: null,
@@ -36,6 +54,14 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
     expect(prodPreflight.statusCode).toBe(204);
     expect(prodPreflight.headers['Access-Control-Allow-Origin']).toBe('https://johnbendfeldt.com');
     expect(prodPreflight.headers['X-Content-Type-Options']).toBe('nosniff');
+
+    const sitePreflight = await handler({
+      httpMethod: 'OPTIONS',
+      body: null,
+      headers: { Origin: 'https://capbjb.netlify.app' },
+    });
+    expect(sitePreflight.statusCode).toBe(204);
+    expect(sitePreflight.headers['Access-Control-Allow-Origin']).toBe('https://capbjb.netlify.app');
 
     const previewPreflight = await handler({
       httpMethod: 'OPTIONS',
@@ -48,7 +74,7 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
     );
   });
 
-  it('rejects OPTIONS preflight and POST requests from disallowed or insecure origins', async () => {
+  it('rejects OPTIONS preflight and POST requests from disallowed, third-party netlify, or insecure origins', async () => {
     const evilOptions = await handler({
       httpMethod: 'OPTIONS',
       body: null,
@@ -56,6 +82,22 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
     });
     expect(evilOptions.statusCode).toBe(403);
     expect(evilOptions.headers['Access-Control-Allow-Origin']).toBeUndefined();
+
+    const foreignNetlifySite = await handler({
+      httpMethod: 'OPTIONS',
+      body: null,
+      headers: { origin: 'https://foreign-attacker.netlify.app' },
+    });
+    expect(foreignNetlifySite.statusCode).toBe(403);
+    expect(foreignNetlifySite.headers['Access-Control-Allow-Origin']).toBeUndefined();
+
+    const otherSitePreview = await handler({
+      httpMethod: 'POST',
+      body: JSON.stringify({ text: 'C# .NET 10' }),
+      headers: { origin: 'https://deploy-preview-1--other-site.netlify.app' },
+    });
+    expect(otherSitePreview.statusCode).toBe(403);
+    expect(otherSitePreview.headers['Access-Control-Allow-Origin']).toBeUndefined();
 
     const insecureNetlify = await handler({
       httpMethod: 'POST',
