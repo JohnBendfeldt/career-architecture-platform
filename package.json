@@ -9,7 +9,7 @@
     "test": "npm --prefix web test && dotnet test CareerPlatform.sln -c Release",
     "test:web": "npm --prefix web test",
     "test:dotnet": "dotnet test CareerPlatform.sln -c Release",
-    "verify": "npm --prefix web run verify && dotnet test CareerPlatform.sln -c Release"
+    "verify": "npm --prefix web run verify && ./web/node_modules/.bin/tsc -p tsconfig.json --noEmit && dotnet test CareerPlatform.sln -c Release"
   }
 }
 

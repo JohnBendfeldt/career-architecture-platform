@@ -3,7 +3,19 @@ import path from 'node:path';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 
 const fnFilePath = path.resolve(import.meta.dirname, '../../netlify/functions/extract-skills.ts');
-type HandlerFn = typeof import('../../netlify/functions/extract-skills').handler;
+type ExtractSkillsEvent = {
+  httpMethod: string;
+  body: string | null;
+  headers?: Record<string, string | undefined>;
+};
+
+type ExtractSkillsResponse = {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+};
+
+type HandlerFn = (event: ExtractSkillsEvent) => Promise<ExtractSkillsResponse>;
 let handler: HandlerFn;
 
 describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extract-skills', () => {
@@ -15,7 +27,7 @@ describe.skipIf(!fs.existsSync(fnFilePath))('Netlify Serverless Function: extrac
   const originalDeployUrl = process.env.DEPLOY_URL;
 
   beforeAll(async () => {
-    const mod = await import('../../netlify/functions/extract-skills');
+    const mod = (await import(fnFilePath)) as { handler: HandlerFn };
     handler = mod.handler;
   });
 
