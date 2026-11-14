@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { isSafeHttpsUrl } from '../utils/security';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xudbpjhloclfrirzexhu.supabase.co';
 const defaultAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1ZGJwamhsb2NsZnJpcnpleGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3NDEyNjQsImV4cCI6MjEwOTMxNzI2NH0.CkPqJLHHuR0EvByPksI17zAZOG_BkTzY146e_EAPtLg';
@@ -17,12 +18,12 @@ async function sha256Hex(input: string): Promise<string> {
 
 export function getSupabaseAnonKey(): string {
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (envKey && envKey.trim().length > 0) {
+  if (envKey && envKey.trim().length > 0 && envKey.trim() !== 'your-anon-public-key') {
     return envKey.trim();
   }
   try {
     const stored = localStorage.getItem('cap_supabase_anon_key')?.trim();
-    if (stored) return stored;
+    if (stored && stored !== 'your-anon-public-key') return stored;
   } catch {
     // ignore storage errors
   }
@@ -32,6 +33,8 @@ export function getSupabaseAnonKey(): string {
 export function setSupabaseAnonKey(key: string): void {
   try {
     localStorage.setItem('cap_supabase_anon_key', key.trim());
+    supabase = null;
+    getOrInitSupabaseClient();
   } catch {
     // ignore storage errors
   }
@@ -39,7 +42,12 @@ export function setSupabaseAnonKey(key: string): void {
 
 const initialAnonKey = getSupabaseAnonKey();
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && initialAnonKey);
+export const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+    initialAnonKey &&
+    isSafeHttpsUrl(supabaseUrl) &&
+    !supabaseUrl.includes('your-project-id.supabase.co')
+);
 
 export let supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(supabaseUrl, initialAnonKey, {
@@ -54,7 +62,7 @@ export let supabase: SupabaseClient | null = isSupabaseConfigured
 export function getOrInitSupabaseClient(): SupabaseClient | null {
   if (supabase) return supabase;
   const key = getSupabaseAnonKey();
-  if (supabaseUrl && key) {
+  if (supabaseUrl && key && isSafeHttpsUrl(supabaseUrl) && !supabaseUrl.includes('your-project-id.supabase.co')) {
     supabase = createClient(supabaseUrl, key, {
       auth: {
         persistSession: true,
@@ -120,28 +128,23 @@ export async function consumeGoogleIdTokenFromHash(): Promise<void> {
   // Ignore if this is already a Supabase session callback with access_token
   if (!idToken || params.get('access_token')) return;
 
+  const rawNonce = sessionStorage.getItem(GOOGLE_NONCE_STORAGE_KEY);
+  sessionStorage.removeItem(GOOGLE_NONCE_STORAGE_KEY);
+
+  // Clean hash from browser address bar immediately
+  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+
+  // Reject unsolicited or replayed id_token fragments lacking an active session nonce
+  if (!rawNonce) return;
+
   const client = getOrInitSupabaseClient();
   if (!client) return;
 
-  const rawNonce = sessionStorage.getItem(GOOGLE_NONCE_STORAGE_KEY) || undefined;
-  sessionStorage.removeItem(GOOGLE_NONCE_STORAGE_KEY);
-
-  // Clean hash from browser address bar
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-
-  const { error } = await client.auth.signInWithIdToken({
+  await client.auth.signInWithIdToken({
     provider: 'google',
     token: idToken,
     nonce: rawNonce,
   });
-
-  if (error && rawNonce) {
-    // Fallback in case "Skip nonce check" or raw nonce is configured in Supabase
-    await client.auth.signInWithIdToken({
-      provider: 'google',
-      token: idToken,
-    });
-  }
 }
 
 export async function signOutFromSupabase() {

@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using CareerPlatform.Geo.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 
 if (args.Contains("--dump-all-rides"))
@@ -87,7 +88,24 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = 52428800;
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "0";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+    await next();
+});
 
 app.UseCors("AllowedOrigins");
 app.UseRateLimiter();
@@ -139,20 +157,31 @@ app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fit
     var form = await request.ReadFormAsync();
     var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
 
-    if (file == null || file.Length == 0)
+    if (file == null || file.Length < 14 || file.Length > 52_428_800)
     {
-        return Results.BadRequest(new { error = "No .fit file uploaded" });
+        return Results.BadRequest(new { error = "No valid .fit file uploaded (must be between 14 bytes and 50 MB)." });
     }
 
-    if (!file.FileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase) &&
-        !file.ContentType.Contains("fit", StringComparison.OrdinalIgnoreCase) &&
-        !file.ContentType.Contains("octet-stream", StringComparison.OrdinalIgnoreCase))
+    if (!file.FileName.EndsWith(".fit", StringComparison.OrdinalIgnoreCase))
     {
         return Results.BadRequest(new { error = "Invalid file format. Please upload a Garmin binary .fit file." });
     }
 
     using var stream = file.OpenReadStream();
-    var result = fitParser.ParseFitStream(stream, file.FileName);
+    var header = new byte[12];
+    var bytesRead = await stream.ReadAsync(header.AsMemory(0, 12));
+    if (bytesRead < 12 ||
+        (header[0] != 12 && header[0] != 14) ||
+        header[8] != (byte)'.' ||
+        header[9] != (byte)'F' ||
+        header[10] != (byte)'I' ||
+        header[11] != (byte)'T')
+    {
+        return Results.BadRequest(new { error = "Invalid Garmin .fit binary header signature." });
+    }
+    stream.Position = 0;
+
+    var result = fitParser.ParseFitStream(stream, Path.GetFileName(file.FileName));
 
     return Results.Ok(result);
 }).RequireRateLimiting("GeoUploadLimit");

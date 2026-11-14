@@ -11,8 +11,7 @@ RUN dotnet publish "CareerPlatform.Gateway.csproj" -c Release -o /app/publish /p
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8080
 COPY --from=build /app/publish .
 USER $APP_UID
 ENTRYPOINT ["dotnet", "CareerPlatform.Gateway.dll"]

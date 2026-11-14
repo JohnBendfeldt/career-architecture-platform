@@ -1,5 +1,11 @@
 import type { Profile, Goal, AuthResponse, RouteData, RideSummary, User, LearningResource, ExtractSkillsResponse, LearningResourcesResponse } from '../types';
 import { getOrInitSupabaseClient } from './supabase';
+import {
+  isSafeImageUrl,
+  sanitizeExternalUrl,
+  safeParseStorageObject,
+  safeParseStorageArray,
+} from '../utils/security';
 
 const API_BASE = ''; // proxied by Vite in dev to Gateway
 
@@ -8,6 +14,33 @@ const isJson = (res: Response): boolean => {
   return Boolean(res.ok && ct && ct.includes('application/json'));
 };
 
+function sanitizeStoredProfile(profile: Profile): Profile {
+  return {
+    ...profile,
+    avatarUrl: isSafeImageUrl(profile.avatarUrl) ? profile.avatarUrl.trim() : '',
+    githubUrl: sanitizeExternalUrl(profile.githubUrl, 'https://github.com'),
+    linkedinUrl: sanitizeExternalUrl(profile.linkedinUrl, 'https://linkedin.com'),
+    websiteUrl: profile.websiteUrl ? sanitizeExternalUrl(profile.websiteUrl, '') : undefined,
+    liveProjectUrl: profile.liveProjectUrl ? sanitizeExternalUrl(profile.liveProjectUrl, '') : undefined,
+    skills: Array.isArray(profile.skills) ? profile.skills.filter((s): s is string => typeof s === 'string') : [],
+  };
+}
+
+function isValidGoalShape(item: unknown): item is Goal {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as Record<string, unknown>;
+  return typeof candidate.title === 'string' && typeof candidate.description === 'string';
+}
+
+function normalizeGoalList(goals: Goal[]): Goal[] {
+  return goals.map((g, idx) => ({
+    ...g,
+    id: typeof g.id === 'number' ? g.id : idx + 1,
+    progress: typeof g.progress === 'number' ? Math.max(0, Math.min(100, g.progress)) : 0,
+    tags: Array.isArray(g.tags) ? g.tags.filter((t): t is string => typeof t === 'string') : [],
+  }));
+}
+
 export class ApiService {
   private static TOKEN_KEY = 'cap_auth_token';
   private static USER_KEY = 'cap_auth_user';
@@ -15,17 +48,35 @@ export class ApiService {
   private static CUSTOM_PROFILE_PREFIX = 'cap_custom_profile_';
 
   static getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    try {
+      return localStorage.getItem(this.TOKEN_KEY);
+    } catch {
+      return null;
+    }
   }
 
   static getUser(): User | null {
-    const raw = localStorage.getItem(this.USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const parsed = safeParseStorageObject<User>(localStorage.getItem(this.USER_KEY));
+      if (!parsed || typeof parsed.id !== 'string' || typeof parsed.email !== 'string') {
+        return null;
+      }
+      return {
+        ...parsed,
+        avatarUrl: isSafeImageUrl(parsed.avatarUrl) ? parsed.avatarUrl : '',
+      };
+    } catch {
+      return null;
+    }
   }
 
   static setSession(token: string, user: User): void {
+    const safeUser: User = {
+      ...user,
+      avatarUrl: isSafeImageUrl(user.avatarUrl) ? user.avatarUrl : '',
+    };
     localStorage.setItem(this.TOKEN_KEY, token);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    localStorage.setItem(this.USER_KEY, JSON.stringify(safeUser));
   }
 
   static clearSession(): void {
@@ -34,29 +85,22 @@ export class ApiService {
   }
 
   static isPortfolioOwner(user: User | null | undefined): boolean {
-    if (!user) return false;
+    if (!user || user.role === 'guest') return false;
     const lowerEmail = (user.email || '').trim().toLowerCase();
-    const lowerName = (user.name || '').trim().toLowerCase();
     return (
       lowerEmail === 'jfbendfeldt@gmail.com' ||
-      lowerEmail.includes('bendfeldt') ||
-      lowerName.includes('bendfeldt') ||
-      lowerName === 'john f. bendfeldt' ||
-      lowerName === 'john bendfeldt'
+      lowerEmail.endsWith('@johnbendfeldt.com')
     );
   }
 
   static getDefaultPortfolioProfile(): Profile {
-    const savedOwner = localStorage.getItem('cap_owner_portfolio_profile');
-    if (savedOwner) {
-      try {
-        const parsed: Profile = JSON.parse(savedOwner);
-        if (parsed && parsed.name && parsed.headline !== 'Software Engineer & Systems Builder') {
-          return parsed;
-        }
-      } catch {
-        // ignore
+    try {
+      const parsed = safeParseStorageObject<Profile>(localStorage.getItem('cap_owner_portfolio_profile'));
+      if (parsed && typeof parsed.name === 'string' && parsed.headline !== 'Software Engineer & Systems Builder') {
+        return sanitizeStoredProfile(parsed);
       }
+    } catch {
+      // ignore
     }
 
     return {
@@ -113,18 +157,14 @@ export class ApiService {
       return ownerProfile;
     }
 
-    const raw = localStorage.getItem(`${this.CUSTOM_PROFILE_PREFIX}${user.id}`);
-    if (raw) {
-      try {
-        const parsed: Profile = JSON.parse(raw);
-        if (!parsed.vanitySlug) {
-          parsed.vanitySlug = this.toVanitySlug(parsed.name || user.name);
-        }
-        return parsed;
-      } catch {
-        // fallback below
+    const parsed = safeParseStorageObject<Profile>(localStorage.getItem(`${this.CUSTOM_PROFILE_PREFIX}${user.id}`));
+    if (parsed && typeof parsed.name === 'string') {
+      if (!parsed.vanitySlug) {
+        parsed.vanitySlug = this.toVanitySlug(parsed.name || user.name);
       }
+      return sanitizeStoredProfile(parsed);
     }
+
     const slug = this.toVanitySlug(user.name);
     const defaultCustom: Profile = {
       id: 999,
@@ -134,7 +174,7 @@ export class ApiService {
       bio: `Full-stack engineer focused on scalable cloud systems, automated delivery pipelines, and continuous technical growth.`,
       location: 'Remote / Global',
       email: user.email || '',
-      avatarUrl: user.avatarUrl || '',
+      avatarUrl: isSafeImageUrl(user.avatarUrl) ? (user.avatarUrl || '') : '',
       githubUrl: 'https://github.com',
       linkedinUrl: 'https://linkedin.com',
       skills: ['TypeScript', 'React', '.NET', 'Cloud Architecture', 'AI Workflows'],
@@ -149,11 +189,11 @@ export class ApiService {
     const cleanSlug = (profile.vanitySlug || this.toVanitySlug(profile.name))
       .trim()
       .replace(/[^a-zA-Z0-9_-]/g, '');
-    const updated: Profile = {
+    const updated = sanitizeStoredProfile({
       ...profile,
       vanitySlug: cleanSlug || this.toVanitySlug(profile.name),
-      updatedAt: new Date().toISOString()
-    };
+      updatedAt: new Date().toISOString(),
+    });
     localStorage.setItem(`${this.CUSTOM_PROFILE_PREFIX}${userId}`, JSON.stringify(updated));
     if (updated.vanitySlug) {
       localStorage.setItem(`cap_profile_slug_${updated.vanitySlug.toLowerCase()}`, JSON.stringify(updated));
@@ -179,13 +219,9 @@ export class ApiService {
       return this.getDefaultPortfolioProfile();
     }
 
-    const raw = localStorage.getItem(`cap_profile_slug_${clean}`);
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        // ignore
-      }
+    const parsed = safeParseStorageObject<Profile>(localStorage.getItem(`cap_profile_slug_${clean}`));
+    if (parsed && typeof parsed.name === 'string') {
+      return sanitizeStoredProfile(parsed);
     }
 
     // Fallback for public / incognito visitors opening /profile/:slug directly
@@ -208,14 +244,9 @@ export class ApiService {
   }
 
   static getPersonalGoals(): Goal[] {
-    const raw = localStorage.getItem(this.CUSTOM_GOALS_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {
-        // fallback
-      }
+    const parsed = safeParseStorageArray<Goal>(localStorage.getItem(this.CUSTOM_GOALS_KEY), isValidGoalShape);
+    if (parsed) {
+      return normalizeGoalList(parsed);
     }
     const starterGoals: Goal[] = [
       {
@@ -295,7 +326,7 @@ export class ApiService {
       try {
         const { data, error } = await sbClient.from('profiles').select('*').limit(1).maybeSingle();
         if (data && !error) {
-          return {
+          return sanitizeStoredProfile({
             id: data.id,
             name: data.name,
             headline: data.headline,
@@ -307,10 +338,12 @@ export class ApiService {
             linkedinUrl: data.linkedin_url,
             websiteUrl: data.website_url,
             liveProjectUrl: data.live_project_url,
-            skills: Array.isArray(data.skills) ? data.skills : JSON.parse(data.skills || '[]'),
+            skills: Array.isArray(data.skills)
+              ? data.skills
+              : (safeParseStorageArray<string>(data.skills, (s): s is string => typeof s === 'string') || []),
             experienceYears: data.experience_years,
             updatedAt: data.updated_at,
-          };
+          });
         }
       } catch {
         // Fallback
@@ -320,7 +353,8 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/profile`);
       if (isJson(res)) {
-        return await res.json();
+        const apiProfile: Profile = await res.json();
+        return sanitizeStoredProfile(apiProfile);
       }
     } catch {
       // Backend unavailable, using verified profile data
@@ -364,16 +398,9 @@ export class ApiService {
   }
 
   private static getOwnerPortfolioGoals(baseGoals: Goal[]): Goal[] {
-    const raw = localStorage.getItem('cap_owner_portfolio_goals');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch {
-        // ignore
-      }
+    const parsed = safeParseStorageArray<Goal>(localStorage.getItem('cap_owner_portfolio_goals'), isValidGoalShape);
+    if (parsed && parsed.length > 0) {
+      return normalizeGoalList(parsed);
     }
     return baseGoals;
   }
@@ -383,18 +410,24 @@ export class ApiService {
     const sbClient = getOrInitSupabaseClient();
     if (sbClient) {
       try {
-        const { data, error } = await sbClient.from('goals').select('*').order('id', { ascending: true });
+        const { data, error } = await sbClient
+          .from('goals')
+          .select('*')
+          .is('user_id', null)
+          .order('id', { ascending: true });
         if (data && !error && data.length > 0) {
-          const mapped = data.map((g: any) => ({
-            id: g.id,
-            title: g.title,
-            description: g.description,
-            category: g.category,
-            progress: g.progress,
-            targetDate: g.target_date,
-            status: g.status,
-            tags: Array.isArray(g.tags) ? g.tags : JSON.parse(g.tags || '[]'),
-            createdAt: g.created_at,
+          const mapped = data.map((g: Record<string, unknown>, idx: number) => ({
+            id: typeof g.id === 'number' ? g.id : idx + 1,
+            title: typeof g.title === 'string' ? g.title : 'Milestone',
+            description: typeof g.description === 'string' ? g.description : '',
+            category: (g.category === 'Personal' ? 'Personal' : 'Technical') as Goal['category'],
+            progress: typeof g.progress === 'number' ? Math.max(0, Math.min(100, g.progress)) : 0,
+            targetDate: typeof g.target_date === 'string' ? g.target_date : 'Active',
+            status: (g.status === 'Completed' || g.status === 'Upcoming' ? g.status : 'InProgress') as Goal['status'],
+            tags: Array.isArray(g.tags)
+              ? g.tags.filter((t): t is string => typeof t === 'string')
+              : (safeParseStorageArray<string>(typeof g.tags === 'string' ? g.tags : null, (t): t is string => typeof t === 'string') || []),
+            createdAt: typeof g.created_at === 'string' ? g.created_at : new Date().toISOString(),
           }));
           return this.getOwnerPortfolioGoals(mapped);
         }
@@ -407,7 +440,7 @@ export class ApiService {
       const res = await fetch(`${API_BASE}/api/goals`);
       if (isJson(res)) {
         const apiGoals = await res.json();
-        return this.getOwnerPortfolioGoals(apiGoals);
+        return this.getOwnerPortfolioGoals(Array.isArray(apiGoals) ? normalizeGoalList(apiGoals.filter(isValidGoalShape)) : []);
       }
     } catch {
       // Backend unavailable, using pre-seeded goals
@@ -539,19 +572,14 @@ export class ApiService {
   static updateGoalProgress(goalId: number, progress: number): Goal[] {
     const clamped = Math.max(0, Math.min(100, progress));
     if (this.isPortfolioOwner(this.getUser())) {
-      const raw = localStorage.getItem('cap_owner_portfolio_goals');
-      if (raw) {
-        try {
-          const parsed: Goal[] = JSON.parse(raw);
-          const updated = parsed.map(g =>
-            g.id === goalId
-              ? { ...g, progress: clamped, status: (clamped >= 100 ? 'Completed' : 'InProgress') as Goal['status'] }
-              : g
-          );
-          localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
+      const parsed = safeParseStorageArray<Goal>(localStorage.getItem('cap_owner_portfolio_goals'), isValidGoalShape);
+      if (parsed) {
+        const updated = normalizeGoalList(parsed).map(g =>
+          g.id === goalId
+            ? { ...g, progress: clamped, status: (clamped >= 100 ? 'Completed' : 'InProgress') as Goal['status'] }
+            : g
+        );
+        localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(updated));
       }
     }
     const custom = this.getPersonalGoals().map(g =>
@@ -565,14 +593,9 @@ export class ApiService {
 
   static deleteCustomGoal(goalId: number): void {
     if (this.isPortfolioOwner(this.getUser())) {
-      const raw = localStorage.getItem('cap_owner_portfolio_goals');
-      if (raw) {
-        try {
-          const parsed: Goal[] = JSON.parse(raw);
-          localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(parsed.filter(g => g.id !== goalId)));
-        } catch {
-          // ignore
-        }
+      const parsed = safeParseStorageArray<Goal>(localStorage.getItem('cap_owner_portfolio_goals'), isValidGoalShape);
+      if (parsed) {
+        localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify(normalizeGoalList(parsed).filter(g => g.id !== goalId)));
       }
     }
     const custom = this.getPersonalGoals().filter(g => g.id !== goalId);

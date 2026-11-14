@@ -7,6 +7,7 @@ using CareerPlatform.Api.Models;
 using CareerPlatform.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -114,6 +115,11 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 var app = builder.Build();
 
 // Ensure DB is created and seeded
@@ -122,6 +128,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
 }
+
+app.UseForwardedHeaders();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "0";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=(), payment=()";
+    await next();
+});
 
 app.UseCors("AllowedOrigins");
 app.UseRateLimiter();
@@ -234,6 +252,26 @@ static IResult? ValidateGoalRequest(CreateGoalRequest request)
     if (request.Description?.Length > 2000)
     {
         return Results.BadRequest(new { error = "Description must be 2,000 characters or fewer." });
+    }
+
+    if (request.Category?.Length > 50)
+    {
+        return Results.BadRequest(new { error = "Category must be 50 characters or fewer." });
+    }
+
+    if (request.TargetDate?.Length > 60)
+    {
+        return Results.BadRequest(new { error = "TargetDate must be 60 characters or fewer." });
+    }
+
+    if (request.Status?.Length > 30)
+    {
+        return Results.BadRequest(new { error = "Status must be 30 characters or fewer." });
+    }
+
+    if (request.Tags is { Count: > 20 } || (request.Tags != null && request.Tags.Any(t => t == null || t.Length > 50)))
+    {
+        return Results.BadRequest(new { error = "Goals may include at most 20 tags of up to 50 characters each." });
     }
 
     return null;

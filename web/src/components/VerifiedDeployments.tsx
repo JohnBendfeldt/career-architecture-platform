@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, ShieldCheck, Terminal, Globe, Building2, Code2, Plus, Trash2, X } from 'lucide-react';
 import { GithubIcon } from './Icons';
+import { isSafeHttpsUrl, safeParseStorageArray, sanitizeExternalUrl } from '../utils/security';
 
 interface VerifiedDeploymentsProps {
   workspaceMode?: 'portfolio' | 'personal';
@@ -25,6 +26,17 @@ interface DeploymentItem {
   tags: string[];
   note: string;
   linkText: string;
+}
+
+function isValidDeploymentItem(item: unknown): item is DeploymentItem {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.title === 'string' &&
+    typeof candidate.url === 'string' &&
+    Boolean(candidate.verificationDetails && typeof candidate.verificationDetails === 'object')
+  );
 }
 
 const STARTER_PERSONAL_PROJECTS: DeploymentItem[] = [
@@ -71,13 +83,17 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
   userName = 'My'
 }) => {
   const [personalProjects, setPersonalProjects] = useState<DeploymentItem[]>(() => {
-    const raw = localStorage.getItem('cap_personal_projects');
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        // fallback
-      }
+    const parsed = safeParseStorageArray<DeploymentItem>(
+      localStorage.getItem('cap_personal_projects'),
+      isValidDeploymentItem
+    );
+    if (parsed) {
+      return parsed.map((proj) => ({
+        ...proj,
+        url: proj.url === '#' ? '#' : sanitizeExternalUrl(proj.url, '#'),
+        githubUrl: proj.githubUrl ? sanitizeExternalUrl(proj.githubUrl, '') || undefined : undefined,
+        tags: Array.isArray(proj.tags) ? proj.tags.filter((t): t is string => typeof t === 'string') : [],
+      }));
     }
     return STARTER_PERSONAL_PROJECTS;
   });
@@ -95,26 +111,24 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUrl = newUrl.trim()
-      ? (newUrl.trim().startsWith('http') ? newUrl.trim() : `https://${newUrl.trim()}`)
-      : '#';
+    const cleanUrl = sanitizeExternalUrl(newUrl, '#');
     const domain = cleanUrl !== '#' ? cleanUrl.replace(/^https?:\/\/(www\.)?/, '') : 'custom-project.local';
 
     const created: DeploymentItem = {
       id: `proj-${Date.now()}`,
-      category: newCategory.trim() || 'Personal Project',
-      title: newTitle.trim() || 'My Custom Project',
+      category: newCategory.trim().slice(0, 80) || 'Personal Project',
+      title: newTitle.trim().slice(0, 150) || 'My Custom Project',
       domain,
       url: cleanUrl,
       organization: `${userName}'s Workspace`,
       badgeColor: 'badge-cyan',
       verificationBadge: 'Custom Workspace Project',
-      description: newDesc.trim() || 'Custom architecture project added in personal workspace.',
+      description: newDesc.trim().slice(0, 1000) || 'Custom architecture project added in personal workspace.',
       verificationDetails: {
-        metaTag: `Stack: ${newStack || 'Full-Stack'}`,
+        metaTag: `Stack: ${(newStack || 'Full-Stack').slice(0, 200)}`,
         consoleLog: 'Verified Personal Project'
       },
-      tags: newStack.split(',').map(s => s.trim()).filter(Boolean),
+      tags: newStack.split(',').map(s => s.trim()).filter(Boolean).slice(0, 15),
       note: `Added by ${userName} in Personal Workspace mode.`,
       linkText: cleanUrl !== '#' ? `Launch ${domain}` : 'Active Workspace Project'
     };
@@ -350,7 +364,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
 
               {/* Outbound Link Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {item.url !== '#' && (
+                {isSafeHttpsUrl(item.url) ? (
                   <a
                     href={item.url}
                     target="_blank"
@@ -368,9 +382,25 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                     <span>{item.linkText}</span>
                     <ExternalLink size={13} style={{ opacity: 0.8 }} />
                   </a>
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      textAlign: 'center',
+                      padding: '9px 16px',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      background: 'var(--bg-primary)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    {workspaceMode === 'personal' ? `✨ ${item.linkText}` : '⚡ Active App (Hosting Target: johnbendfeldt.com)'}
+                  </div>
                 )}
 
-                {item.githubUrl && (
+                {item.githubUrl && isSafeHttpsUrl(item.githubUrl) && (
                   <a
                     href={item.githubUrl}
                     target="_blank"
@@ -387,24 +417,6 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                     <span>View Repository on GitHub</span>
                     <ExternalLink size={12} style={{ opacity: 0.8 }} />
                   </a>
-                )}
-
-                {item.url === '#' && (
-                  <div
-                    style={{
-                      width: '100%',
-                      textAlign: 'center',
-                      padding: '9px 16px',
-                      fontSize: '0.84rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      background: 'var(--bg-primary)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  >
-                    {workspaceMode === 'personal' ? `✨ ${item.linkText}` : '⚡ Active App (Hosting Target: johnbendfeldt.com)'}
-                  </div>
                 )}
               </div>
             </div>

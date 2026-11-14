@@ -5,9 +5,11 @@ import {
   PORTFOLIO_EXPERIENCES,
   STARTER_PERSONAL_EXPERIENCES,
   exportPrintableResume,
+  isValidExperienceItem,
   type ExperienceItem
 } from './resume/resumePdfExport';
 import { AddRoleModal } from './resume/AddRoleModal';
+import { safeParseStorageArray, sanitizeExternalUrl } from '../utils/security';
 
 export { exportPrintableResume, PORTFOLIO_EXPERIENCES, type ExperienceItem };
 
@@ -84,15 +86,11 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
   profile
 }) => {
   const [personalExperiences, setPersonalExperiences] = useState<ExperienceItem[]>(() => {
-    const raw = localStorage.getItem('cap_personal_experiences');
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        // fallback
-      }
-    }
-    return STARTER_PERSONAL_EXPERIENCES;
+    const parsed = safeParseStorageArray<ExperienceItem>(
+      localStorage.getItem('cap_personal_experiences'),
+      isValidExperienceItem
+    );
+    return parsed || STARTER_PERSONAL_EXPERIENCES;
   });
 
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
@@ -382,7 +380,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     </div>
 
                     <a
-                      href={proj.url}
+                      href={sanitizeExternalUrl(proj.url, 'https://basiclanguage.school')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="social-link"

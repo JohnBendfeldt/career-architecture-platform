@@ -7,18 +7,18 @@
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.profiles (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    headline TEXT NOT NULL,
-    bio TEXT NOT NULL,
-    location TEXT NOT NULL,
-    email TEXT NOT NULL,
-    avatar_url TEXT NOT NULL,
-    github_url TEXT NOT NULL,
-    linkedin_url TEXT NOT NULL,
-    website_url TEXT NOT NULL DEFAULT 'https://johnbendfeldt.com',
-    live_project_url TEXT NOT NULL DEFAULT 'https://basiclanguage.school',
+    name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+    headline TEXT NOT NULL CHECK (char_length(headline) BETWEEN 1 AND 200),
+    bio TEXT NOT NULL CHECK (char_length(bio) <= 4000),
+    location TEXT NOT NULL CHECK (char_length(location) <= 120),
+    email TEXT NOT NULL CHECK (char_length(email) <= 254),
+    avatar_url TEXT NOT NULL CHECK (char_length(avatar_url) <= 2000),
+    github_url TEXT NOT NULL CHECK (char_length(github_url) <= 2000),
+    linkedin_url TEXT NOT NULL CHECK (char_length(linkedin_url) <= 2000),
+    website_url TEXT NOT NULL DEFAULT 'https://johnbendfeldt.com' CHECK (char_length(website_url) <= 2000),
+    live_project_url TEXT NOT NULL DEFAULT 'https://basiclanguage.school' CHECK (char_length(live_project_url) <= 2000),
     skills JSONB NOT NULL DEFAULT '[]'::jsonb,
-    experience_years INTEGER NOT NULL DEFAULT 9,
+    experience_years INTEGER NOT NULL DEFAULT 9 CHECK (experience_years BETWEEN 0 AND 60),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -26,16 +26,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.goals (
     id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
+    title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+    description TEXT NOT NULL CHECK (char_length(description) <= 2000),
     category TEXT NOT NULL CHECK (category IN ('Technical', 'Personal')),
     progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-    target_date TEXT NOT NULL,
+    target_date TEXT NOT NULL CHECK (char_length(target_date) <= 60),
     status TEXT NOT NULL CHECK (status IN ('InProgress', 'Completed', 'Upcoming')),
     tags JSONB NOT NULL DEFAULT '[]'::jsonb,
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_goals_user_id ON public.goals(user_id);
 
 -- 3. USER ROLES & PERMISSIONS TABLE
 -- ------------------------------------------------------------------------------
@@ -45,49 +47,85 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. ENABLE ROW LEVEL SECURITY (RLS)
+-- 4. PRIVILEGE HARDENING & ROW LEVEL SECURITY (RLS)
+-- Unauthenticated (anon) requests have read-only access strictly to public portfolio rows;
+-- authenticated users can strictly ONLY insert, update, and delete their OWN goal rows.
 -- ------------------------------------------------------------------------------
+REVOKE ALL ON public.profiles FROM anon, authenticated;
+REVOKE ALL ON public.goals FROM anon, authenticated;
+REVOKE ALL ON public.user_roles FROM anon, authenticated;
+
+GRANT SELECT ON public.profiles TO anon, authenticated;
+GRANT SELECT ON public.goals TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.goals TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.goals_id_seq TO authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 -- 5. ROW LEVEL SECURITY POLICIES
 -- ------------------------------------------------------------------------------
--- Profiles: Public read access for portfolio visitors
+-- Profiles: Public read access for portfolio visitors (read-only; writes restricted to service_role)
 DROP POLICY IF EXISTS "Allow public read access to profile" ON public.profiles;
-CREATE POLICY "Allow public read access to profile" 
-    ON public.profiles FOR SELECT 
+CREATE POLICY "Allow public read access to profile"
+    ON public.profiles FOR SELECT
+    TO anon, authenticated
     USING (true);
 
--- Goals: Public read access for portfolio visitors
+-- Goals: Public read access only to seeded portfolio rows (user_id IS NULL);
+-- authenticated users also see their own personal rows (auth.uid() = user_id)
 DROP POLICY IF EXISTS "Allow public read access to goals" ON public.goals;
-CREATE POLICY "Allow public read access to goals" 
-    ON public.goals FOR SELECT 
-    USING (true);
+CREATE POLICY "Allow public read access to goals"
+    ON public.goals FOR SELECT
+    TO anon, authenticated
+    USING (user_id IS NULL OR auth.uid() = user_id);
 
--- Goals: Authenticated users can insert goals
+-- Goals: Only authenticated users can insert, and strictly for their own user_id
 DROP POLICY IF EXISTS "Allow authenticated insert to goals" ON public.goals;
-CREATE POLICY "Allow authenticated insert to goals" 
-    ON public.goals FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'anon');
+CREATE POLICY "Allow authenticated insert to goals"
+    ON public.goals FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL AND auth.uid() = user_id);
 
--- User Roles: Users can inspect their own role
+-- Goals: Authenticated users can update only their own personal goals
+DROP POLICY IF EXISTS "Allow authenticated update own goals" ON public.goals;
+CREATE POLICY "Allow authenticated update own goals"
+    ON public.goals FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Goals: Authenticated users can delete only their own personal goals
+DROP POLICY IF EXISTS "Allow authenticated delete own goals" ON public.goals;
+CREATE POLICY "Allow authenticated delete own goals"
+    ON public.goals FOR DELETE
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+-- User Roles: Authenticated users can inspect only their own role
 DROP POLICY IF EXISTS "Allow users to view own role" ON public.user_roles;
-CREATE POLICY "Allow users to view own role" 
-    ON public.user_roles FOR SELECT 
+CREATE POLICY "Allow users to view own role"
+    ON public.user_roles FOR SELECT
+    TO authenticated
     USING (auth.uid() = user_id);
 
 -- 6. AUTOMATIC USER REGISTRATION TRIGGER (Handles GitHub / Google / Azure sign-ins)
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'recruiter')
     ON CONFLICT (user_id) DO NOTHING;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

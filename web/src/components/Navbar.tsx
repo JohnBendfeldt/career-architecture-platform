@@ -3,6 +3,7 @@ import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn, Download } from 'lucide
 import { GithubIcon, LinkedinIcon } from './Icons';
 import { exportPrintableResume } from './ResumeTimeline';
 import type { User, Profile } from '../types';
+import { isSafeImageUrl, sanitizeExternalUrl } from '../utils/security';
 
 interface NavbarProps {
   user: User | null;
@@ -40,12 +41,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     ? `BY JOHN BENDFELDT // ${activeProfile.name.toUpperCase()}`
     : 'BY JOHN BENDFELDT';
   const navGithubUrl = isPersonal
-    ? (activeProfile.githubUrl || 'https://github.com')
+    ? sanitizeExternalUrl(activeProfile.githubUrl, 'https://github.com')
     : 'https://github.com/johnbendfeldt';
   const navLinkedinUrl = isPersonal
-    ? (activeProfile.linkedinUrl || 'https://linkedin.com')
+    ? sanitizeExternalUrl(activeProfile.linkedinUrl, 'https://linkedin.com')
     : 'https://linkedin.com/in/johnbendfeldt';
   const navOwnerName = isPersonal ? activeProfile.name : 'John Bendfeldt';
+  const safeAvatarUrl = isSafeImageUrl(user?.avatarUrl) ? user!.avatarUrl! : '';
 
   return (
     <header className="glass-panel navbar-header">
@@ -176,15 +178,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-full)'
           }}>
-            {user.avatarUrl && !avatarError ? (
+            {safeAvatarUrl && !avatarError ? (
               <img
                 ref={(img) => {
                   if (img && img.complete && img.naturalWidth === 0) {
                     setAvatarError(true);
                   }
                 }}
-                src={user.avatarUrl}
+                src={safeAvatarUrl}
                 alt={user.name}
+                loading="lazy"
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarError(true)}
                 style={{

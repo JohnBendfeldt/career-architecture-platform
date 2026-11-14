@@ -6,6 +6,7 @@ import { GithubIcon, LinkedinIcon } from './Icons';
 import { MapPin, CheckCircle, ExternalLink, ChevronDown, Download } from 'lucide-react';
 import { ProfileWorkspaceBar } from './profile/ProfileWorkspaceBar';
 import { ProfileEditModal } from './profile/ProfileEditModal';
+import { isSafeImageUrl, sanitizeExternalUrl } from '../utils/security';
 
 interface ProfileHeroProps {
   profile: Profile;
@@ -38,6 +39,9 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const currentSlug = profile.vanitySlug || (profile.name || 'professional').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const safeAvatarUrl = isSafeImageUrl(profile.avatarUrl) ? profile.avatarUrl : '';
+  const safeGithubUrl = sanitizeExternalUrl(profile.githubUrl, 'https://github.com');
+  const safeLinkedinUrl = sanitizeExternalUrl(profile.linkedinUrl, 'https://linkedin.com');
 
   useEffect(() => {
     setImgError(false);
@@ -117,14 +121,14 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
             background: 'var(--text-primary)',
             flexShrink: 0
           }}>
-            {profile.avatarUrl && !imgError ? (
+            {safeAvatarUrl && !imgError ? (
               <img
                 ref={(img) => {
                   if (img && img.complete && img.naturalWidth === 0) {
                     setImgError(true);
                   }
                 }}
-                src={profile.avatarUrl}
+                src={safeAvatarUrl}
                 alt={profile.name}
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
@@ -260,7 +264,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   <span>Download Resume (PDF)</span>
                 </button>
                 <a
-                  href={profile.githubUrl}
+                  href={safeGithubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="social-link"
@@ -268,7 +272,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 >
                   <GithubIcon size={15} />
                   <span style={{ fontWeight: 600 }}>
-                    {profile.githubUrl.replace(/^https?:\/\/(www\.)?/, '') || 'github.com'}
+                    {safeGithubUrl.replace(/^https?:\/\/(www\.)?/, '') || 'github.com'}
                   </span>
                   <ExternalLink size={12} style={{ opacity: 0.7 }} />
                 </a>
@@ -276,7 +280,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
             ) : (
               <>
                 <a
-                  href={profile.linkedinUrl}
+                  href={safeLinkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-primary"
@@ -300,7 +304,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 </button>
 
                 <a
-                  href={profile.githubUrl}
+                  href={safeGithubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="social-link"

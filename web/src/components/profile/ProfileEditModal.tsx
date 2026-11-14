@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Profile } from '../../types';
 import { Edit3, X } from 'lucide-react';
+import { isSafeImageUrl, sanitizeExternalUrl } from '../../utils/security';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -41,18 +42,21 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    const sanitizedSlug = editSlug.trim().replace(/[^a-zA-Z0-9_-]/g, '') || currentSlug;
+    const sanitizedSlug = editSlug.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || currentSlug;
+    const rawAvatar = editAvatar.trim();
+    const safeAvatar = isSafeImageUrl(rawAvatar) ? rawAvatar : '';
+    const safeGithub = sanitizeExternalUrl(editGithub, sanitizeExternalUrl(profile.githubUrl, 'https://github.com'));
     if (onSave) {
       onSave({
         ...profile,
-        name: editName.trim() || profile.name,
+        name: editName.trim().slice(0, 120) || profile.name,
         vanitySlug: sanitizedSlug,
-        headline: editHeadline.trim() || profile.headline,
-        location: editLocation.trim() || profile.location,
-        experienceYears: Number(editYears) || 1,
-        bio: editBio.trim() || profile.bio,
-        avatarUrl: editAvatar.trim(),
-        githubUrl: editGithub.trim() || profile.githubUrl
+        headline: editHeadline.trim().slice(0, 200) || profile.headline,
+        location: editLocation.trim().slice(0, 120) || profile.location,
+        experienceYears: Math.max(0, Math.min(80, Number(editYears) || 1)),
+        bio: editBio.trim().slice(0, 2000) || profile.bio,
+        avatarUrl: safeAvatar,
+        githubUrl: safeGithub
       });
     }
     onClose();
@@ -98,6 +102,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Display Name</label>
               <input
                 type="text"
+                maxLength={120}
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
@@ -108,6 +113,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Headline / Role</label>
               <input
                 type="text"
+                maxLength={200}
                 value={editHeadline}
                 onChange={(e) => setEditHeadline(e.target.value)}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
@@ -121,6 +127,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Location</label>
               <input
                 type="text"
+                maxLength={120}
                 value={editLocation}
                 onChange={(e) => setEditLocation(e.target.value)}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
@@ -131,7 +138,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <input
                 type="number"
                 min={0}
-                max={50}
+                max={80}
                 value={editYears}
                 onChange={(e) => setEditYears(Number(e.target.value))}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
@@ -149,6 +156,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               </span>
               <input
                 type="text"
+                maxLength={80}
                 value={editSlug}
                 onChange={(e) => setEditSlug(e.target.value)}
                 placeholder="basic-english"
@@ -164,6 +172,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               </label>
               <input
                 type="text"
+                maxLength={2048}
                 value={editAvatar}
                 onChange={(e) => setEditAvatar(e.target.value)}
                 placeholder="https://... or leave blank"
@@ -176,6 +185,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               </label>
               <input
                 type="text"
+                maxLength={2048}
                 value={editGithub}
                 onChange={(e) => setEditGithub(e.target.value)}
                 placeholder="https://github.com/yourname"
@@ -188,6 +198,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Architectural Bio</label>
             <textarea
               rows={3}
+              maxLength={2000}
               value={editBio}
               onChange={(e) => setEditBio(e.target.value)}
               style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem', resize: 'vertical' }}

@@ -15,7 +15,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ initialTab, onClose, onS
   const handleClearLocalData = () => {
     const theme = localStorage.getItem('cap_theme');
     localStorage.clear();
-    if (theme) {
+    if (theme === 'light' || theme === 'dark') {
       localStorage.setItem('cap_theme', theme);
     }
     setClearedData(true);
@@ -163,10 +163,10 @@ export const LegalModal: React.FC<LegalModalProps> = ({ initialTab, onClose, onS
               </p>
 
               <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: '18px', marginBottom: '6px' }}>
-                2. Personal Workspace & Browser Storage
+                2. Personal Workspace &amp; Browser Storage
               </h3>
               <p style={{ marginBottom: '14px' }}>
-                Customizations you make in Personal Workspace mode—such as your custom profile bio, vanity slug, custom goals, work history entries, and uploadedprojects—are stored locally in your browser&apos;s <code>localStorage</code> so you can test and customize the platform without server-side tracking. You can wipe all locally stored workspace data at any time using the button below.
+                Customizations you make in Personal Workspace mode—such as your custom profile bio, vanity slug, custom goals, work history entries, and uploaded projects—are stored locally in your browser&apos;s <code>localStorage</code> so you can test and customize the platform without server-side tracking. You can wipe all locally stored workspace data at any time using the button below.
               </p>
 
               <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: '18px', marginBottom: '6px' }}>
@@ -180,7 +180,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ initialTab, onClose, onS
                 4. Garmin FIT &amp; GPX Geospatial Telemetry
               </h3>
               <p style={{ marginBottom: '14px' }}>
-                Preloaded cycling routes on this platform are protected by a strict <strong>400-meter residential privacy geofence</strong> that strips start/end coordinates near private residences. When you upload your own <code>.FIT</code> or <code>.GPX</code> file in the Geospatial Visualizer, coordinate parsing happens in your browser session for visualization and is never permanently stored on our servers.
+                Preloaded cycling routes on this platform are protected by a strict <strong>400-meter residential privacy geofence</strong> that strips coordinates near private residences. When you upload your own <code>.FIT</code> or <code>.GPX</code> file in the Geospatial Visualizer, <code>.GPX</code> files are parsed directly in your browser and <code>.FIT</code> files are parsed statelessly in memory (or client-side fallback) for visualization—uploaded telemetry is never logged or persisted to disk or database.
               </p>
 
               <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: '18px', marginBottom: '6px' }}>

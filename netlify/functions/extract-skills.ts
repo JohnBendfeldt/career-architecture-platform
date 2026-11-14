@@ -1,12 +1,70 @@
-export const handler = async (event: { httpMethod: string; body: string | null }) => {
+const MAX_TEXT_LENGTH = 10_000;
+const MAX_SKILLS_COUNT = 30;
+const MAX_SKILL_LENGTH = 100;
+
+const ALLOWED_ORIGINS = new Set([
+  'https://johnbendfeldt.com',
+  'https://www.johnbendfeldt.com',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://localhost:8888',
+]);
+
+function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.netlify.app');
+  } catch {
+    return false;
+  }
+}
+
+function buildResponseHeaders(origin?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'no-store',
+    Vary: 'Origin',
+  };
+  if (origin && isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
+    headers['Access-Control-Allow-Headers'] = 'Content-Type';
+  }
+  return headers;
+}
+
+export const handler = async (event: {
+  httpMethod: string;
+  body: string | null;
+  headers?: Record<string, string | undefined>;
+}) => {
+  const origin = event.headers?.origin || event.headers?.Origin;
+  const headers = buildResponseHeaders(origin);
+
+  if (event.httpMethod === 'OPTIONS') {
+    if (origin && !isAllowedOrigin(origin)) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
+    }
+    return { statusCode: 204, headers, body: '' };
+  }
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ error: 'Method Not Allowed' })
+      headers,
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
+  }
+
+  if (origin && !isAllowedOrigin(origin)) {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Origin is not permitted' }),
     };
   }
 
@@ -14,11 +72,16 @@ export const handler = async (event: { httpMethod: string; body: string | null }
   if (!apiKey) {
     return {
       statusCode: 503,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ error: 'GEMINI_API_KEY environment variable is not configured on Netlify.' })
+      headers,
+      body: JSON.stringify({ error: 'AI extraction service is not configured.' }),
+    };
+  }
+
+  if (event.body && event.body.length > MAX_TEXT_LENGTH * 2) {
+    return {
+      statusCode: 413,
+      headers,
+      body: JSON.stringify({ error: `Request payload exceeds maximum allowed size.` }),
     };
   }
 
@@ -27,11 +90,16 @@ export const handler = async (event: { httpMethod: string; body: string | null }
     if (!text || typeof text !== 'string') {
       return {
         statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ skills: [] })
+        headers,
+        body: JSON.stringify({ skills: [] }),
+      };
+    }
+
+    if (text.length > MAX_TEXT_LENGTH) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: `Input text exceeds maximum length of ${MAX_TEXT_LENGTH.toLocaleString()} characters.` }),
       };
     }
 
@@ -40,15 +108,18 @@ export const handler = async (event: { httpMethod: string; body: string | null }
 
     for (const model of models) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const geminiRes = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
-                parts: [{ text: prompt }]
-              }
+                parts: [{ text: prompt }],
+              },
             ],
             generationConfig: {
               responseMimeType: 'application/json',
@@ -57,36 +128,40 @@ export const handler = async (event: { httpMethod: string; body: string | null }
                 properties: {
                   skills: {
                     type: 'ARRAY',
-                    items: { type: 'STRING' }
-                  }
+                    items: { type: 'STRING' },
+                  },
                 },
-                required: ['skills']
-              }
-            }
-          })
+                required: ['skills'],
+              },
+            },
+          }),
         });
 
         if (!geminiRes.ok) {
           continue;
         }
 
-        const data: any = await geminiRes.json();
-        const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const data: unknown = await geminiRes.json();
+        const candidateText = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })
+          ?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!candidateText) continue;
 
         const parsed = JSON.parse(candidateText);
         if (parsed.skills && Array.isArray(parsed.skills)) {
+          const sanitizedSkills = parsed.skills
+            .filter((s: unknown): s is string => typeof s === 'string')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0 && s.length <= MAX_SKILL_LENGTH)
+            .slice(0, MAX_SKILLS_COUNT);
+
           return {
             statusCode: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            },
+            headers,
             body: JSON.stringify({
-              skills: parsed.skills,
+              skills: sanitizedSkills,
               source: 'gemini',
-              model: model
-            })
+              model,
+            }),
           };
         }
       } catch {
@@ -96,20 +171,14 @@ export const handler = async (event: { httpMethod: string; body: string | null }
 
     return {
       statusCode: 502,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ error: 'All Gemini model endpoints failed' })
+      headers,
+      body: JSON.stringify({ error: 'All Gemini model endpoints failed' }),
     };
-  } catch (err: any) {
+  } catch {
     return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({ error: err.message || 'Internal Server Error' })
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Invalid JSON request payload' }),
     };
   }
 };

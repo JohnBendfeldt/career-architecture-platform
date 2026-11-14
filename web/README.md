@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# Career Architecture Platform — Web Client (`web/`)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19.3 + TypeScript 6 + Vite 8 single-page application for **[johnbendfeldt.com](https://johnbendfeldt.com)**.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **UI Runtime**: React `^19.3.1`, TypeScript `~6.0.2`, Vite `^8.0.5`
+- **Auth & Cloud Sync**: `@supabase/supabase-js` (`^2.119.0`) with GitHub, Google (OIDC nonce-verified), and Microsoft OAuth + Guest Recruiter read-only mode
+- **Geospatial**: Leaflet `^1.9.4` + `fit-file-parser` with client-side GPX/FIT parsing and 400m residential geofence protection
+- **Testing & Quality**: Vitest `^4.1.4`, Testing Library, ESLint `^9.39.4`
 
-## React Compiler
+## Commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install        # Install dependencies
+npm run dev        # Start local Vite dev server (proxies /api and /geo to Gateway)
+npm run lint       # Run ESLint across TypeScript/React sources
+npm test           # Run Vitest unit & security test suites
+npm run build      # Typecheck (tsc -b) and produce production bundle in dist/
+npm audit          # Audit npm dependency tree for known CVEs
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Security Controls
+
+- Shared URL and storage validators live in [`src/utils/security.ts`](src/utils/security.ts) (`isSafeHttpsUrl`, `isSafeImageUrl`, `sanitizeExternalUrl`, `stripUnsafeKeys`, `safeParseStorageObject`, `safeParseStorageArray`).
+- Edge CSP, HSTS, COOP, Permissions-Policy, and cache-control headers are configured in [`netlify.toml`](netlify.toml) and [`nginx.conf`](nginx.conf).

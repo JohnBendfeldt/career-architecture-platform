@@ -18,6 +18,7 @@ public class FitParserService : IFitParserService
     private const double SemicircleToDegree = 180.0 / 2147483648.0;
     private const string DefaultDevice = "Garmin Forerunner 255 Music";
     private const double DefaultPrivacyRadiusM = 400.0;
+    private const int MaxRawTelemetryPoints = 200_000;
 
     private readonly double? _privacyLat;
     private readonly double? _privacyLon;
@@ -73,6 +74,8 @@ public class FitParserService : IFitParserService
 
             broadcaster.RecordMesgEvent += (sender, e) =>
             {
+                if (rawPoints.Count >= MaxRawTelemetryPoints) return;
+
                 var record = new RecordMesg(e.mesg);
                 var latSemicircles = record.GetPositionLat();
                 var lonSemicircles = record.GetPositionLong();
@@ -82,8 +85,8 @@ public class FitParserService : IFitParserService
                     var lat = latSemicircles.Value * SemicircleToDegree;
                     var lon = lonSemicircles.Value * SemicircleToDegree;
 
-                    // Filter out invalid/zero coordinates
-                    if (Math.Abs(lat) > 0.0001 && Math.Abs(lon) > 0.0001)
+                    // Filter out invalid/zero coordinates and enforce WGS84 bounds
+                    if (Math.Abs(lat) > 0.0001 && Math.Abs(lon) > 0.0001 && Math.Abs(lat) <= 90.0 && Math.Abs(lon) <= 180.0)
                     {
                         var alt = record.GetEnhancedAltitude() ?? record.GetAltitude() ?? 0.0f;
                         var ele = Math.Round((double)alt, 1);

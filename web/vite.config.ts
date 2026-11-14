@@ -41,13 +41,29 @@ function geminiDevPlugin(): Plugin {
           }
 
           let bodyStr = '';
-          req.on('data', chunk => { bodyStr += chunk; });
+          let payloadTooLarge = false;
+          req.on('data', chunk => {
+            bodyStr += chunk;
+            if (bodyStr.length > 25_000) {
+              payloadTooLarge = true;
+            }
+          });
           req.on('end', async () => {
+            if (payloadTooLarge) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Payload too large' }));
+              return;
+            }
             try {
               const { text } = JSON.parse(bodyStr || '{}');
-              if (!text) {
+              if (!text || typeof text !== 'string') {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ skills: [], source: 'gemini' }));
+                return;
+              }
+              if (text.length > 10_000) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Input text exceeds maximum length of 10,000 characters.' }));
                 return;
               }
 
@@ -56,10 +72,13 @@ function geminiDevPlugin(): Plugin {
 
               for (const model of models) {
                 try {
-                  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
                   const geminiRes = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'x-goog-api-key': apiKey
+                    },
                     body: JSON.stringify({
                       contents: [{ parts: [{ text: prompt }] }],
                       generationConfig: {
@@ -83,11 +102,10 @@ function geminiDevPlugin(): Plugin {
                     const parsed = JSON.parse(candidateText);
                     if (parsed.skills && Array.isArray(parsed.skills)) {
                       res.writeHead(200, {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*'
+                        'Content-Type': 'application/json'
                       });
                       res.end(JSON.stringify({
-                        skills: parsed.skills,
+                        skills: parsed.skills.slice(0, 30),
                         source: 'gemini',
                         model: model
                       }));

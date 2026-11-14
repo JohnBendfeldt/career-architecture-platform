@@ -1,5 +1,6 @@
 import { ApiService } from '../../services/api';
 import type { Profile } from '../../types';
+import { safeParseStorageArray } from '../../utils/security';
 
 export interface ExperienceItem {
   id?: string;
@@ -12,12 +13,24 @@ export interface ExperienceItem {
   bullets: string[];
 }
 
+export function isValidExperienceItem(item: unknown): item is ExperienceItem {
+  if (!item || typeof item !== 'object') return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.company === 'string' &&
+    typeof candidate.role === 'string' &&
+    Array.isArray(candidate.badges) &&
+    Array.isArray(candidate.bullets)
+  );
+}
+
 function escapeHtml(text: string): string {
   return (text || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export const PORTFOLIO_EXPERIENCES: ExperienceItem[] = [
@@ -111,12 +124,10 @@ export function exportPrintableResume(options?: {
   let exps = options?.experiences;
   if (!exps) {
     if (mode === 'personal') {
-      try {
-        const raw = localStorage.getItem('cap_personal_experiences');
-        exps = raw ? JSON.parse(raw) : [];
-      } catch {
-        exps = [];
-      }
+      exps = safeParseStorageArray<ExperienceItem>(
+        localStorage.getItem('cap_personal_experiences'),
+        isValidExperienceItem
+      ) || [];
     } else {
       exps = PORTFOLIO_EXPERIENCES;
     }
@@ -127,6 +138,7 @@ export function exportPrintableResume(options?: {
     window.print();
     return;
   }
+  win.opener = null;
 
   const experienceHtml = (exps || [])
     .map(
@@ -273,7 +285,7 @@ export function exportPrintableResume(options?: {
 <body>
   <div class="toolbar">
     <span><strong>ATS-Ready Printable Resume</strong> • Choose "Save as PDF" in your print dialog</span>
-    <button onclick="window.print()">Print / Save as PDF</button>
+    <button id="print-resume-btn" type="button">Print / Save as PDF</button>
   </div>
 
   <header>
@@ -342,16 +354,22 @@ export function exportPrintableResume(options?: {
         </section>`
       : ''
   }
-
-  <script>
-    window.addEventListener('load', function() {
-      setTimeout(function() { window.print(); }, 250);
-    });
-  </script>
 </body>
 </html>`;
 
   win.document.open();
   win.document.write(html);
   win.document.close();
+
+  const printBtn = win.document.getElementById('print-resume-btn');
+  if (printBtn) {
+    printBtn.addEventListener('click', () => win.print());
+  }
+  setTimeout(() => {
+    try {
+      win.print();
+    } catch {
+      // Ignore if print dialog was dismissed
+    }
+  }, 250);
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import type { User, Profile, Goal } from './types';
 import { ApiService } from './services/api';
 import { getOrInitSupabaseClient, signOutFromSupabase, consumeGoogleIdTokenFromHash } from './services/supabase';
+import { isSafeImageUrl } from './utils/security';
 import { Navbar } from './components/Navbar';
 import { ProfileHero } from './components/ProfileHero';
 import { VerifiedDeployments } from './components/VerifiedDeployments';
@@ -78,7 +79,8 @@ export function App() {
     return null;
   });
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('cap_theme') as 'light' | 'dark') || 'light';
+    const stored = localStorage.getItem('cap_theme');
+    return stored === 'dark' ? 'dark' : 'light';
   });
 
   useEffect(() => {
@@ -168,12 +170,13 @@ export function App() {
     consumeGoogleIdTokenFromHash().finally(() => {
       client.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
+          const rawAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '';
           const u: User = {
             id: session.user.id,
             name: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'Authenticated User',
             email: session.user.email || 'user@supabase.io',
             role: 'admin',
-            avatarUrl: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''
+            avatarUrl: isSafeImageUrl(rawAvatar) ? rawAvatar : ''
           };
           setUser(u);
           const cp = ApiService.getCustomProfile(u);
@@ -192,12 +195,13 @@ export function App() {
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        const rawAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '';
         const u: User = {
           id: session.user.id,
           name: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'Authenticated User',
           email: session.user.email || 'user@supabase.io',
           role: 'admin',
-          avatarUrl: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''
+          avatarUrl: isSafeImageUrl(rawAvatar) ? rawAvatar : ''
         };
         setUser(u);
         const cp = ApiService.getCustomProfile(u);

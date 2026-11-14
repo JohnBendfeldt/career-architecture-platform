@@ -164,4 +164,25 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
             Assert.False(string.IsNullOrWhiteSpace(resource.Provider));
         }
     }
+
+    [Fact]
+    public async Task ApiResponses_IncludeSecurityHardeningHeaders()
+    {
+        var response = await _client.GetAsync("/health");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("0", response.Headers.GetValues("X-XSS-Protection").Single());
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("camera=()", response.Headers.GetValues("Permissions-Policy").Single());
+    }
+
+    [Fact]
+    public async Task OversizedSkillInput_ReturnsBadRequest()
+    {
+        var oversized = new ExtractSkillsRequest(new string('A', 10001));
+        var response = await _client.PostAsJsonAsync("/api/skills/extract", oversized);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

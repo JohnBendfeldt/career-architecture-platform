@@ -42,11 +42,22 @@ flowchart LR
 
 ---
 
+## Security Hardening
+
+- **Content Security Policy & Edge Headers**: Strict CSP (`script-src 'self' https://accounts.google.com`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `form-action 'self'`, `upgrade-insecure-requests`), `HSTS` (`max-age=63072000; includeSubDomains; preload`), `Cross-Origin-Opener-Policy: same-origin-allow-popups`, `X-XSS-Protection: 0`, `Permissions-Policy`, and anti-stale `Cache-Control` headers across Netlify (`netlify.toml`), Nginx (`web/nginx.conf`), and all .NET 10 services.
+- **URL & Browser Storage Validation**: Outbound links and avatars are validated via `isSafeHttpsUrl`, `isSafeImageUrl`, and `sanitizeExternalUrl`; `localStorage` JSON parsing strips prototype-pollution keys (`__proto__`, `constructor`, `prototype`) and enforces structural type guards.
+- **OAuth & Row-Level Security (RLS)**: Google OIDC implicit hash flows require a verified cryptographic `rawNonce` in `sessionStorage`; Supabase PostgreSQL tables (`infra/supabase-schema.sql`) enforce least-privilege grants (`REVOKE ALL ... FROM anon`), column length `CHECK` constraints, and `auth.uid() = user_id` write policies.
+- **Telemetry Privacy & DoS Protection**: Preloaded routes enforce a 400-meter residential privacy geofence; `.FIT` uploads validate binary header magic (`.FIT`), file size bounds, and in-memory coordinate caps; Gemini API keys are sent via `x-goog-api-key` headers behind origin-restricted CORS.
+
+See [`SECURITY.md`](SECURITY.md) for the complete security architecture and vulnerability reporting policy.
+
+---
+
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- .NET 10.0 SDK
-- Node.js 18+ & npm
+- .NET 10.0 SDK (`10.0.x`)
+- Node.js 22 LTS+ & npm
 - Docker (optional for containerized orchestration)
 
 ### Option A: Run via .NET & Vite CLI
@@ -65,23 +76,23 @@ flowchart LR
 
 2. **Start the Frontend**:
    ```bash
-   # Terminal 4: React SPA (Port 5173)
+   # Terminal 4: React 19 + Vite 8 SPA (Port 5173)
    cd web
    npm install
    npm run dev
    ```
 
 3. **Open the App**:
-   Navigate to `http://localhost:5173` and click **"Try Guest Demo (One-Click)"**!
+   Navigate to `http://localhost:5173` and click **"Sign In / Build Your Own"** or explore the portfolio directly!
 
 ---
 
 ### Option B: Run via Docker Compose
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
-- Gateway: `http://localhost:5000`
+- Gateway: `http://localhost:5000` (proxies to non-root `.NET 10` containers on port `8080`)
 - API: `http://localhost:5100`
 - Geo: `http://localhost:5200`
 - Web: `http://localhost:3000`
@@ -90,16 +101,22 @@ docker-compose up --build
 
 ## Automated Test Suite
 
-Execute the xUnit integration test suite with `WebApplicationFactory`:
+Execute both the backend xUnit integration suite and frontend Vitest + ESLint checks:
 ```bash
-dotnet test
+# Backend xUnit integration tests (WebApplicationFactory)
+dotnet test CareerPlatform.sln
+
+# Frontend ESLint, Vitest unit tests, and production bundle verification
+npm --prefix web run lint
+npm --prefix web test
+npm --prefix web run build
 ```
-All 7 integration tests validate health endpoints, JWT claims, seeded profiles, guest write protection, AI skill extraction, and learning resource feeds.
 
 ---
 
 ## Production Deployment
 
-- **Frontend**: Configured for Netlify with [`web/netlify.toml`](web/netlify.toml).
-- **Backend Services**: Multi-stage Dockerfiles in `src/Api/Dockerfile`, `src/Gateway/Dockerfile`, and `src/Geo/Dockerfile`.
+- **Frontend**: Configured for Netlify with [`netlify.toml`](netlify.toml) and [`web/netlify.toml`](web/netlify.toml).
+- **Database**: Supabase PostgreSQL schema & RLS policies in [`infra/supabase-schema.sql`](infra/supabase-schema.sql).
+- **Backend Services**: Non-root multi-stage Dockerfiles in `src/Api/Dockerfile`, `src/Gateway/Dockerfile`, and `src/Geo/Dockerfile`.
 - **CI/CD Pipeline**: Azure DevOps [`azure-pipelines.yml`](azure-pipelines.yml).

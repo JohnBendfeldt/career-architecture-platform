@@ -3,6 +3,7 @@ import { BookOpen, ExternalLink, RefreshCw, Check, Plus } from 'lucide-react';
 import { YoutubeIcon } from '../Icons';
 import type { LearningResource } from '../../types';
 import { evaluatePortfolioSkillMatch } from './RecruiterScorecard';
+import { sanitizeExternalUrl } from '../../utils/security';
 
 interface LearningResourceListProps {
   workspaceMode: 'portfolio' | 'personal';
@@ -112,11 +113,12 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
             pointerEvents: loadingResources ? 'none' : 'auto'
           }}>
             {resources.map((res, rIdx) => {
-              const isSearchUrl = res.url.includes('results?search_query=') || res.url.includes('/courses/search/');
+              const safeUrl = sanitizeExternalUrl(res.url, 'https://www.youtube.com');
+              const isSearchUrl = safeUrl.includes('results?search_query=') || safeUrl.includes('/courses/search/');
               return (
                 <a
                   key={rIdx}
-                  href={res.url}
+                  href={safeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

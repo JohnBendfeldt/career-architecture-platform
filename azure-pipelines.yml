@@ -50,8 +50,10 @@ stages:
     - script: |
         cd web
         npm ci
+        npm run lint
+        npm test
         npm run build
-      displayName: 'NPM Install & Build SPA'
+      displayName: 'Lint, Test & Build SPA'
 
 - stage: DockerContainers
   displayName: 'Docker Build & Registry Push'
