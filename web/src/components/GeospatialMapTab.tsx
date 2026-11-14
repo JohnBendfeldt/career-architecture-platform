@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { RouteData, RideSummary } from '../types';
 import { ApiService } from '../services/api';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
 import {
   Download,
   Compass,
@@ -19,47 +18,9 @@ import {
   LayoutGrid,
   Loader2
 } from 'lucide-react';
-
-// Custom Map Marker Icons using Leaflet divIcon
-const createCustomIcon = (type: string) => {
-  let bg = '#2563eb';
-  let label = '📍';
-  if (type === 'start') { bg = '#10b981'; label = '🏁'; }
-  if (type === 'checkpoint') { bg = '#f59e0b'; label = '☕'; }
-  if (type === 'highlight') { bg = '#ef4444'; label = '⚡'; }
-  if (type === 'finish') { bg = '#06b6d4'; label = '🎯'; }
-
-  return L.divIcon({
-    className: 'custom-map-marker',
-    html: `<div style="
-      background: ${bg};
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 12px ${bg};
-      border: 2px solid #ffffff;
-      font-size: 14px;
-    ">${label}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -18]
-  });
-};
-
-// Smooth Map Viewport Transition Component
-const MapUpdater: React.FC<{ points: { lat: number; lon: number }[] }> = ({ points }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (points && points.length > 0) {
-      const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
-      map.fitBounds(bounds, { padding: [45, 45], maxZoom: 13, animate: true });
-    }
-  }, [points, map]);
-  return null;
-};
+import { exportRouteToGpx } from './geo/gpxExport';
+import { createCustomIcon, MapUpdater } from './geo/MapHelpers';
+import { ElevationProfileChart } from './geo/ElevationProfileChart';
 
 interface GeospatialMapTabProps {
   workspaceMode?: 'portfolio' | 'personal';
@@ -214,40 +175,6 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
     }
   };
 
-  const handleExportGpx = () => {
-    if (!route) return;
-
-    // Generate standard GPX 1.1 XML string
-    const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="CareerPlatform.Geo" xmlns="http://www.topografix.com/GPX/1/1">
-  <metadata>
-    <name>${route.activityName}</name>
-    <desc>Garmin Forerunner 255 Music Telemetry Export - John Bendfeldt</desc>
-    <time>${new Date().toISOString()}</time>
-  </metadata>
-  <trk>
-    <name>${route.activityName}</name>
-    <trkseg>
-${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
-        <ele>${p.elevation}</ele>
-        <time>${p.timestamp}</time>
-      </trkpt>`).join('\n')}
-    </trkseg>
-  </trk>
-</gpx>`;
-
-    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const sanitizedTitle = route.activityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    a.download = `john-bendfeldt-${sanitizedTitle}.gpx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   if (initialLoading || !route) {
     return (
       <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
@@ -323,7 +250,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
           </button>
 
           <button
-            onClick={handleExportGpx}
+            onClick={() => exportRouteToGpx(route)}
             className="btn-primary"
             id="btn-export-gpx"
             style={{ padding: '9px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -372,7 +299,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Select a route to view interactive GPS splits & elevation
+              Select a route to view interactive GPS splits &amp; elevation
             </span>
             <button
               onClick={() => setUseDropdown(!useDropdown)}
@@ -540,7 +467,7 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
             )}
           </div>
         ) : (
-          /* 2. RESPONSIVE GRID / TABS MODE: Wraps cleanly into 2 rows, no awkward overflow or horizontal scrollbar */
+          /* 2. RESPONSIVE GRID / TABS MODE */
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
@@ -718,10 +645,8 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Smooth Map Viewport Transition on Route Selection */}
             <MapUpdater points={route.points} />
 
-            {/* Uniqlo Crimson / High-Contrast Polyline Trace */}
             <Polyline
               positions={polylinePositions}
               pathOptions={{
@@ -733,7 +658,6 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
               }}
             />
 
-            {/* Interactive Coordinate Annotations */}
             {route.annotations.map((ann) => (
               <Marker
                 key={ann.id}
@@ -809,6 +733,9 @@ ${route.points.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}">
           </div>
         </div>
       </div>
+
+      {/* Elevation Profile Chart */}
+      <ElevationProfileChart points={route.points} distanceKm={route.distanceKm} />
     </div>
   );
 };

@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Award, GraduationCap, MapPin, CheckCircle2, ExternalLink, Code2, Globe, Plus, Trash2, X, Download } from 'lucide-react';
-import { ApiService } from '../services/api';
+import { Briefcase, Award, GraduationCap, MapPin, CheckCircle2, ExternalLink, Code2, Globe, Plus, Trash2, Download } from 'lucide-react';
 import type { Profile } from '../types';
+import {
+  PORTFOLIO_EXPERIENCES,
+  STARTER_PERSONAL_EXPERIENCES,
+  exportPrintableResume,
+  type ExperienceItem
+} from './resume/resumePdfExport';
+import { AddRoleModal } from './resume/AddRoleModal';
+
+export { exportPrintableResume, PORTFOLIO_EXPERIENCES, type ExperienceItem };
 
 interface ResumeTimelineProps {
   workspaceMode?: 'portfolio' | 'personal';
@@ -9,358 +17,64 @@ interface ResumeTimelineProps {
   profile?: Profile | null;
 }
 
-export interface ExperienceItem {
-  id?: string;
-  company: string;
-  location: string;
-  role: string;
-  period: string;
-  highlight: string;
-  badges: string[];
-  bullets: string[];
-}
-
-function escapeHtml(text: string): string {
-  return (text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-export const PORTFOLIO_EXPERIENCES: ExperienceItem[] = [
+const PORTFOLIO_PROJECTS = [
   {
-    company: 'Advanced Solutions International',
-    location: 'Austin, TX',
-    role: 'Senior Software Developer II',
-    period: 'June 2023 – Present',
-    highlight: 'Non-profit SaaS features, .NET 10 internal tooling & AI-assisted HR automation',
-    badges: ['.NET 10', 'C#', 'Vite', 'Vanilla JS', 'AI Workflows', 'Azure DevOps', 'Financial Workflows', 'HR Tech'],
+    title: 'Basic Language School',
+    domain: 'basiclanguage.school',
+    url: 'https://basiclanguage.school',
+    role: 'Creator & Full-Stack Engineer',
+    description: 'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, and Supabase cloud sync.',
     bullets: [
-      'Developed web features for non-profit companies to manage memberships, commerce, fundraising and donations.',
-      'Architected and built an internal Training Hour Tracking application (trainingtracker.advsol.com) using .NET 10, Vite, and vanilla JavaScript, leveraging AI-assisted development workflows to accelerate delivery and automate manual HR tracking.',
-      'Focused on C# and .NET development for accounting features for checking out and managing customer memberships and subscriptions.',
-      'Improved invoice handling efficiency and optimized financial workflows for client accounts.'
-    ]
-  },
-  {
-    company: 'HealthTrust Purchasing Group (via Vaco)',
-    location: 'Nashville, TN',
-    role: 'Full Stack Software Engineer III (Contract)',
-    period: 'November 2022 – May 2023',
-    highlight: 'Contracted high-priority feature delivery, vertical slice development & Linux containerization',
-    badges: ['.NET 6', 'TypeScript', 'React', 'SQL', 'Azure DevOps', 'Docker', 'Linux / WSL'],
-    bullets: [
-      'Contracted to focus on high-priority feature implementation and software maintenance.',
-      'Developed features in vertical slices from SQL database structuring to React rendering.',
-      'Added Administrator features for clients utilizing .NET 6 and Typescript.',
-      'Managed code deployments using Azure DevOps and Docker containers.',
-      'Engineered a seamless transition for developers moving from Mac to Windows by creating extensive documentation for setting up a Linux environment in Windows.'
-    ]
-  },
-  {
-    company: 'Advanced Solutions International',
-    location: 'Austin, TX',
-    role: 'Software Developer II',
-    period: 'May 2019 – November 2022',
-    highlight: 'International payment processing, Scrum Master leadership & platform reliability',
-    badges: ['.NET Core', 'JavaScript', 'Ezidebit', 'Agile/Scrum', 'Teams & VSTS', 'Cloud Services'],
-    bullets: [
-      'Added payment processing support for clients in Australia and New Zealand with Ezidebit using JavaScript and .NET Core.',
-      'Served as Scrum Master to oversee sprint planning and direction to maintain project velocity using Microsoft Teams and VSTS.',
-      'Improved and expanded refund support services for clients.',
-      'Worked closely with Cloud Services and Tech Support to identify bugs and improve site reliability.'
-    ]
-  },
-  {
-    company: 'Volusion, LLC',
-    location: 'Austin, TX',
-    role: 'Software Engineer I',
-    period: 'September 2017 – May 2019',
-    highlight: 'E-commerce platform modernization, address autocomplete & Android fraud scoring',
-    badges: ['React', 'MobX', 'JavaScript', 'Java', 'Android', 'Google AutoComplete', 'Confluence / Notion'],
-    bullets: [
-      'Worked with a small team within 2-week sprints to create features and solutions for e-commerce merchants.',
-      'Developed platform features for V2, the newest platform, using React with MobX to replace Angular 1.7.',
-      'Implemented a new design and flow for the checkout experience using Google AutoComplete for addresses based on country location for international shipping.',
-      'Added a fraud score interface for merchants in the Android app using Java and deployed it to the Google Play Store. This feature drove immediate impact, being adopted by 500+ merchants in the first week.',
-      'Created Mobile API and Android App documentation in Confluence and Notion.'
-    ]
+      'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, and Supabase cloud sync.',
+      'Engineered interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic), phonetic matching, and 1,000+ automated Vitest/Playwright integration tests.'
+    ],
+    badges: ['PWA', '210 Language Pairs', '14,400+ Audio Assets', 'Supabase Cloud Sync', 'Vitest & Playwright (1,000+ Tests)', 'Custom Keyboards']
   }
 ];
 
-export function exportPrintableResume(options?: {
-  workspaceMode?: 'portfolio' | 'personal';
-  profile?: Profile;
-  experiences?: ExperienceItem[];
-}): void {
-  const mode = options?.workspaceMode || 'portfolio';
-  const prof = options?.profile || ApiService.getDefaultPortfolioProfile();
-
-  let exps = options?.experiences;
-  if (!exps) {
-    if (mode === 'personal') {
-      try {
-        const raw = localStorage.getItem('cap_personal_experiences');
-        exps = raw ? JSON.parse(raw) : [];
-      } catch {
-        exps = [];
-      }
-    } else {
-      exps = PORTFOLIO_EXPERIENCES;
-    }
-  }
-
-  const win = window.open('', '_blank', 'width=920,height=1080');
-  if (!win) {
-    window.print();
-    return;
-  }
-
-  const experienceHtml = (exps || [])
-    .map(
-      (exp) => `
-      <div class="job">
-        <div class="job-header">
-          <div>
-            <span class="job-role">${escapeHtml(exp.role)}</span>
-            <span class="job-company"> — ${escapeHtml(exp.company)}</span>
-          </div>
-          <div class="job-meta">${escapeHtml(exp.location)} | ${escapeHtml(exp.period)}</div>
-        </div>
-        <ul>
-          ${(exp.bullets || []).map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
-        </ul>
-      </div>`
-    )
-    .join('');
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>${escapeHtml(prof.name)} — Resume</title>
-  <style>
-    @page { margin: 0.45in 0.5in; }
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #111111;
-      background: #ffffff;
-      line-height: 1.42;
-      font-size: 10pt;
-      margin: 0;
-      padding: 24px 36px;
-      max-width: 850px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 16px;
-      margin-bottom: 20px;
-      background: #f5f5f3;
-      border: 1px solid #d4d4d0;
-      border-radius: 6px;
-      font-size: 9pt;
-    }
-    .toolbar button {
-      background: #e60012;
-      color: #ffffff;
-      border: none;
-      padding: 7px 16px;
-      font-weight: 700;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 9pt;
-    }
-    header {
-      border-bottom: 2px solid #111111;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-    }
-    h1 {
-      font-size: 20pt;
-      font-weight: 800;
-      margin: 0 0 2px 0;
-      letter-spacing: -0.02em;
-    }
-    .headline {
-      font-size: 11pt;
-      font-weight: 700;
-      color: #e60012;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 4px;
-    }
-    .contact {
-      font-size: 9pt;
-      color: #333333;
-    }
-    section {
-      margin-bottom: 12px;
-    }
-    h2 {
-      font-size: 10.5pt;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 1px solid #cccccc;
-      padding-bottom: 3px;
-      margin: 0 0 8px 0;
-      color: #111111;
-    }
-    p.summary {
-      margin: 0;
-      color: #222222;
-    }
-    .skills-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 3px;
-      font-size: 9.5pt;
-    }
-    .job {
-      margin-bottom: 10px;
-    }
-    .job-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
-    .job-role {
-      font-weight: 700;
-      font-size: 10.2pt;
-    }
-    .job-company {
-      font-weight: 600;
-      color: #333333;
-    }
-    .job-meta {
-      font-size: 9pt;
-      color: #444444;
-      font-weight: 600;
-    }
-    ul {
-      margin: 3px 0 0 0;
-      padding-left: 18px;
-    }
-    li {
-      margin-bottom: 2px;
-    }
-    @media print {
-      body { padding: 0; }
-      .toolbar { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="toolbar">
-    <span><strong>ATS-Ready Printable Resume</strong> • Choose "Save as PDF" in your print dialog</span>
-    <button onclick="window.print()">Print / Save as PDF</button>
-  </div>
-
-  <header>
-    <h1>${escapeHtml(prof.name)}</h1>
-    <div class="headline">${escapeHtml(prof.headline)}</div>
-    <div class="contact">
-      ${escapeHtml(prof.location)}
-      ${prof.email ? ` • ${escapeHtml(prof.email)}` : ''}
-      ${mode === 'portfolio' ? ' • johnbendfeldt.com' : ''}
-      ${prof.githubUrl ? ` • ${escapeHtml(prof.githubUrl.replace(/^https?:\/\/(www\.)?/, ''))}` : ''}
-      ${prof.linkedinUrl ? ` • ${escapeHtml(prof.linkedinUrl.replace(/^https?:\/\/(www\.)?/, ''))}` : ''}
-    </div>
-  </header>
-
-  <section>
-    <h2>Professional Summary</h2>
-    <p class="summary">${escapeHtml(prof.bio)}</p>
-  </section>
-
-  <section>
-    <h2>Technical Skills</h2>
-    ${
-      mode === 'portfolio'
-        ? `<div class="skills-grid">
-            <div><strong>Languages &amp; Databases:</strong> C#, JavaScript (Vanilla/ES6+), TypeScript, HTML/CSS, SQL, PostgreSQL, SQL Server</div>
-            <div><strong>Frameworks &amp; Libraries:</strong> .NET (Core, 6, 10), React, Node.js, Vite, YARP Microservice Gateways</div>
-            <div><strong>Cloud, DevOps &amp; AI Tooling:</strong> Git, Docker, Azure DevOps, CI/CD Pipelines, GitHub Copilot, Claude Code &amp; Gemini CLI</div>
-            <div><strong>Methodologies &amp; Testing:</strong> Agile/Scrum, Test-Driven Development (TDD), xUnit, Vitest, Playwright</div>
-          </div>`
-        : `<div class="skills-grid"><div>${escapeHtml((prof.skills || []).join(' • '))}</div></div>`
-    }
-  </section>
-
-  <section>
-    <h2>Professional Experience</h2>
-    ${experienceHtml}
-  </section>
-
-  ${
-    mode === 'portfolio'
-      ? `<section>
-          <h2>Production Projects &amp; Open Source</h2>
-          <div class="job">
-            <div class="job-header">
-              <div><span class="job-role">Basic Language School (basiclanguage.school)</span><span class="job-company"> — Creator &amp; Full-Stack Engineer</span></div>
-              <div class="job-meta">Live Production PWA</div>
-            </div>
-            <ul>
-              <li>Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages with 14,400+ neural audio assets, offline caching, and Supabase cloud sync.</li>
-              <li>Engineered interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic) and 1,000+ automated Vitest/Playwright tests.</li>
-            </ul>
-          </div>
-          <div class="job">
-            <div class="job-header">
-              <div><span class="job-role">country-province-data (npm Registry)</span><span class="job-company"> — Open Source Author &amp; Maintainer</span></div>
-              <div class="job-meta">8+ Years Active</div>
-            </div>
-            <ul>
-              <li>Published zero-dependency international address &amp; province package powering global e-commerce checkout flows (hundreds of weekly downloads, zero open bugs over 8 years).</li>
-            </ul>
-          </div>
-        </section>
-        <section>
-          <h2>Education &amp; Credentials</h2>
-          <div><strong>The University of Texas at Austin</strong> — Coding Boot Camp (Full Stack Web Development &amp; Computer Science Foundations)</div>
-        </section>`
-      : ''
-  }
-
-  <script>
-    window.addEventListener('load', function() {
-      setTimeout(function() { window.print(); }, 250);
-    });
-  </script>
-</body>
-</html>`;
-
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-}
-
-const STARTER_PERSONAL_EXPERIENCES: ExperienceItem[] = [
+const PORTFOLIO_CERTIFICATIONS = [
   {
-    id: 'starter-exp-1',
-    company: 'Your Personal Career Sandbox',
-    location: 'Remote / Global',
-    role: 'Welcome! Build Your Own Experience Timeline',
-    period: 'Onboarding Guide',
-    highlight: 'Click "+ Add Role" in the top right to add your own work history, or delete this sample card anytime',
-    badges: ['Step 1: Add Work History', 'Step 2: Track Goals', 'Step 3: Extract Skills', 'Step 4: Upload GPS'],
-    bullets: [
-      'You are viewing your own profile ("My Profile"). Instead of showing John\'s resume here, this space is yours to customize!',
-      'Click "+ Add Role / Experience" in the top-right corner of this section to add your own roles, companies, achievements, and tech stack badges.',
-      'Switch to "02 / Goals & Milestones" to create your own technical or personal goals and advance them with the "+25%" progress button.',
-      'Open "03 / AI Skill Pipeline" to paste your own resume or a target job description and generate curated YouTube & Udemy courses.',
-      'Switch back to "John\'s Portfolio" at the top of the page anytime to inspect John Bendfeldt\'s verified work history and credentials.'
-    ]
+    title: 'Coding Boot Camp',
+    issuer: 'University of Texas at Austin',
+    license: 'Full Stack Web Development & Computer Science Foundations',
+    date: 'April 2017 – September 2017'
+  },
+  {
+    title: 'Enterprise .NET & Cloud Architecture',
+    issuer: 'Microsoft Developer Ecosystem',
+    license: 'C#, .NET 10, Minimal APIs & Azure Cloud Services',
+    date: 'Production Mastery'
+  },
+  {
+    title: 'Modern React & Frontend Systems',
+    issuer: 'Modern Web Architecture',
+    license: 'TypeScript, Vite, SPA Performance & State Design',
+    date: 'Production Mastery'
+  },
+  {
+    title: 'Open Source Software Engineering',
+    issuer: 'npm Registry (country-province-data)',
+    license: 'Hundreds of Weekly Downloads • Thousands Annually • Zero Open Issues',
+    date: '8+ Years Maintained'
+  }
+];
+
+const PORTFOLIO_SKILLS = [
+  {
+    category: 'Languages',
+    items: ['C#', 'JavaScript (Vanilla/ES6+)', 'TypeScript', 'HTML/CSS', 'SQL', 'PostgreSQL']
+  },
+  {
+    category: 'Frameworks & Libraries',
+    items: ['.NET (Core, 6, 10)', 'React', 'Node.js', 'Vite']
+  },
+  {
+    category: 'Tools & DevOps',
+    items: ['Git', 'Docker', 'Azure DevOps', 'SQL Server', 'CI/CD pipelines', 'GitHub Copilot', 'AI-Assisted Development (Claude Code & Gemini CLI)']
+  },
+  {
+    category: 'Methodologies',
+    items: ['Agile/Scrum', 'Test-Driven Development (TDD)', 'Unit & Integration Testing']
   }
 ];
 
@@ -382,40 +96,13 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
   });
 
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
-  const [roleTitle, setRoleTitle] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [roleLocation, setRoleLocation] = useState('Remote');
-  const [rolePeriod, setRolePeriod] = useState('2024 – Present');
-  const [roleHighlight, setRoleHighlight] = useState('');
-  const [roleBullets, setRoleBullets] = useState('');
-  const [roleBadges, setRoleBadges] = useState('TypeScript, React, .NET, Cloud');
 
   useEffect(() => {
     localStorage.setItem('cap_personal_experiences', JSON.stringify(personalExperiences));
   }, [personalExperiences]);
 
-  const handleAddRole = (e: React.FormEvent) => {
-    e.preventDefault();
-    const bulletsList = roleBullets
-      .split('\n')
-      .map(b => b.trim())
-      .filter(Boolean);
-    const created: ExperienceItem = {
-      id: `exp-${Date.now()}`,
-      role: roleTitle.trim() || 'Software Engineer',
-      company: companyName.trim() || 'Technology Company',
-      location: roleLocation.trim() || 'Remote',
-      period: rolePeriod.trim() || 'Present',
-      highlight: roleHighlight.trim() || 'Full-stack architecture & product delivery',
-      bullets: bulletsList.length > 0 ? bulletsList : ['Architected and delivered scalable production features.'],
-      badges: roleBadges.split(',').map(b => b.trim()).filter(Boolean)
-    };
+  const handleAddRole = (created: ExperienceItem) => {
     setPersonalExperiences(prev => [created, ...prev]);
-    setRoleTitle('');
-    setCompanyName('');
-    setRoleHighlight('');
-    setRoleBullets('');
-    setIsAddRoleOpen(false);
   };
 
   const handleDeleteRole = (id?: string) => {
@@ -423,70 +110,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
     setPersonalExperiences(prev => prev.filter(item => item.id !== id));
   };
 
-  const portfolioExperiences: ExperienceItem[] = PORTFOLIO_EXPERIENCES;
-
-  const projects = [
-    {
-      title: 'Basic Language School',
-      domain: 'basiclanguage.school',
-      url: 'https://basiclanguage.school',
-      role: 'Creator & Full-Stack Engineer',
-      description: 'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, and Supabase cloud sync.',
-      bullets: [
-        'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, and Supabase cloud sync.',
-        'Engineered interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic), phonetic matching, and 1,000+ automated Vitest/Playwright integration tests.'
-      ],
-      badges: ['PWA', '210 Language Pairs', '14,400+ Audio Assets', 'Supabase Cloud Sync', 'Vitest & Playwright (1,000+ Tests)', 'Custom Keyboards']
-    }
-  ];
-
-  const certifications = [
-    {
-      title: 'Coding Boot Camp',
-      issuer: 'University of Texas at Austin',
-      license: 'Full Stack Web Development & Computer Science Foundations',
-      date: 'April 2017 – September 2017'
-    },
-    {
-      title: 'Enterprise .NET & Cloud Architecture',
-      issuer: 'Microsoft Developer Ecosystem',
-      license: 'C#, .NET 10, Minimal APIs & Azure Cloud Services',
-      date: 'Production Mastery'
-    },
-    {
-      title: 'Modern React & Frontend Systems',
-      issuer: 'Modern Web Architecture',
-      license: 'TypeScript, Vite, SPA Performance & State Design',
-      date: 'Production Mastery'
-    },
-    {
-      title: 'Open Source Software Engineering',
-      issuer: 'npm Registry (country-province-data)',
-      license: 'Hundreds of Weekly Downloads • Thousands Annually • Zero Open Issues',
-      date: '8+ Years Maintained'
-    }
-  ];
-
-  const skills = [
-    {
-      category: 'Languages',
-      items: ['C#', 'JavaScript (Vanilla/ES6+)', 'TypeScript', 'HTML/CSS', 'SQL', 'PostgreSQL']
-    },
-    {
-      category: 'Frameworks & Libraries',
-      items: ['.NET (Core, 6, 10)', 'React', 'Node.js', 'Vite']
-    },
-    {
-      category: 'Tools & DevOps',
-      items: ['Git', 'Docker', 'Azure DevOps', 'SQL Server', 'CI/CD pipelines', 'GitHub Copilot', 'AI-Assisted Development (Claude Code & Gemini CLI)']
-    },
-    {
-      category: 'Methodologies',
-      items: ['Agile/Scrum', 'Test-Driven Development (TDD)', 'Unit & Integration Testing']
-    }
-  ];
-
-  const activeExperiences = workspaceMode === 'personal' ? personalExperiences : portfolioExperiences;
+  const activeExperiences = workspaceMode === 'personal' ? personalExperiences : PORTFOLIO_EXPERIENCES;
 
   return (
     <div style={{ marginBottom: '32px' }}>
@@ -551,10 +175,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
 
       {/* Skills Matrix Pill Grid (John's Portfolio Mode) */}
       {workspaceMode !== 'personal' && (
-        <div className="glass-panel" style={{
-          padding: '28px',
-          marginBottom: '32px'
-        }}>
+        <div className="glass-panel" style={{ padding: '28px', marginBottom: '32px' }}>
           <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Award size={20} color="var(--accent-cyan)" />
             <span>Technical Skills & Methodologies</span>
@@ -564,7 +185,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: '20px'
           }}>
-            {skills.map((group) => (
+            {PORTFOLIO_SKILLS.map((group) => (
               <div key={group.category} style={{
                 background: 'var(--bg-card-hover)',
                 border: '1px solid var(--border-subtle)',
@@ -614,10 +235,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {activeExperiences.map((exp, idx) => (
-            <div
-              key={exp.id || idx}
-              className="glass-panel timeline-card"
-            >
+            <div key={exp.id || idx} className="glass-panel timeline-card">
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -667,7 +285,6 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                 </div>
               </div>
 
-              {/* Sub-highlight callout */}
               <div style={{
                 fontSize: '0.9rem',
                 color: 'var(--text-primary)',
@@ -682,7 +299,6 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                 {exp.highlight}
               </div>
 
-              {/* Bullets with high contrast and readable line-height */}
               <ul style={{
                 paddingLeft: '0',
                 listStyle: 'none',
@@ -714,7 +330,6 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                 ))}
               </ul>
 
-              {/* Badges */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
                 {exp.badges.map((b) => (
                   <span
@@ -748,11 +363,8 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {projects.map((proj, idx) => (
-                <div
-                  key={idx}
-                  className="glass-panel timeline-card"
-                >
+              {PORTFOLIO_PROJECTS.map((proj, idx) => (
+                <div key={idx} className="glass-panel timeline-card">
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -774,11 +386,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="social-link"
-                      style={{
-                        padding: '8px 18px',
-                        fontSize: '0.85rem',
-                        fontWeight: 600
-                      }}
+                      style={{ padding: '8px 18px', fontSize: '0.85rem', fontWeight: 600 }}
                     >
                       <Globe size={15} />
                       <span>{proj.domain}</span>
@@ -786,7 +394,6 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     </a>
                   </div>
 
-                  {/* Project Bullets */}
                   <ul style={{
                     paddingLeft: '0',
                     listStyle: 'none',
@@ -818,7 +425,6 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     ))}
                   </ul>
 
-                  {/* Badges */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
                     {proj.badges.map((b) => (
                       <span
@@ -853,7 +459,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: '18px'
             }}>
-              {certifications.map((cert, idx) => (
+              {PORTFOLIO_CERTIFICATIONS.map((cert, idx) => (
                 <div
                   key={idx}
                   className="glass-panel"
@@ -901,128 +507,11 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
         </>
       )}
 
-      {/* Add Personal Role Modal */}
-      {isAddRoleOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '540px',
-            width: '100%',
-            background: 'var(--bg-card)',
-            padding: '28px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Plus size={20} color="var(--accent-crimson)" />
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Add Role to My Timeline</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddRoleOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddRole}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Role / Title</label>
-                  <input
-                    type="text"
-                    value={roleTitle}
-                    onChange={(e) => setRoleTitle(e.target.value)}
-                    placeholder="e.g. Senior Full-Stack Engineer"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Company / Org</label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g. Acme Systems"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Location</label>
-                  <input
-                    type="text"
-                    value={roleLocation}
-                    onChange={(e) => setRoleLocation(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Dates / Period</label>
-                  <input
-                    type="text"
-                    value={rolePeriod}
-                    onChange={(e) => setRolePeriod(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Key Highlight Summary</label>
-                <input
-                  type="text"
-                  value={roleHighlight}
-                  onChange={(e) => setRoleHighlight(e.target.value)}
-                  placeholder="e.g. Cloud microservices, CI/CD automation & frontend modernization"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Bullet Points (One per line)</label>
-                <textarea
-                  rows={3}
-                  value={roleBullets}
-                  onChange={(e) => setRoleBullets(e.target.value)}
-                  placeholder={'Built scalable APIs serving 50k+ daily users.\nReduced CI/CD deployment times by 40%.'}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem', resize: 'vertical' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tech Badges (comma-separated)</label>
-                <input
-                  type="text"
-                  value={roleBadges}
-                  onChange={(e) => setRoleBadges(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.84rem', fontFamily: 'var(--font-mono)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={() => setIsAddRoleOpen(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Save Role</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddRoleModal
+        isOpen={isAddRoleOpen}
+        onClose={() => setIsAddRoleOpen(false)}
+        onAddRole={handleAddRole}
+      />
     </div>
   );
 };

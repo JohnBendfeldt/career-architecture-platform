@@ -3,7 +3,9 @@ import type { Profile, User } from '../types';
 import { ApiService } from '../services/api';
 import { exportPrintableResume } from './ResumeTimeline';
 import { GithubIcon, LinkedinIcon } from './Icons';
-import { MapPin, CheckCircle, ExternalLink, ChevronDown, UserCheck, Edit3, X, Briefcase, Link2, Check, LogIn, Globe, Download } from 'lucide-react';
+import { MapPin, CheckCircle, ExternalLink, ChevronDown, Download } from 'lucide-react';
+import { ProfileWorkspaceBar } from './profile/ProfileWorkspaceBar';
+import { ProfileEditModal } from './profile/ProfileEditModal';
 
 interface ProfileHeroProps {
   profile: Profile;
@@ -34,28 +36,11 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
 }) => {
   const [imgError, setImgError] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [copiedVanity, setCopiedVanity] = useState(false);
-  const [editName, setEditName] = useState(profile.name);
-  const [editSlug, setEditSlug] = useState(profile.vanitySlug || '');
-  const [editHeadline, setEditHeadline] = useState(profile.headline);
-  const [editLocation, setEditLocation] = useState(profile.location);
-  const [editYears, setEditYears] = useState(profile.experienceYears);
-  const [editBio, setEditBio] = useState(profile.bio);
-  const [editAvatar, setEditAvatar] = useState(profile.avatarUrl);
-  const [editGithub, setEditGithub] = useState(profile.githubUrl);
 
   const currentSlug = profile.vanitySlug || (profile.name || 'professional').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
   useEffect(() => {
     setImgError(false);
-    setEditName(profile.name);
-    setEditSlug(profile.vanitySlug || (profile.name || 'professional').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
-    setEditHeadline(profile.headline);
-    setEditLocation(profile.location);
-    setEditYears(profile.experienceYears);
-    setEditBio(profile.bio);
-    setEditAvatar(profile.avatarUrl);
-    setEditGithub(profile.githubUrl);
   }, [profile]);
 
   const isOwner = ApiService.isPortfolioOwner(user);
@@ -64,253 +49,61 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
     ? profile.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
     : 'CA';
 
-  const handleCopyVanityUrl = () => {
-    const shareUrl = isOwner && workspaceMode === 'portfolio'
-      ? window.location.origin
-      : `${window.location.origin}/profile/${currentSlug}`;
-    navigator.clipboard?.writeText(shareUrl).catch(() => {});
-    setCopiedVanity(true);
-    setTimeout(() => setCopiedVanity(false), 2000);
-  };
-
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const sanitizedSlug = editSlug.trim().replace(/[^a-zA-Z0-9_-]/g, '') || currentSlug;
-    if (onSaveCustomProfile) {
-      onSaveCustomProfile({
-        ...profile,
-        name: editName.trim() || profile.name,
-        vanitySlug: sanitizedSlug,
-        headline: editHeadline.trim() || profile.headline,
-        location: editLocation.trim() || profile.location,
-        experienceYears: Number(editYears) || 1,
-        bio: editBio.trim() || profile.bio,
-        avatarUrl: editAvatar.trim(),
-        githubUrl: editGithub.trim() || profile.githubUrl
-      });
+  const indexCards = [
+    {
+      id: 'hero-jump-experience',
+      tab: 'experience' as const,
+      activeClass: 'active-experience',
+      ariaLabel: 'Jump to Professional Experience and Resume section',
+      title: 'Click to jump to Professional Experience & Resume',
+      label: '01 / Experience',
+      subtitle: workspaceMode === 'personal' ? 'My Career Builder' : '4 Roles • Certs',
+      onClick: onExploreResume || onExploreTech
+    },
+    {
+      id: 'hero-jump-goals',
+      tab: 'dashboard' as const,
+      activeClass: 'active-dashboard',
+      ariaLabel: 'Jump to Engineering Goals and Milestones section',
+      title: 'Click to jump to Engineering Goals & Milestones',
+      label: '02 / Architecture',
+      subtitle: workspaceMode === 'personal' ? 'My Active Goals' : '6 Core Milestones',
+      onClick: onExploreTech
+    },
+    {
+      id: 'hero-jump-ai',
+      tab: 'ai' as const,
+      activeClass: 'active-ai',
+      ariaLabel: 'Jump to AI Skill Extraction Pipeline section',
+      title: 'Click to jump to AI Skill Extraction Pipeline',
+      label: '03 / AI Pipeline',
+      subtitle: workspaceMode === 'personal' ? 'Paste Your Resume' : 'Skill Extractor',
+      onClick: onExploreAi
+    },
+    {
+      id: 'hero-jump-garmin',
+      tab: 'map' as const,
+      activeClass: 'active-map',
+      ariaLabel: 'Jump to Garmin FIT Geospatial Telemetry section',
+      title: 'Click to jump to Garmin FIT Telemetry Visualizer',
+      label: '04 / Telemetry',
+      subtitle: workspaceMode === 'personal' ? 'Upload .FIT / .GPX' : 'Garmin Geospatial',
+      onClick: onExploreMap
     }
-    setIsEditingProfile(false);
-  };
+  ];
 
   return (
     <div className="glass-panel profile-hero-panel">
-      {/* Workspace Bar: Shown when signed in OR when viewing a custom /profile/:slug URL */}
-      {user && user.role === 'admin' && onToggleWorkspaceMode ? (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          paddingBottom: '18px',
-          marginBottom: '24px',
-          borderBottom: '1px solid var(--border-subtle)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            <UserCheck size={15} color="var(--accent-crimson)" />
-            <span>
-              Signed in as <strong style={{ color: 'var(--text-primary)' }}>{user.name}</strong>
-              {isOwner ? ' • Portfolio Owner' : ''}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {isOwner ? (
-              <>
-                {workspaceMode === 'personal' && (
-                  <button
-                    type="button"
-                    onClick={() => onToggleWorkspaceMode('portfolio')}
-                    className="btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
-                  >
-                    <Briefcase size={13} />
-                    <span>Return to My Portfolio</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => exportPrintableResume({ workspaceMode, profile })}
-                  className="btn-primary"
-                  id="btn-workspace-download-resume-owner"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                  title="Download / Print ATS-Ready Resume PDF"
-                >
-                  <Download size={13} />
-                  <span>Download Resume</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyVanityUrl}
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
-                  title="Copy portfolio link"
-                >
-                  {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
-                  <span>
-                    {copiedVanity ? 'Copied Link!' : 'johnbendfeldt.com'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingProfile(true)}
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                >
-                  <Edit3 size={13} />
-                  <span>Edit Profile</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{
-                  display: 'inline-flex',
-                  background: 'var(--bg-primary)',
-                  padding: '3px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => onToggleWorkspaceMode('portfolio')}
-                    style={{
-                      padding: '5px 12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-mono)',
-                      borderRadius: '2px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: workspaceMode === 'portfolio' ? 'var(--text-primary)' : 'transparent',
-                      color: workspaceMode === 'portfolio' ? 'var(--bg-surface)' : 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    <Briefcase size={12} />
-                    <span>John's Portfolio</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onToggleWorkspaceMode('personal')}
-                    style={{
-                      padding: '5px 12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-mono)',
-                      borderRadius: '2px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: workspaceMode === 'personal' ? 'var(--accent-crimson)' : 'transparent',
-                      color: workspaceMode === 'personal' ? '#ffffff' : 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    <UserCheck size={12} />
-                    <span>My Profile</span>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => exportPrintableResume({ workspaceMode, profile })}
-                  className="btn-primary"
-                  id="btn-workspace-download-resume"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                  title="Download / Print ATS-Ready Resume PDF"
-                >
-                  <Download size={13} />
-                  <span>{workspaceMode === 'personal' ? 'Download My Resume' : 'Download Resume'}</span>
-                </button>
-
-                {workspaceMode === 'personal' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleCopyVanityUrl}
-                      className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
-                      title="Copy shareable profile link"
-                    >
-                      {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
-                      <span>
-                        {copiedVanity ? 'Copied Link!' : `johnbendfeldt.com/profile/${currentSlug}`}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingProfile(true)}
-                      className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                    >
-                      <Edit3 size={13} />
-                      <span>Edit Profile</span>
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      ) : workspaceMode === 'personal' ? (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          paddingBottom: '18px',
-          marginBottom: '24px',
-          borderBottom: '1px solid var(--border-subtle)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            <Globe size={15} color="var(--accent-crimson)" />
-            <span>
-              Public Workspace Preview
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {onToggleWorkspaceMode && (
-              <button
-                type="button"
-                onClick={() => onToggleWorkspaceMode('portfolio')}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}
-              >
-                <Briefcase size={12} />
-                <span>John's Portfolio</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleCopyVanityUrl}
-              className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
-              title="Copy shareable profile link"
-            >
-              {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
-              <span>
-                {copiedVanity ? 'Copied Link!' : `johnbendfeldt.com/profile/${currentSlug}`}
-              </span>
-            </button>
-            {onOpenLogin && (
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="btn-primary"
-                style={{ padding: '6px 14px', fontSize: '0.75rem' }}
-              >
-                <LogIn size={13} />
-                <span>Sign In to Edit</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ) : null}
+      <ProfileWorkspaceBar
+        profile={profile}
+        user={user}
+        isOwner={isOwner}
+        workspaceMode={workspaceMode}
+        currentSlug={currentSlug}
+        onToggleWorkspaceMode={onToggleWorkspaceMode}
+        onOpenEdit={() => setIsEditingProfile(true)}
+        onOpenLogin={onOpenLogin}
+      />
 
       <div className="profile-hero-grid">
         {/* Editorial Portrait & Status */}
@@ -482,25 +275,19 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
               </>
             ) : (
               <>
-                {/* Primary Editorial Contact Button */}
                 <a
                   href={profile.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-primary"
                   id="hero-linkedin-link"
-                  style={{
-                    padding: '8px 18px',
-                    fontSize: '0.84rem',
-                    textDecoration: 'none'
-                  }}
+                  style={{ padding: '8px 18px', fontSize: '0.84rem', textDecoration: 'none' }}
                 >
                   <LinkedinIcon size={15} />
                   <span>Message on LinkedIn</span>
                   <ExternalLink size={12} style={{ opacity: 0.8 }} />
                 </a>
 
-                {/* 1-Click Printable / PDF Resume Button */}
                 <button
                   type="button"
                   onClick={() => exportPrintableResume({ workspaceMode: 'portfolio', profile })}
@@ -512,7 +299,6 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   <span>Download Resume (PDF)</span>
                 </button>
 
-                {/* Outbound GitHub Link */}
                 <a
                   href={profile.githubUrl}
                   target="_blank"
@@ -531,29 +317,32 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
         </div>
       </div>
 
-      {/* Architectural Index Grid (Full Width Across Hero Card on All Screen Sizes) */}
+      {/* Architectural Index Grid */}
       <div className="hero-metrics-grid" style={{ marginTop: '20px' }}>
-            {/* 01 / Career History */}
+        {indexCards.map((card) => {
+          const isActive = activeTab === card.tab;
+          return (
             <div
-              id="hero-jump-experience"
+              key={card.id}
+              id={card.id}
               role="button"
               tabIndex={0}
-              aria-label="Jump to Professional Experience and Resume section"
-              onClick={onExploreResume || onExploreTech}
+              aria-label={card.ariaLabel}
+              onClick={card.onClick}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  (onExploreResume || onExploreTech)();
+                  card.onClick();
                 }
               }}
-              className={`hero-metric-card ${activeTab === 'experience' ? 'active-experience' : ''}`}
-              title="Click to jump to Professional Experience & Resume"
+              className={`hero-metric-card ${isActive ? card.activeClass : ''}`}
+              title={card.title}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: activeTab === 'experience' ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  01 / Experience
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: isActive ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                  {card.label}
                 </span>
-                {activeTab === 'experience' ? (
+                {isActive ? (
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', background: 'var(--accent-crimson)', color: '#ffffff', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     ACTIVE <ChevronDown size={11} />
                   </span>
@@ -563,266 +352,21 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {workspaceMode === 'personal' ? 'My Career Builder' : '4 Roles • Certs'}
+              <div style={{ fontSize: card.tab === 'map' ? '1.02rem' : '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                {card.subtitle}
               </div>
             </div>
-
-            {/* 02 / Active Goals */}
-            <div
-              id="hero-jump-goals"
-              role="button"
-              tabIndex={0}
-              aria-label="Jump to Engineering Goals and Milestones section"
-              onClick={onExploreTech}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onExploreTech();
-                }
-              }}
-              className={`hero-metric-card ${activeTab === 'dashboard' ? 'active-dashboard' : ''}`}
-              title="Click to jump to Engineering Goals & Milestones"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: activeTab === 'dashboard' ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  02 / Architecture
-                </span>
-                {activeTab === 'dashboard' ? (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', background: 'var(--accent-crimson)', color: '#ffffff', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    ACTIVE <ChevronDown size={11} />
-                  </span>
-                ) : (
-                  <span className="hero-card-cta" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-primary)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', transition: 'all 0.15s ease' }}>
-                    OPEN <ChevronDown size={11} />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {workspaceMode === 'personal' ? 'My Active Goals' : '6 Core Milestones'}
-              </div>
-            </div>
-
-            {/* 03 / AI Pipeline */}
-            <div
-              id="hero-jump-ai"
-              role="button"
-              tabIndex={0}
-              aria-label="Jump to AI Skill Extraction Pipeline section"
-              onClick={onExploreAi}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onExploreAi();
-                }
-              }}
-              className={`hero-metric-card ${activeTab === 'ai' ? 'active-ai' : ''}`}
-              title="Click to jump to AI Skill Extraction Pipeline"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: activeTab === 'ai' ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  03 / AI Pipeline
-                </span>
-                {activeTab === 'ai' ? (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', background: 'var(--accent-crimson)', color: '#ffffff', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    ACTIVE <ChevronDown size={11} />
-                  </span>
-                ) : (
-                  <span className="hero-card-cta" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-primary)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', transition: 'all 0.15s ease' }}>
-                    OPEN <ChevronDown size={11} />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {workspaceMode === 'personal' ? 'Paste Your Resume' : 'Skill Extractor'}
-              </div>
-            </div>
-
-            {/* 04 / Garmin FIT */}
-            <div
-              id="hero-jump-garmin"
-              role="button"
-              tabIndex={0}
-              aria-label="Jump to Garmin FIT Geospatial Telemetry section"
-              onClick={onExploreMap}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onExploreMap();
-                }
-              }}
-              className={`hero-metric-card ${activeTab === 'map' ? 'active-map' : ''}`}
-              title="Click to jump to Garmin FIT Telemetry Visualizer"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: activeTab === 'map' ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  04 / Telemetry
-                </span>
-                {activeTab === 'map' ? (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', background: 'var(--accent-crimson)', color: '#ffffff', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    ACTIVE <ChevronDown size={11} />
-                  </span>
-                ) : (
-                  <span className="hero-card-cta" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-primary)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', transition: 'all 0.15s ease' }}>
-                    OPEN <ChevronDown size={11} />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '1.02rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {workspaceMode === 'personal' ? 'Upload .FIT / .GPX' : 'Garmin Geospatial'}
-              </div>
-            </div>
+          );
+        })}
       </div>
 
-      {/* Edit Personal Workspace Profile Modal */}
-      {isEditingProfile && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '540px',
-            width: '100%',
-            background: 'var(--bg-card)',
-            padding: '28px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Edit3 size={20} color="var(--accent-crimson)" />
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Customize My Profile</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Display Name</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Headline / Role</label>
-                  <input
-                    type="text"
-                    value={editHeadline}
-                    onChange={(e) => setEditHeadline(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Location</label>
-                  <input
-                    type="text"
-                    value={editLocation}
-                    onChange={(e) => setEditLocation(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Years Exp.</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={50}
-                    value={editYears}
-                    onChange={(e) => setEditYears(Number(e.target.value))}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Vanity Profile URL
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                  <span style={{ padding: '9px 10px', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', background: 'var(--bg-card)', borderRight: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>
-                    johnbendfeldt.com/profile/
-                  </span>
-                  <input
-                    type="text"
-                    value={editSlug}
-                    onChange={(e) => setEditSlug(e.target.value)}
-                    placeholder="basic-english"
-                    style={{ flex: 1, padding: '9px 12px', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 700, outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    Avatar Image URL (Blank = Initials)
-                  </label>
-                  <input
-                    type="text"
-                    value={editAvatar}
-                    onChange={(e) => setEditAvatar(e.target.value)}
-                    placeholder="https://... or leave blank"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    GitHub URL
-                  </label>
-                  <input
-                    type="text"
-                    value={editGithub}
-                    onChange={(e) => setEditGithub(e.target.value)}
-                    placeholder="https://github.com/yourname"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Architectural Bio</label>
-                <textarea
-                  rows={3}
-                  value={editBio}
-                  onChange={(e) => setEditBio(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem', resize: 'vertical' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={() => setIsEditingProfile(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Save My Profile
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ProfileEditModal
+        isOpen={isEditingProfile}
+        profile={profile}
+        currentSlug={currentSlug}
+        onClose={() => setIsEditingProfile(false)}
+        onSave={onSaveCustomProfile}
+      />
     </div>
   );
 };
