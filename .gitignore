@@ -40,6 +40,7 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+**/appsettings.Local.json
 
 # OS
 .DS_Store

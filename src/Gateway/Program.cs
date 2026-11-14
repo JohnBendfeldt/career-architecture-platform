@@ -4,12 +4,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-// Add permissive CORS for frontend SPA
+// Restrict CORS to explicit allowed origins
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[]
+    {
+        "https://johnbendfeldt.com",
+        "https://www.johnbendfeldt.com",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5050",
+        "http://localhost:3000"
+    };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("SpaCorsPolicy", policy =>
+    options.AddPolicy("AllowedOrigins", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -18,7 +29,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseCors("SpaCorsPolicy");
+app.UseCors("AllowedOrigins");
 
 app.MapGet("/health", () => Results.Ok(new
 {

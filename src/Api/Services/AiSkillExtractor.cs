@@ -87,14 +87,19 @@ public class AiSkillExtractor : IAiSkillExtractor
             }
         };
 
-        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var jsonPayload = JsonSerializer.Serialize(payload);
 
         foreach (var model in models)
         {
             try
             {
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-                var response = await _httpClient.PostAsync(url, content, ct);
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+                using var req = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+                };
+                req.Headers.Add("x-goog-api-key", apiKey);
+                var response = await _httpClient.SendAsync(req, ct);
 
                 if (!response.IsSuccessStatusCode)
                 {

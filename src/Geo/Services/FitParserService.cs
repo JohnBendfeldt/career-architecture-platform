@@ -1,3 +1,4 @@
+using System.Globalization;
 using CareerPlatform.Geo.Models;
 using Dynastream.Fit;
 using SysDateTime = System.DateTime;
@@ -16,11 +17,36 @@ public class FitParserService : IFitParserService
 {
     private const double SemicircleToDegree = 180.0 / 2147483648.0;
     private const string DefaultDevice = "Garmin Forerunner 255 Music";
+    private const double DefaultPrivacyRadiusM = 400.0;
+
+    private readonly double? _privacyLat;
+    private readonly double? _privacyLon;
+    private readonly double _privacyRadiusM;
 
     // Cache preloaded rides in-memory
     private static readonly Dictionary<string, ActivityTelemetry> CachedRides = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object CacheLock = new();
     private static bool IsInitialized = false;
+
+    public FitParserService(IConfiguration? config = null)
+    {
+        if (TryParseCoord(config?["Geo:PrivacyLat"] ?? Environment.GetEnvironmentVariable("GEO_PRIVACY_LAT"), out var lat) &&
+            TryParseCoord(config?["Geo:PrivacyLon"] ?? Environment.GetEnvironmentVariable("GEO_PRIVACY_LON"), out var lon))
+        {
+            _privacyLat = lat;
+            _privacyLon = lon;
+        }
+
+        var radiusRaw = config?["Geo:PrivacyRadiusM"] ?? Environment.GetEnvironmentVariable("GEO_PRIVACY_RADIUS_M");
+        _privacyRadiusM = TryParseCoord(radiusRaw, out var radius) && radius > 0
+            ? radius
+            : DefaultPrivacyRadiusM;
+    }
+
+    private static bool TryParseCoord(string? value, out double parsed)
+    {
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
+    }
 
     public ActivityTelemetry ParseFitStream(Stream fitStream, string fileName)
     {
@@ -125,41 +151,40 @@ public class FitParserService : IFitParserService
             ? (int)(endTime.Value - startTime.Value).TotalMinutes 
             : Math.Max(1, rawPoints.Count / 60);
 
-        // Privacy Zone Geofence: trim start and end points within 400m (~0.25 miles) of residence
-        const double PrivacyLat = 0.0;
-        const double PrivacyLon = 0.0;
-        const double PrivacyRadiusM = 400.0;
-
-        static double HaversineM(double lat1, double lon1, double lat2, double lon2)
+        // Privacy Zone Geofence: trim start and end points within configured radius of configured coordinates
+        if (_privacyLat is double privacyLat && _privacyLon is double privacyLon)
         {
-            const double R = 6371000.0;
-            var dLat = (lat2 - lat1) * Math.PI / 180.0;
-            var dLon = (lon2 - lon1) * Math.PI / 180.0;
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
-        }
-
-        while (rawPoints.Count > 0 && HaversineM(rawPoints[0].Lat, rawPoints[0].Lon, PrivacyLat, PrivacyLon) < PrivacyRadiusM)
-        {
-            rawPoints.RemoveAt(0);
-        }
-
-        int endIdx = rawPoints.Count;
-        for (int i = rawPoints.Count - 1; i >= 0; i--)
-        {
-            if (HaversineM(rawPoints[i].Lat, rawPoints[i].Lon, PrivacyLat, PrivacyLon) < PrivacyRadiusM)
+            static double HaversineM(double lat1, double lon1, double lat2, double lon2)
             {
-                endIdx = i;
+                const double R = 6371000.0;
+                var dLat = (lat2 - lat1) * Math.PI / 180.0;
+                var dLon = (lon2 - lon1) * Math.PI / 180.0;
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                        Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+                return R * c;
             }
+
+            while (rawPoints.Count > 0 && HaversineM(rawPoints[0].Lat, rawPoints[0].Lon, privacyLat, privacyLon) < _privacyRadiusM)
+            {
+                rawPoints.RemoveAt(0);
+            }
+
+            int endIdx = rawPoints.Count;
+            for (int i = rawPoints.Count - 1; i >= 0; i--)
+            {
+                if (HaversineM(rawPoints[i].Lat, rawPoints[i].Lon, privacyLat, privacyLon) < _privacyRadiusM)
+                {
+                    endIdx = i;
+                }
+            }
+            if (endIdx < rawPoints.Count && endIdx > 0)
+            {
+                rawPoints = rawPoints.Take(endIdx).ToList();
+            }
+            rawPoints = rawPoints.Where(p => HaversineM(p.Lat, p.Lon, privacyLat, privacyLon) >= _privacyRadiusM).ToList();
         }
-        if (endIdx < rawPoints.Count && endIdx > 0)
-        {
-            rawPoints = rawPoints.Take(endIdx).ToList();
-        }
-        rawPoints = rawPoints.Where(p => HaversineM(p.Lat, p.Lon, PrivacyLat, PrivacyLon) >= PrivacyRadiusM).ToList();
 
         // Downsample points if list is very large (> 1500) to keep Leaflet rendering at 60fps
         var points = rawPoints;

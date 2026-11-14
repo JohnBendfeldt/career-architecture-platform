@@ -774,46 +774,7 @@ export class ApiService {
       // Backend / serverless unavailable
     }
 
-    // Direct client fallback to Gemini API if VITE_GEMINI_API_KEY is defined
-    const clientKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    if (clientKey) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${clientKey}`;
-        const gRes = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Extract all key technical skills, architectural concepts, languages, frameworks, and engineering tools from this text. Return a JSON object with a 'skills' string array.\nText:\n${text}` }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: 'OBJECT',
-                properties: { skills: { type: 'ARRAY', items: { type: 'STRING' } } },
-                required: ['skills']
-              }
-            }
-          })
-        });
-        if (isJson(gRes)) {
-          const gData: any = await gRes.json();
-          const candidateText = gData?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            const parsed = JSON.parse(candidateText);
-            if (parsed.skills && Array.isArray(parsed.skills)) {
-              return {
-                skills: parsed.skills,
-                source: 'gemini',
-                model: 'gemini-3.5-flash-lite'
-              };
-            }
-          }
-        }
-      } catch {
-        // fallback to keyword extraction
-      }
-    }
-
-    // Fallback if backend is offline
+    // Deterministic client-side keyword fallback if backend is offline
     const terms: string[] = [];
     const lower = text.toLowerCase();
     const skillMatchers: Array<[string[], string]> = [

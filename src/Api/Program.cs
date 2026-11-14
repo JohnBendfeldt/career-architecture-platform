@@ -99,16 +99,19 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Rate Limiting on public endpoints
+// Rate Limiting on public endpoints (partitioned per client IP)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("PublicApiLimit", opt =>
-    {
-        opt.PermitLimit = 30;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("PublicApiLimit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
 });
 
 var app = builder.Build();
@@ -146,7 +149,7 @@ app.MapPost("/api/auth/guest", (ITokenService tokenService) =>
     );
 
     return Results.Ok(new GuestAuthResponse(token, user));
-});
+}).RequireRateLimiting("PublicApiLimit");
 
 // Current User Info
 app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
@@ -221,14 +224,34 @@ app.MapGet("/api/goals", async (AppDbContext db) =>
 });
 
 // Write Protected Endpoints (Guest returns 403 Forbidden)
+static IResult? ValidateGoalRequest(CreateGoalRequest request)
+{
+    if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
+    {
+        return Results.BadRequest(new { error = "Title is required and must be 200 characters or fewer." });
+    }
+
+    if (request.Description?.Length > 2000)
+    {
+        return Results.BadRequest(new { error = "Description must be 2,000 characters or fewer." });
+    }
+
+    return null;
+}
+
 app.MapPost("/api/goals", async (CreateGoalRequest request, AppDbContext db) =>
 {
+    if (ValidateGoalRequest(request) is { } validationError)
+    {
+        return validationError;
+    }
+
     var goal = new Goal
     {
-        Title = request.Title,
-        Description = request.Description,
+        Title = request.Title.Trim(),
+        Description = request.Description ?? "",
         Category = request.Category,
-        Progress = request.Progress,
+        Progress = Math.Clamp(request.Progress, 0, 100),
         TargetDate = request.TargetDate,
         Status = request.Status,
         TagsJson = JsonSerializer.Serialize(request.Tags ?? new List<string>())
@@ -242,13 +265,18 @@ app.MapPost("/api/goals", async (CreateGoalRequest request, AppDbContext db) =>
 
 app.MapPut("/api/goals/{id:int}", async (int id, CreateGoalRequest request, AppDbContext db) =>
 {
+    if (ValidateGoalRequest(request) is { } validationError)
+    {
+        return validationError;
+    }
+
     var goal = await db.Goals.FindAsync(id);
     if (goal == null) return Results.NotFound();
 
-    goal.Title = request.Title;
-    goal.Description = request.Description;
+    goal.Title = request.Title.Trim();
+    goal.Description = request.Description ?? "";
     goal.Category = request.Category;
-    goal.Progress = request.Progress;
+    goal.Progress = Math.Clamp(request.Progress, 0, 100);
     goal.TargetDate = request.TargetDate;
     goal.Status = request.Status;
     goal.TagsJson = JsonSerializer.Serialize(request.Tags ?? new List<string>());
@@ -270,6 +298,11 @@ app.MapDelete("/api/goals/{id:int}", async (int id, AppDbContext db) =>
 // AI Skill Extraction
 app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkillExtractor extractor) =>
 {
+    if (request?.Text?.Length > 10000)
+    {
+        return Results.BadRequest(new { error = "Input text exceeds maximum length of 10,000 characters." });
+    }
+
     var skills = await extractor.ExtractSkillsAsync(request?.Text ?? "");
     return Results.Ok(new ExtractSkillsResponse(skills));
 }).RequireRateLimiting("PublicApiLimit");
@@ -277,6 +310,11 @@ app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkill
 // Dynamic Learning Resources (YouTube Data API v3 + Curated Pathways)
 app.MapGet("/api/resources", async (string? skill, ILearningResourceService resourceService) =>
 {
+    if (skill?.Length > 200)
+    {
+        return Results.BadRequest(new { error = "Skill query exceeds maximum length of 200 characters." });
+    }
+
     var term = string.IsNullOrWhiteSpace(skill) ? "C# .NET 10 Minimal APIs" : skill;
     var resources = await resourceService.GetResourcesAsync(term);
     return Results.Ok(new LearningResourcesResponse(term, resources));

@@ -5,7 +5,16 @@ using Microsoft.AspNetCore.RateLimiting;
 
 if (args.Contains("--dump-all-rides"))
 {
-    var parser = new FitParserService();
+    var geoBaseDir = Directory.Exists(Path.Combine(Directory.GetCurrentDirectory(), "src", "Geo"))
+        ? Path.Combine(Directory.GetCurrentDirectory(), "src", "Geo")
+        : Directory.GetCurrentDirectory();
+    var dumpConfig = new ConfigurationBuilder()
+        .SetBasePath(geoBaseDir)
+        .AddJsonFile("appsettings.json", optional: true)
+        .AddJsonFile("appsettings.Local.json", optional: true)
+        .AddEnvironmentVariables()
+        .Build();
+    var parser = new FitParserService(dumpConfig);
     var rides = parser.GetPreloadedRides();
     var outDir = Path.Combine(Directory.GetCurrentDirectory(), "web", "public", "rides");
     Directory.CreateDirectory(outDir);
@@ -30,6 +39,7 @@ if (args.Contains("--dump-all-rides"))
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // Register FitParserService
 builder.Services.AddScoped<IFitParserService, FitParserService>();
@@ -56,16 +66,19 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Rate Limiting on telemetry upload endpoints
+// Rate Limiting on telemetry upload endpoints (partitioned per client IP)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("GeoUploadLimit", opt =>
-    {
-        opt.PermitLimit = 20;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("GeoUploadLimit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
 });
 
 // Configure multipart upload limits (up to 50MB for raw high-frequency telemetry files)
