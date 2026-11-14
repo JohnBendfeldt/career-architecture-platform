@@ -650,6 +650,253 @@ app.MapDelete("/api/advancement/entries/{id:int}", async (int id, AppDbContext d
     return Results.NoContent();
 }).RequireAuthorization("RequireWriteAccess");
 
+app.MapPost("/api/advancement/entries/import", async (ImportCareerEntriesRequest request, AppDbContext db) =>
+{
+    if (request?.Entries is null || request.Entries.Count == 0)
+    {
+        return Results.BadRequest(new ImportCareerEntriesResponse(
+            Success: false,
+            Message: "No entries provided for import.",
+            TotalRows: 0,
+            SuccessCount: 0,
+            ErrorCount: 0,
+            DuplicateCount: 0,
+            Results: []
+        ));
+    }
+
+    if (request.Entries.Count > ImportCareerEntriesRequest.MaxRows)
+    {
+        return Results.BadRequest(new ImportCareerEntriesResponse(
+            Success: false,
+            Message: $"You can import at most {ImportCareerEntriesRequest.MaxRows} entries at a time.",
+            TotalRows: request.Entries.Count,
+            SuccessCount: 0,
+            ErrorCount: request.Entries.Count,
+            DuplicateCount: 0,
+            Results: []
+        ));
+    }
+
+    var categories = await db.Categories.AsNoTracking().Where(c => c.IsActive).ToListAsync();
+    var goals = await db.Goals.AsNoTracking().ToListAsync();
+    var existingEntries = await db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Select(e => new { e.Title, e.StartDate, e.EndDate, e.Hours })
+        .ToListAsync();
+
+    var seenKeys = new HashSet<(string Title, DateTime StartDate, DateTime EndDate, decimal Hours)>(
+        existingEntries.Select(e => (
+            e.Title.Trim().ToLowerInvariant(),
+            e.StartDate.Date,
+            e.EndDate.Date,
+            Math.Round(e.Hours, 2)
+        ))
+    );
+
+    var affectedGoalIds = new HashSet<int>();
+    var rowResults = new List<ImportCareerEntryRowResult>(request.Entries.Count);
+    var successCount = 0;
+    var errorCount = 0;
+    var duplicateCount = 0;
+
+    for (int i = 0; i < request.Entries.Count; i++)
+    {
+        var row = request.Entries[i];
+        var rowNumber = i + 1;
+        var title = (row.Title ?? string.Empty).Trim();
+        var description = string.IsNullOrWhiteSpace(row.Description) ? null : row.Description.Trim();
+
+        if (title.Length > 200)
+        {
+            description = string.IsNullOrWhiteSpace(description) ? title : $"{title}\n\n{description}";
+            var truncated = title[..200];
+            var lastSpace = truncated.LastIndexOf(' ');
+            if (lastSpace > 120)
+            {
+                truncated = truncated[..lastSpace];
+            }
+            title = truncated.Trim();
+        }
+
+        var startDate = DateTime.SpecifyKind(row.StartDate.Date, DateTimeKind.Utc);
+        var endDate = DateTime.SpecifyKind((row.EndDate ?? row.StartDate).Date, DateTimeKind.Utc);
+        var startStr = startDate.ToString("yyyy-MM-dd");
+        var endStr = endDate.ToString("yyyy-MM-dd");
+
+        int? categoryId = null;
+        if (row.CategoryId.HasValue && categories.Any(c => c.Id == row.CategoryId.Value))
+        {
+            categoryId = row.CategoryId.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(row.Category))
+        {
+            var catName = row.Category.Trim();
+            if (!string.Equals(catName, "uncategorized", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(catName, "none", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(catName, "-", StringComparison.Ordinal))
+            {
+                categoryId = categories.FirstOrDefault(c =>
+                    string.Equals(c.Name, catName, StringComparison.OrdinalIgnoreCase))?.Id;
+            }
+        }
+
+        int? goalId = null;
+        if (row.GoalId.HasValue && goals.Any(g => g.Id == row.GoalId.Value))
+        {
+            goalId = row.GoalId.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(row.GoalTitle))
+        {
+            var goalName = row.GoalTitle.Trim();
+            if (!string.Equals(goalName, "none", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(goalName, "standalone", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(goalName, "-", StringComparison.Ordinal))
+            {
+                goalId = goals.FirstOrDefault(g =>
+                    string.Equals(g.Title, goalName, StringComparison.OrdinalIgnoreCase))?.Id;
+            }
+        }
+
+        var validationRequest = new CreateCareerEntryRequest(
+            title,
+            description,
+            startDate,
+            endDate,
+            row.Hours,
+            categoryId,
+            goalId,
+            request.ClientUtcOffsetMinutes
+        );
+
+        if (AdvancementCalculator.ValidateEntry(validationRequest) is { } validationError)
+        {
+            errorCount++;
+            rowResults.Add(new ImportCareerEntryRowResult(
+                rowNumber, title, row.Hours, startStr, endStr, false, null, validationError, false
+            ));
+            continue;
+        }
+
+        var roundedHours = Math.Round(row.Hours, 2);
+        var dedupKey = (title.ToLowerInvariant(), startDate.Date, endDate.Date, roundedHours);
+        if (!seenKeys.Add(dedupKey))
+        {
+            errorCount++;
+            duplicateCount++;
+            rowResults.Add(new ImportCareerEntryRowResult(
+                rowNumber,
+                title,
+                roundedHours,
+                startStr,
+                endStr,
+                false,
+                null,
+                "Duplicate entry - an entry with the same title, dates, and hours already exists.",
+                true
+            ));
+            continue;
+        }
+
+        var entry = new CareerDevelopmentEntry
+        {
+            Title = title,
+            Description = description,
+            StartDate = startDate,
+            EndDate = endDate,
+            Hours = roundedHours,
+            CategoryId = categoryId,
+            GoalId = goalId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.CareerDevelopmentEntries.Add(entry);
+        await db.SaveChangesAsync();
+
+        if (entry.GoalId.HasValue)
+        {
+            affectedGoalIds.Add(entry.GoalId.Value);
+        }
+
+        successCount++;
+        rowResults.Add(new ImportCareerEntryRowResult(
+            rowNumber, title, roundedHours, startStr, endStr, true, entry.Id, null, false
+        ));
+    }
+
+    foreach (var affectedGoalId in affectedGoalIds)
+    {
+        await AdvancementCalculator.RecalculateGoalProgressAsync(db, affectedGoalId);
+    }
+
+    var overallSuccess = successCount > 0;
+    var summaryMessage = overallSuccess
+        ? $"Successfully imported {successCount} of {request.Entries.Count} entries."
+        : duplicateCount > 0
+            ? $"No new entries imported ({duplicateCount} duplicate skipped)."
+            : "No entries were imported successfully.";
+
+    return Results.Ok(new ImportCareerEntriesResponse(
+        Success: overallSuccess,
+        Message: summaryMessage,
+        TotalRows: request.Entries.Count,
+        SuccessCount: successCount,
+        ErrorCount: errorCount,
+        DuplicateCount: duplicateCount,
+        Results: rowResults
+    ));
+}).RequireAuthorization("RequireWriteAccess");
+
+app.MapGet("/api/advancement/export", async (int? year, string? format, AppDbContext db) =>
+{
+    var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync();
+    var professionalName = profile?.Name ?? "John F. Bendfeldt";
+    var annualGoalHours = profile?.AnnualGoalHours ?? 55m;
+
+    var query = db.CareerDevelopmentEntries
+        .AsNoTracking()
+        .Include(e => e.CategoryNavigation)
+        .Include(e => e.GoalNavigation)
+        .AsQueryable();
+
+    if (year.HasValue)
+    {
+        query = query.Where(e => e.StartDate.Year == year.Value);
+    }
+
+    var entries = await query
+        .OrderByDescending(e => e.StartDate)
+        .ThenByDescending(e => e.Id)
+        .ToListAsync();
+
+    var dtos = entries.Select(MapCareerEntryDto).ToList();
+    var yearSuffix = year.HasValue ? $"_{year.Value}" : "_AllYears";
+    var dateStamp = DateTime.UtcNow.ToString("yyyyMMdd");
+
+    if (string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
+    {
+        var csvBytes = AdvancementSpreadsheetService.BuildCareerDevelopmentCsv(dtos);
+        return Results.File(
+            csvBytes,
+            "text/csv; charset=utf-8",
+            $"CareerDevelopment{yearSuffix}_{dateStamp}.csv"
+        );
+    }
+
+    var workbookBytes = AdvancementSpreadsheetService.BuildCareerDevelopmentWorkbook(
+        professionalName,
+        annualGoalHours,
+        year,
+        dtos
+    );
+
+    return Results.File(
+        workbookBytes,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"CareerDevelopment{yearSuffix}_{dateStamp}.xlsx"
+    );
+});
+
 // AI Skill Extraction
 app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkillExtractor extractor) =>
 {

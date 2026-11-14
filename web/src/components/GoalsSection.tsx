@@ -10,12 +10,14 @@ import {
 import { AnnualProgressBanner } from './goals/AnnualProgressBanner';
 import { CareerEntryModal } from './goals/CareerEntryModal';
 import { CareerEntriesList } from './goals/CareerEntriesList';
+import { ImportCareerEntriesModal } from './goals/ImportCareerEntriesModal';
 
 interface GoalsSectionProps {
   goals: Goal[];
   onRefresh: () => void;
   entries?: CareerEntry[];
   workspaceMode?: 'portfolio' | 'personal';
+  profileName?: string;
   annualGoalHours?: number;
   onAnnualGoalHoursChange?: (hours: number) => Promise<void> | void;
 }
@@ -25,6 +27,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
   onRefresh,
   entries,
   workspaceMode,
+  profileName,
   annualGoalHours,
   onAnnualGoalHoursChange,
 }) => {
@@ -37,6 +40,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
   const [filter, setFilter] = useState<'All' | 'Technical' | 'Personal'>('All');
   const [viewMode, setViewMode] = useState<'board' | 'log'>('board');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [readOnlyNotice, setReadOnlyNotice] = useState<string | null>(null);
   const [activityNotice, setActivityNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -221,6 +225,17 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     });
   };
 
+  const handleExportEntries = async (format: 'xlsx' | 'csv' = 'xlsx', allYears = false) => {
+    await ApiService.exportCareerEntries({
+      year: allYears ? null : selectedYear,
+      format,
+      entries: activeEntries,
+      profileName,
+      annualGoalHours: effectiveAnnualGoalHours,
+      workspaceMode,
+    });
+  };
+
   return (
     <div style={{ marginBottom: '36px' }}>
       <AnnualProgressBanner
@@ -231,6 +246,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
         canEdit={canEdit}
         onUpdateGoalHours={handleAnnualGoalHoursUpdate}
         onLogHoursClick={() => openLogHoursModal(null)}
+        onImportClick={() => setIsImportModalOpen(true)}
+        onExportClick={() => void handleExportEntries('xlsx', false)}
       />
 
       {/* Section Header & Filters */}
@@ -452,6 +469,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
           }
           onDelete={handleDeleteEntry}
           onLogHoursClick={() => openLogHoursModal(null)}
+          onImportClick={() => setIsImportModalOpen(true)}
+          onExportClick={(format, allYears) => void handleExportEntries(format, allYears)}
         />
       ) : (
         /* Goal Cards Grid */
@@ -880,6 +899,16 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
         }
         onSaved={refreshWorkspace}
       />
+
+      {isImportModalOpen && (
+        <ImportCareerEntriesModal
+          isOpen={isImportModalOpen}
+          categories={categories}
+          goals={goals}
+          onClose={() => setIsImportModalOpen(false)}
+          onImported={refreshWorkspace}
+        />
+      )}
     </div>
   );
 };

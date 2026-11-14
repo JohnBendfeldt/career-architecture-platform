@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Calendar, Clock, Copy, Edit2, Filter, Link2, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Copy, Download, Edit2, Filter, Link2, Plus, Trash2, Upload } from 'lucide-react';
 import type { CareerEntry, Category, Goal } from '../../types';
 import { formatEntryHours } from '../../utils/advancementUtils';
 
@@ -13,6 +13,8 @@ interface CareerEntriesListProps {
   onDuplicate: (entry: CareerEntry) => void;
   onDelete: (entryId: number) => Promise<void> | void;
   onLogHoursClick: () => void;
+  onImportClick?: () => void;
+  onExportClick?: (format: 'xlsx' | 'csv', allYears?: boolean) => void;
 }
 
 export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
@@ -25,6 +27,8 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
   onDuplicate,
   onDelete,
   onLogHoursClick,
+  onImportClick,
+  onExportClick,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [goalFilter, setGoalFilter] = useState<string>('all');
@@ -114,9 +118,49 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
           </select>
         </div>
 
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-          {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'} •{' '}
-          <strong style={{ color: 'var(--accent-cyan)' }}>{formatEntryHours(totalFilteredHours)} hrs</strong>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'} •{' '}
+            <strong style={{ color: 'var(--accent-cyan)' }}>{formatEntryHours(totalFilteredHours)} hrs</strong>
+          </div>
+
+          {onImportClick && (
+            <button
+              type="button"
+              onClick={onImportClick}
+              className="btn-secondary"
+              style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '4px' }}
+              title="Bulk import from .csv or .xlsx"
+            >
+              <Upload size={12} />
+              Import
+            </button>
+          )}
+
+          {onExportClick && (
+            <>
+              <button
+                type="button"
+                onClick={() => onExportClick('xlsx', false)}
+                className="btn-secondary"
+                style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '4px' }}
+                title={`Export ${selectedYear} report (.xlsx)`}
+              >
+                <Download size={12} />
+                Export .xlsx
+              </button>
+              <button
+                type="button"
+                onClick={() => onExportClick('csv', false)}
+                className="btn-secondary"
+                style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '4px' }}
+                title={`Export ${selectedYear} report (.csv)`}
+              >
+                <Download size={12} />
+                Export .csv
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -127,10 +171,18 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '18px' }}>
             Log hours linked to a technical or personal goal to automatically roll up milestone progress.
           </p>
-          <button type="button" onClick={onLogHoursClick} className="btn-primary">
-            <Plus size={16} />
-            Log Career Hours
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {onImportClick && (
+              <button type="button" onClick={onImportClick} className="btn-secondary">
+                <Upload size={15} />
+                Import CSV / XLSX
+              </button>
+            )}
+            <button type="button" onClick={onLogHoursClick} className="btn-primary">
+              <Plus size={16} />
+              Log Career Hours
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

@@ -75,6 +75,55 @@ export interface AnnualProgress {
   quarterLabel: string;
 }
 
+export interface ParsedImportRow {
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
+  hours: number;
+  category: string | null;
+  categoryId: number | null;
+  unrecognizedCategory: string | null;
+  goalTitle: string | null;
+  goalId: number | null;
+  unrecognizedGoal: string | null;
+}
+
+export interface ImportCareerEntryRowPayload {
+  title: string;
+  description?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  hours: number;
+  category?: string | null;
+  categoryId?: number | null;
+  goalTitle?: string | null;
+  goalId?: number | null;
+}
+
+export interface ImportCareerEntryRowResult {
+  rowNumber: number;
+  title: string;
+  hours: number;
+  startDate: string;
+  endDate: string;
+  success: boolean;
+  entryId?: number | null;
+  errorMessage?: string | null;
+  isDuplicate?: boolean;
+}
+
+export interface ImportCareerEntriesResult {
+  success: boolean;
+  status?: number;
+  message: string;
+  totalRows: number;
+  successCount: number;
+  errorCount: number;
+  duplicateCount: number;
+  results: ImportCareerEntryRowResult[];
+}
+
 export interface User {
   id: string;
   name: string;

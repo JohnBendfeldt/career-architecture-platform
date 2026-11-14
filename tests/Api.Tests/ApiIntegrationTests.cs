@@ -1,10 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using CareerPlatform.Api.Models;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -411,5 +413,139 @@ public class ApiIntegrationTests : IClassFixture<IsolatedApiFactory>
 
         var invertedRes = await adminClient.PostAsJsonAsync("/api/advancement/entries", invertedReq);
         Assert.Equal(HttpStatusCode.BadRequest, invertedRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task GuestToken_ImportCareerEntries_ReturnsForbidden()
+    {
+        var pastDate = DateTime.UtcNow.Date.AddDays(-2);
+        var importPayload = new ImportCareerEntriesRequest(
+            Entries: new List<ImportCareerEntryRowRequest>
+            {
+                new("Blocked Bulk Row", "Guest write protection check", pastDate, pastDate, 2m, "Development")
+            },
+            ClientUtcOffsetMinutes: 0
+        );
+
+        var anonRes = await _client.PostAsJsonAsync("/api/advancement/entries/import", importPayload);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonRes.StatusCode);
+
+        var authRes = await _client.PostAsync("/api/auth/guest", null);
+        var authBody = await authRes.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(authBody);
+
+        var guestClient = _factory.CreateClient();
+        guestClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", authBody.Token);
+
+        var guestRes = await guestClient.PostAsJsonAsync("/api/advancement/entries/import", importPayload);
+        Assert.Equal(HttpStatusCode.Forbidden, guestRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task ImportCareerEntries_ValidatesMaxRowsSkipsDuplicatesAndRollsUpLinkedGoal()
+    {
+        using var isolatedFactory = new IsolatedApiFactory();
+        var adminClient = isolatedFactory.CreateClient();
+        adminClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateNonGuestAdminToken());
+
+        var pastDate = DateTime.UtcNow.Date.AddDays(-3);
+
+        // Enforce 50-row upper limit
+        var oversizedRows = Enumerable.Range(1, 51)
+            .Select(i => new ImportCareerEntryRowRequest($"Overflow {i}", null, pastDate, pastDate, 1m, "Development"))
+            .ToList();
+        var oversizedRes = await adminClient.PostAsJsonAsync(
+            "/api/advancement/entries/import",
+            new ImportCareerEntriesRequest(oversizedRows, 0)
+        );
+        Assert.Equal(HttpStatusCode.BadRequest, oversizedRes.StatusCode);
+
+        // Create target-hours goal (TargetHours = 10)
+        var goalRes = await adminClient.PostAsJsonAsync(
+            "/api/goals",
+            new CreateGoalRequest(
+                Title: "OpenXML Spreadsheet Engineering",
+                Description: "Bulk import & export milestone",
+                Category: "Technical",
+                Progress: 0,
+                TargetDate: "Q4 2026",
+                Status: "InProgress",
+                Tags: new List<string> { "OpenXML", "Import" },
+                TargetHours: 10m
+            )
+        );
+        Assert.Equal(HttpStatusCode.Created, goalRes.StatusCode);
+        var createdGoal = await goalRes.Content.ReadFromJsonAsync<JsonElement>();
+        var goalId = createdGoal.GetProperty("id").GetInt32();
+
+        var importPayload = new ImportCareerEntriesRequest(
+            Entries: new List<ImportCareerEntryRowRequest>
+            {
+                new("ZIP Central Directory Design", "Binary layout review", pastDate, pastDate, 4m, "Development", null, null, goalId),
+                new("ZIP Central Directory Design", "Duplicate intra-batch row", pastDate, pastDate, 4m, "Development", null, null, goalId),
+                new("OOXML Styles & Formula Safety", "Custom numFmt 164", pastDate.AddDays(1), pastDate.AddDays(1), 6m, "Security", null, "OpenXML Spreadsheet Engineering")
+            },
+            ClientUtcOffsetMinutes: 0
+        );
+
+        var importRes = await adminClient.PostAsJsonAsync("/api/advancement/entries/import", importPayload);
+        Assert.Equal(HttpStatusCode.OK, importRes.StatusCode);
+
+        var summary = await importRes.Content.ReadFromJsonAsync<ImportCareerEntriesResponse>();
+        Assert.NotNull(summary);
+        Assert.True(summary.Success);
+        Assert.Equal(3, summary.TotalRows);
+        Assert.Equal(2, summary.SuccessCount);
+        Assert.Equal(1, summary.DuplicateCount);
+        Assert.Equal(1, summary.ErrorCount);
+
+        var goals = await adminClient.GetFromJsonAsync<List<JsonElement>>("/api/goals");
+        Assert.NotNull(goals);
+        var updatedGoal = goals.First(g => g.GetProperty("id").GetInt32() == goalId);
+        Assert.Equal(10m, updatedGoal.GetProperty("loggedHours").GetDecimal());
+        Assert.Equal(2, updatedGoal.GetProperty("entryCount").GetInt32());
+        Assert.Equal(100, updatedGoal.GetProperty("progress").GetInt32());
+        Assert.Equal("Completed", updatedGoal.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task ExportCareerEntries_ReturnsValidOpenXmlWorkbookAndCsv()
+    {
+        var xlsxRes = await _client.GetAsync("/api/advancement/export?year=2026");
+        Assert.Equal(HttpStatusCode.OK, xlsxRes.StatusCode);
+        Assert.Equal(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            xlsxRes.Content.Headers.ContentType?.MediaType
+        );
+
+        var xlsxBytes = await xlsxRes.Content.ReadAsByteArrayAsync();
+        using var zipStream = new MemoryStream(xlsxBytes);
+        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+
+        Assert.NotNull(archive.GetEntry("[Content_Types].xml"));
+        Assert.NotNull(archive.GetEntry("xl/workbook.xml"));
+        Assert.NotNull(archive.GetEntry("xl/styles.xml"));
+        var sheetEntry = archive.GetEntry("xl/worksheets/sheet1.xml");
+        Assert.NotNull(sheetEntry);
+
+        using var sheetReader = new StreamReader(sheetEntry.Open(), Encoding.UTF8);
+        var sheetXml = await sheetReader.ReadToEndAsync();
+        var doc = XDocument.Parse(sheetXml);
+        var sheetText = string.Concat(doc.Descendants().Select(x => x.Value));
+
+        Assert.Contains("Annual Goal: 55.0 hrs | Total Logged: 50.0 hrs", sheetText);
+        Assert.Contains("Subscription Ledger & Checkout Accounting Architecture", sheetText);
+        Assert.DoesNotContain("Docker & Container Orchestration Deep Dive", sheetText);
+
+        var csvRes = await _client.GetAsync("/api/advancement/export?year=2026&format=csv");
+        Assert.Equal(HttpStatusCode.OK, csvRes.StatusCode);
+        Assert.Equal("text/csv", csvRes.Content.Headers.ContentType?.MediaType);
+
+        var csvContent = await csvRes.Content.ReadAsStringAsync();
+        Assert.Contains("Title,Category,Linked Goal,Start Date,End Date,Hours,Description", csvContent);
+        Assert.Contains("Subscription Ledger & Checkout Accounting Architecture", csvContent);
+        Assert.DoesNotContain("Docker & Container Orchestration Deep Dive", csvContent);
     }
 }

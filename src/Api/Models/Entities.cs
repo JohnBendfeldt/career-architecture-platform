@@ -118,3 +118,45 @@ public record AnnualProgressDto(
     decimal ExpectedProgressPercent,
     string QuarterLabel
 );
+
+public record ImportCareerEntryRowRequest(
+    string Title,
+    string? Description,
+    DateTime StartDate,
+    DateTime? EndDate,
+    decimal Hours,
+    string? Category = null,
+    int? CategoryId = null,
+    string? GoalTitle = null,
+    int? GoalId = null
+);
+
+public record ImportCareerEntriesRequest(
+    List<ImportCareerEntryRowRequest> Entries,
+    int? ClientUtcOffsetMinutes = null
+)
+{
+    public const int MaxRows = 50;
+}
+
+public record ImportCareerEntryRowResult(
+    int RowNumber,
+    string Title,
+    decimal Hours,
+    string StartDate,
+    string EndDate,
+    bool Success,
+    int? EntryId = null,
+    string? ErrorMessage = null,
+    bool IsDuplicate = false
+);
+
+public record ImportCareerEntriesResponse(
+    bool Success,
+    string Message,
+    int TotalRows,
+    int SuccessCount,
+    int ErrorCount,
+    int DuplicateCount,
+    List<ImportCareerEntryRowResult> Results
+);

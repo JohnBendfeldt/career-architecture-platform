@@ -10,7 +10,10 @@ import type {
   LearningResourcesResponse,
   Category,
   CareerEntry,
-  CreateCareerEntryInput
+  CreateCareerEntryInput,
+  ImportCareerEntriesResult,
+  ImportCareerEntryRowPayload,
+  ImportCareerEntryRowResult
 } from '../types';
 import { getOrInitSupabaseClient } from './supabase';
 import {
@@ -22,8 +25,17 @@ import {
 import {
   DEFAULT_CATEGORIES,
   enrichGoalsWithEntries,
+  toLocalDateString,
   validateCareerEntry,
 } from '../utils/advancementUtils';
+import {
+  SELF_IMPORT_MAX_ROWS,
+  buildCareerDevelopmentXlsx,
+  buildCareerEntriesCsv,
+  matchCategoryName,
+  matchGoalTitle,
+  triggerBlobDownload,
+} from '../utils/advancementImportExport';
 
 const API_BASE = ''; // proxied by Vite in dev to Gateway
 
@@ -83,6 +95,51 @@ export class ApiService {
     const next = Math.max(Date.now(), this.lastGeneratedId + 1);
     this.lastGeneratedId = next;
     return next;
+  }
+
+  private static isUuid(value: string | undefined | null): boolean {
+    return typeof value === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
+  }
+
+  private static async syncEntriesToSupabase(
+    userId: string,
+    rows: Array<{
+      title: string;
+      description?: string | null;
+      startDate: string;
+      endDate: string;
+      hours: number;
+      categoryId?: number | null;
+      goalId?: number | null;
+    }>
+  ): Promise<void> {
+    if (!this.isUuid(userId) || rows.length === 0) return;
+    const sbClient = getOrInitSupabaseClient();
+    if (!sbClient) return;
+
+    try {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (sessionData?.session?.user?.id !== userId) return;
+
+      const payload = rows.map((row) => ({
+        user_id: userId,
+        title: row.title,
+        description: row.description || null,
+        start_date: row.startDate,
+        end_date: row.endDate,
+        hours: Math.round(Number(row.hours) * 100) / 100,
+        category_id: row.categoryId ?? null,
+        goal_id:
+          typeof row.goalId === 'number' && row.goalId > 0 && row.goalId <= 2_147_483_647
+            ? row.goalId
+            : null,
+      }));
+
+      await sbClient.from('career_entries').insert(payload);
+    } catch {
+      // Non-blocking best-effort cloud sync
+    }
   }
 
   static getToken(): string | null {
@@ -1033,6 +1090,8 @@ export class ApiService {
       await this.syncGoalsAfterEntryMutation(updated, false);
     }
 
+    void this.syncEntriesToSupabase(user.id, [newEntry]);
+
     return { success: true, message: 'Career entry logged to your workspace!', entry: newEntry };
   }
 
@@ -1159,6 +1218,351 @@ export class ApiService {
     }
 
     return { success: true, message: 'Career entry deleted.' };
+  }
+
+  static async importCareerEntries(
+    rows: ImportCareerEntryRowPayload[]
+  ): Promise<ImportCareerEntriesResult> {
+    const user = this.getUser();
+    const token = this.getToken();
+
+    if (!user || user.role === 'guest') {
+      return {
+        success: false,
+        status: 403,
+        message:
+          'Guest accounts have read-only demo access. Sign in with GitHub, Google, or Microsoft OAuth to bulk import career development entries.',
+        totalRows: rows.length,
+        successCount: 0,
+        errorCount: rows.length,
+        duplicateCount: 0,
+        results: [],
+      };
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return {
+        success: false,
+        status: 400,
+        message: 'No entries provided for import.',
+        totalRows: 0,
+        successCount: 0,
+        errorCount: 0,
+        duplicateCount: 0,
+        results: [],
+      };
+    }
+
+    if (rows.length > SELF_IMPORT_MAX_ROWS) {
+      return {
+        success: false,
+        status: 400,
+        message: `You can import at most ${SELF_IMPORT_MAX_ROWS} entries at a time.`,
+        totalRows: rows.length,
+        successCount: 0,
+        errorCount: rows.length,
+        duplicateCount: 0,
+        results: [],
+      };
+    }
+
+    const normalizedPayload = rows.map((row) => ({
+      ...row,
+      endDate: row.endDate || row.startDate,
+    }));
+
+    const isOwner = this.isPortfolioOwner(user);
+    const categories = await this.getCategories();
+    const goals = isOwner ? await this.getGoals() : this.getPersonalGoals();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/advancement/entries/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          entries: normalizedPayload,
+          clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
+        }),
+      });
+
+      if (res.status === 400 || res.status === 403) {
+        const errPayload = await res.json().catch(() => null);
+        return {
+          success: false,
+          status: res.status,
+          message:
+            errPayload?.error ||
+            errPayload?.message ||
+            (res.status === 403 ? 'Guest accounts have read-only demo access.' : 'Invalid import payload.'),
+          totalRows: rows.length,
+          successCount: 0,
+          errorCount: rows.length,
+          duplicateCount: 0,
+          results: Array.isArray(errPayload?.results) ? errPayload.results : [],
+        };
+      }
+
+      if (isJson(res)) {
+        const apiResult = (await res.json()) as ImportCareerEntriesResult;
+        const importedFromApi: CareerEntry[] = (apiResult.results || [])
+          .filter((r) => r.success)
+          .map((r) => {
+            const src = normalizedPayload[r.rowNumber - 1] ?? normalizedPayload[0];
+            const cat =
+              src?.categoryId != null
+                ? categories.find((c) => c.id === src.categoryId)
+                : matchCategoryName(src?.category, categories);
+            const matchedGoal =
+              src?.goalId != null
+                ? goals.find((g) => g.id === src.goalId)
+                : goals.find(
+                    (g) => g.title.trim().toLowerCase() === (src?.goalTitle ?? '').trim().toLowerCase()
+                  );
+            return {
+              id: r.entryId ?? this.nextLocalId(),
+              title: r.title,
+              description: src?.description?.trim() || '',
+              startDate: r.startDate,
+              endDate: r.endDate,
+              hours: r.hours,
+              categoryId: src?.categoryId ?? (cat && 'categoryId' in cat ? cat.categoryId : cat?.id) ?? null,
+              category: src?.category ?? (cat && 'category' in cat ? cat.category : cat?.name) ?? null,
+              goalId: matchedGoal?.id ?? src?.goalId ?? null,
+              goalTitle: matchedGoal?.title ?? src?.goalTitle ?? null,
+              createdAt: new Date().toISOString(),
+              updatedAt: null,
+            };
+          });
+
+        if (importedFromApi.length > 0) {
+          if (isOwner && localStorage.getItem(this.OWNER_ENTRIES_KEY)) {
+            const updated = [...importedFromApi, ...this.getStoredOwnerEntries()];
+            this.saveStoredOwnerEntries(updated);
+            await this.syncGoalsAfterEntryMutation(updated, true);
+          } else if (!isOwner) {
+            const updated = [...importedFromApi, ...this.getPersonalEntries()];
+            this.saveStoredCustomEntries(updated);
+            await this.syncGoalsAfterEntryMutation(updated, false);
+          }
+          void this.syncEntriesToSupabase(user.id, importedFromApi);
+        }
+
+        return apiResult;
+      }
+    } catch {
+      // Backend unavailable; process and persist locally
+    }
+
+    const existing = isOwner ? await this.getCareerEntries() : this.getPersonalEntries();
+    const seenKeys = new Set<string>(
+      existing.map((e) =>
+        `${e.title.trim().toLowerCase()}|${e.startDate}|${e.endDate}|${Math.round(Number(e.hours) * 100) / 100}`
+      )
+    );
+
+    const rowResults: ImportCareerEntryRowResult[] = [];
+    const importedEntries: CareerEntry[] = [];
+    let successCount = 0;
+    let errorCount = 0;
+    let duplicateCount = 0;
+
+    for (let i = 0; i < normalizedPayload.length; i++) {
+      const row = normalizedPayload[i];
+      const rowNumber = i + 1;
+      const title = (row.title ?? '').trim();
+      const description = row.description?.trim() || '';
+      const startDate = (row.startDate ?? '').trim();
+      const endDate = (row.endDate || row.startDate || '').trim();
+      const hours = Math.round(Number(row.hours) * 100) / 100;
+
+      const catMatch =
+        row.categoryId != null
+          ? (() => {
+              const found = categories.find((c) => c.id === row.categoryId);
+              return { categoryId: found?.id ?? null, category: found?.name ?? null };
+            })()
+          : matchCategoryName(row.category, categories);
+
+      const goalMatch =
+        row.goalId != null
+          ? (() => {
+              const found = goals.find((g) => g.id === row.goalId);
+              return { goalId: found?.id ?? null, goalTitle: found?.title ?? null };
+            })()
+          : matchGoalTitle(row.goalTitle, goals);
+
+      const validationError = validateCareerEntry({
+        title,
+        description: description || undefined,
+        startDate,
+        endDate,
+        hours,
+        categoryId: catMatch.categoryId,
+        goalId: goalMatch.goalId,
+      });
+
+      if (validationError) {
+        errorCount++;
+        rowResults.push({
+          rowNumber,
+          title,
+          hours: Number.isFinite(hours) ? hours : 0,
+          startDate,
+          endDate,
+          success: false,
+          errorMessage: validationError,
+          isDuplicate: false,
+        });
+        continue;
+      }
+
+      const dedupKey = `${title.toLowerCase()}|${startDate}|${endDate}|${hours}`;
+      if (seenKeys.has(dedupKey)) {
+        errorCount++;
+        duplicateCount++;
+        rowResults.push({
+          rowNumber,
+          title,
+          hours,
+          startDate,
+          endDate,
+          success: false,
+          errorMessage: 'Duplicate entry - an entry with the same title, dates, and hours already exists.',
+          isDuplicate: true,
+        });
+        continue;
+      }
+
+      seenKeys.add(dedupKey);
+      const newEntry: CareerEntry = {
+        id: this.nextLocalId(),
+        title,
+        description,
+        startDate,
+        endDate,
+        hours,
+        categoryId: catMatch.categoryId,
+        category: catMatch.category,
+        goalId: goalMatch.goalId,
+        goalTitle: goalMatch.goalTitle,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      };
+
+      importedEntries.push(newEntry);
+      successCount++;
+      rowResults.push({
+        rowNumber,
+        title,
+        hours,
+        startDate,
+        endDate,
+        success: true,
+        entryId: newEntry.id,
+        errorMessage: null,
+        isDuplicate: false,
+      });
+    }
+
+    if (importedEntries.length > 0) {
+      const updated = [...importedEntries, ...existing];
+      if (isOwner) {
+        this.saveStoredOwnerEntries(updated);
+        await this.syncGoalsAfterEntryMutation(updated, true);
+      } else {
+        this.saveStoredCustomEntries(updated);
+        await this.syncGoalsAfterEntryMutation(updated, false);
+      }
+      void this.syncEntriesToSupabase(user.id, importedEntries);
+    }
+
+    const overallSuccess = successCount > 0;
+    const summaryMessage = overallSuccess
+      ? `Successfully imported ${successCount} of ${rows.length} entries.`
+      : duplicateCount > 0
+        ? `No new entries imported (${duplicateCount} duplicate skipped).`
+        : 'No entries were imported successfully.';
+
+    return {
+      success: overallSuccess,
+      message: summaryMessage,
+      totalRows: rows.length,
+      successCount,
+      errorCount,
+      duplicateCount,
+      results: rowResults,
+    };
+  }
+
+  static async exportCareerEntries(options: {
+    year?: number | null;
+    format?: 'xlsx' | 'csv';
+    entries?: CareerEntry[];
+    profileName?: string;
+    annualGoalHours?: number;
+    workspaceMode?: 'portfolio' | 'personal';
+  } = {}): Promise<{ filename: string; source: 'api' | 'client' }> {
+    const format = options.format ?? 'xlsx';
+    const year = options.year ?? null;
+    const yearSuffix = year ? `_${year}` : '_AllYears';
+    const dateStamp = toLocalDateString().replace(/-/g, '');
+    const filename = `CareerDevelopment${yearSuffix}_${dateStamp}.${format}`;
+
+    if (options.workspaceMode !== 'personal' && !localStorage.getItem(this.OWNER_ENTRIES_KEY)) {
+      const params = new URLSearchParams();
+      if (year) params.set('year', String(year));
+      params.set('format', format);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/advancement/export?${params.toString()}`);
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        const isExpectedType =
+          format === 'csv'
+            ? ct.includes('text/csv')
+            : ct.includes('spreadsheetml') || ct.includes('application/octet-stream');
+
+        if (res.ok && isExpectedType) {
+          const blob = await res.blob();
+          triggerBlobDownload(blob, filename);
+          return { filename, source: 'api' };
+        }
+      } catch {
+        // Backend unavailable; generate export directly in browser
+      }
+    }
+
+    const baseEntries =
+      options.entries ??
+      (options.workspaceMode === 'personal' ? this.getPersonalEntries() : await this.getCareerEntries());
+
+    const filtered = (year ? baseEntries.filter((e) => e.startDate?.startsWith(`${year}-`)) : [...baseEntries]).sort(
+      (a, b) => b.endDate.localeCompare(a.endDate) || b.id - a.id
+    );
+
+    if (format === 'csv') {
+      const csvText = buildCareerEntriesCsv(filtered);
+      triggerBlobDownload(new Blob([csvText], { type: 'text/csv;charset=utf-8' }), filename);
+      return { filename, source: 'client' };
+    }
+
+    const workbookBytes = buildCareerDevelopmentXlsx({
+      professionalName: options.profileName || 'John F. Bendfeldt',
+      annualGoalHours: options.annualGoalHours ?? (options.workspaceMode === 'personal' ? 45 : 55),
+      year,
+      entries: filtered,
+    });
+
+    triggerBlobDownload(
+      new Blob([new Uint8Array(workbookBytes)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      filename
+    );
+
+    return { filename, source: 'client' };
   }
 
   static async updateAnnualGoalHours(annualGoalHours: number): Promise<{ success: boolean; status?: number; message: string; annualGoalHours?: number }> {

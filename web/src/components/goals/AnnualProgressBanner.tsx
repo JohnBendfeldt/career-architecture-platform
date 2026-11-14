@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Check, Edit2, Plus, Target, TrendingUp, X } from 'lucide-react';
+import { Calendar, Check, Download, Edit2, Plus, Target, TrendingUp, Upload, X } from 'lucide-react';
 import type { AnnualProgress } from '../../types';
 import { formatEntryHours } from '../../utils/advancementUtils';
 
@@ -11,6 +11,8 @@ interface AnnualProgressBannerProps {
   canEdit: boolean;
   onUpdateGoalHours: (newGoalHours: number) => Promise<void> | void;
   onLogHoursClick: () => void;
+  onImportClick?: () => void;
+  onExportClick?: () => void;
 }
 
 export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
@@ -21,6 +23,8 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
   canEdit,
   onUpdateGoalHours,
   onLogHoursClick,
+  onImportClick,
+  onExportClick,
 }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalHoursInput, setGoalHoursInput] = useState(String(progress.annualGoalHours));
@@ -112,6 +116,34 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               ))}
             </select>
           </div>
+
+          {onImportClick && (
+            <button
+              id="btn-import-career-entries"
+              type="button"
+              onClick={onImportClick}
+              className="btn-secondary"
+              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+              title="Bulk import from .csv or .xlsx"
+            >
+              <Upload size={14} />
+              Import
+            </button>
+          )}
+
+          {onExportClick && (
+            <button
+              id="btn-export-career-entries"
+              type="button"
+              onClick={onExportClick}
+              className="btn-secondary"
+              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+              title="Export career development report (.xlsx)"
+            >
+              <Download size={14} />
+              Export .xlsx
+            </button>
+          )}
 
           <button
             id="btn-log-career-hours"

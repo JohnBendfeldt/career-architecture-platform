@@ -427,6 +427,11 @@ export function App() {
               goals={workspaceMode === 'personal' ? personalGoals : goals}
               entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
               workspaceMode={workspaceMode}
+              profileName={
+                workspaceMode === 'personal'
+                  ? (customProfile?.name || activeDisplayName)
+                  : (profile?.name || 'John F. Bendfeldt')
+              }
               annualGoalHours={
                 workspaceMode === 'personal'
                   ? (customProfile?.annualGoalHours ?? 45)
