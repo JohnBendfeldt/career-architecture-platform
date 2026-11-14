@@ -6,7 +6,9 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "prebuild": "npm run lint && npm test",
     "build": "tsc -b && vite build",
+    "verify": "npm run lint && npm test && tsc -b && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint",

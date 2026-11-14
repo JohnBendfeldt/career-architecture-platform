@@ -1,0 +1,50 @@
+name: CI & Deploy Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend Lint, Vitest, Build & Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm --prefix web ci
+      - name: Verify lint, tests, TypeScript & Vite production build
+        run: npm --prefix web run verify
+      - name: Audit npm dependencies
+        run: npm --prefix web audit --audit-level=high
+
+  backend:
+    name: .NET 10 Microservices Build, xUnit & NuGet Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore solution
+        run: dotnet restore CareerPlatform.sln
+      - name: Build solution
+        run: dotnet build CareerPlatform.sln -c Release --no-restore
+      - name: Run Api, Geo & Gateway test suites
+        run: dotnet test CareerPlatform.sln -c Release --no-build --verbosity normal
+      - name: Check for vulnerable NuGet packages
+        run: |
+          VULN_OUTPUT=$(dotnet list CareerPlatform.sln package --vulnerable --include-transitive)
+          echo "$VULN_OUTPUT"
+          if echo "$VULN_OUTPUT" | grep -q "has the following vulnerable packages"; then
+            exit 1
+          fi

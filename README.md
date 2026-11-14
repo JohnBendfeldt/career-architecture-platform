@@ -99,17 +99,19 @@ docker compose up --build
 
 ---
 
-## Automated Test Suite
+## Automated Test Suite & Deploy Gates
 
-Execute both the backend xUnit integration suite and frontend Vitest + ESLint checks:
+Every production build (`npm --prefix web run build` via `prebuild`, multi-stage `Dockerfile` builds for `Api`, `Geo`, and `Gateway`, and CI) automatically enforces linting and tests to block regressions before deployment:
+
 ```bash
-# Backend xUnit integration tests (WebApplicationFactory)
-dotnet test CareerPlatform.sln
+# Full deploy-gate verification (Frontend ESLint + 47 Vitest/Serverless/Config/Privacy tests + Vite build + 20 .NET 10 xUnit tests)
+npm run verify
 
-# Frontend ESLint, Vitest unit tests, and production bundle verification
-npm --prefix web run lint
-npm --prefix web test
-npm --prefix web run build
+# Or run individual suites:
+dotnet test CareerPlatform.sln -c Release   # Api.Tests (14), Geo.Tests (4), Gateway.Tests (2)
+npm --prefix web run lint                   # Oxlint + ESLint
+npm --prefix web test                       # Vitest (components, modals, App, GPX/PDF, Netlify Function, CSP/RLS/FIT geofence)
+npm --prefix web run build                  # Automatically runs prebuild (lint + test) before tsc & vite build
 ```
 
 ---

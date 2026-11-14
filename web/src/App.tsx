@@ -295,7 +295,7 @@ export function App() {
     if (smoothScroll) {
       setTimeout(() => {
         const navEl = document.getElementById('feature-tabs-navigation');
-        if (navEl) {
+        if (navEl && typeof navEl.scrollIntoView === 'function') {
           navEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 50);
