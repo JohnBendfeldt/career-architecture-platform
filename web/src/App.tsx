@@ -329,6 +329,11 @@ export function App() {
     ? customProfile.name
     : (user?.name || 'My');
 
+  const externalSwitchToPersonal =
+    workspaceMode === 'portfolio' && isExternalOAuthUser(user)
+      ? () => handleToggleWorkspaceMode('personal')
+      : undefined;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Optional On-Demand Sign-In Modal (Never blocks initial page load!) */}
@@ -439,6 +444,8 @@ export function App() {
               }
               onAnnualGoalHoursChange={handleAnnualGoalHoursChange}
               onRefresh={loadData}
+              onOpenLogin={() => setShowLoginModal(true)}
+              onSwitchToPersonal={externalSwitchToPersonal}
             />
           )}
 
@@ -451,6 +458,8 @@ export function App() {
               onGoalCreated={loadData}
               onEntryLogged={loadData}
               onNavigateToGoals={() => handleTabSwitch('dashboard')}
+              onOpenLogin={() => setShowLoginModal(true)}
+              onSwitchToPersonal={externalSwitchToPersonal}
             />
           )}
 

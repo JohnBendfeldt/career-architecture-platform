@@ -124,7 +124,11 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               onClick={onImportClick}
               className="btn-secondary"
               style={{ padding: '8px 12px', fontSize: '0.82rem' }}
-              title="Bulk import from .csv or .xlsx"
+              title={
+                canEdit
+                  ? 'Bulk import from .csv or .xlsx'
+                  : 'Preview bulk CSV/XLSX import (sign in to save to your workspace)'
+              }
             >
               <Upload size={14} />
               Import
@@ -151,6 +155,11 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
             onClick={onLogHoursClick}
             className="btn-primary"
             style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+            title={
+              canEdit
+                ? 'Log career development hours'
+                : 'Preview logging career hours (sign in to save to your workspace)'
+            }
           >
             <Plus size={16} />
             Log Career Hours

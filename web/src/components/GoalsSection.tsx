@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CareerEntry, Category, Goal } from '../types';
 import { ApiService } from '../services/api';
-import { Calendar, Plus, ShieldAlert, Code, Heart, X, Trash2, TrendingUp, Clock, List, LayoutGrid } from 'lucide-react';
+import { Calendar, Plus, ShieldAlert, Code, Heart, X, Trash2, TrendingUp, Clock, List, LayoutGrid, LogIn, UserCheck } from 'lucide-react';
 import {
   DEFAULT_CATEGORIES,
   computeAnnualProgress,
@@ -11,6 +11,7 @@ import { AnnualProgressBanner } from './goals/AnnualProgressBanner';
 import { CareerEntryModal } from './goals/CareerEntryModal';
 import { CareerEntriesList } from './goals/CareerEntriesList';
 import { ImportCareerEntriesModal } from './goals/ImportCareerEntriesModal';
+import { ReadOnlyPortfolioBanner } from './goals/ReadOnlyPortfolioBanner';
 
 interface GoalsSectionProps {
   goals: Goal[];
@@ -20,6 +21,8 @@ interface GoalsSectionProps {
   profileName?: string;
   annualGoalHours?: number;
   onAnnualGoalHoursChange?: (hours: number) => Promise<void> | void;
+  onOpenLogin?: () => void;
+  onSwitchToPersonal?: () => void;
 }
 
 export const GoalsSection: React.FC<GoalsSectionProps> = ({
@@ -30,11 +33,13 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
   profileName,
   annualGoalHours,
   onAnnualGoalHoursChange,
+  onOpenLogin,
+  onSwitchToPersonal,
 }) => {
   const currentUser = ApiService.getUser();
   const isAuthenticated = currentUser?.role === 'admin';
   const canEdit = Boolean(
-    isAuthenticated && (workspaceMode === 'personal' || ApiService.isPortfolioOwner(currentUser))
+    isAuthenticated && (workspaceMode !== 'portfolio' || ApiService.isPortfolioOwner(currentUser))
   );
 
   const [filter, setFilter] = useState<'All' | 'Technical' | 'Personal'>('All');
@@ -236,8 +241,37 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     });
   };
 
+  const handleTriggerLogin = onOpenLogin
+    ? () => {
+        setIsModalOpen(false);
+        setIsImportModalOpen(false);
+        setEntryModalState((prev) => ({ ...prev, isOpen: false }));
+        onOpenLogin();
+      }
+    : undefined;
+
+  const handleTriggerSwitchPersonal = onSwitchToPersonal
+    ? () => {
+        setIsModalOpen(false);
+        setIsImportModalOpen(false);
+        setEntryModalState((prev) => ({ ...prev, isOpen: false }));
+        onSwitchToPersonal();
+      }
+    : undefined;
+
   return (
     <div style={{ marginBottom: '36px' }}>
+      {!canEdit && (
+        <div style={{ marginBottom: '16px' }}>
+          <ReadOnlyPortfolioBanner
+            profileName={profileName}
+            context="section"
+            onOpenLogin={onOpenLogin}
+            onSwitchToPersonal={onSwitchToPersonal}
+          />
+        </div>
+      )}
+
       <AnnualProgressBanner
         progress={annualProgress}
         selectedYear={selectedYear}
@@ -503,29 +537,31 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       <Calendar size={13} />
                       <span>{goal.targetDate}</span>
-                      <button
-                        type="button"
-                        onClick={() => openLogHoursModal(goal.id)}
-                        title={`Log hours toward ${goal.title}`}
-                        style={{
-                          background: 'rgba(6, 182, 212, 0.1)',
-                          border: '1px solid rgba(6, 182, 212, 0.35)',
-                          color: 'var(--accent-cyan)',
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '2px 7px',
-                          fontSize: '0.68rem',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px'
-                        }}
-                      >
-                        <Clock size={11} />
-                        <span>+ Log Hours</span>
-                      </button>
-                      {isAuthenticated && goal.id > 6 && !hasTargetHours && (
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => openLogHoursModal(goal.id)}
+                          title={`Log hours toward ${goal.title}`}
+                          style={{
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            border: '1px solid rgba(6, 182, 212, 0.35)',
+                            color: 'var(--accent-cyan)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '2px 7px',
+                            fontSize: '0.68rem',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                        >
+                          <Clock size={11} />
+                          <span>+ Log Hours</span>
+                        </button>
+                      )}
+                      {canEdit && goal.id > 6 && !hasTargetHours && (
                         <button
                           type="button"
                           onClick={() => handleIncrementProgress(goal)}
@@ -549,7 +585,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                           <span>+25%</span>
                         </button>
                       )}
-                      {isAuthenticated && goal.id > 6 && (
+                      {canEdit && goal.id > 6 && (
                         <button
                           type="button"
                           onClick={() => handleDeleteCustomGoal(goal.id)}
@@ -667,6 +703,17 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
               </button>
             </div>
 
+            {!canEdit && (
+              <div style={{ marginBottom: '16px' }}>
+                <ReadOnlyPortfolioBanner
+                  profileName={profileName}
+                  context="modal"
+                  onOpenLogin={handleTriggerLogin}
+                  onSwitchToPersonal={handleTriggerSwitchPersonal}
+                />
+              </div>
+            )}
+
             {/* Read-Only Notice (Triggered on 403 Forbidden) */}
             {readOnlyNotice && (
               <div style={{
@@ -687,6 +734,31 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: '2px' }}>
                     {readOnlyNotice}
                   </div>
+                  {(handleTriggerSwitchPersonal || handleTriggerLogin) && (
+                    <div style={{ marginTop: '8px' }}>
+                      {handleTriggerSwitchPersonal ? (
+                        <button
+                          type="button"
+                          onClick={handleTriggerSwitchPersonal}
+                          className="btn-secondary"
+                          style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                        >
+                          <UserCheck size={13} />
+                          <span>Switch to My Profile</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleTriggerLogin}
+                          className="btn-secondary"
+                          style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                        >
+                          <LogIn size={13} />
+                          <span>Sign In / Build Your Own</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -872,7 +944,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                 >
                   {isSubmitting
                     ? 'Saving...'
-                    : isAuthenticated
+                    : canEdit
                       ? 'Save Goal to Workspace'
                       : 'Submit to API (Test Write Lock)'}
                 </button>
@@ -889,6 +961,10 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
         preselectedGoalId={entryModalState.preselectedGoalId}
         categories={categories}
         goals={goals}
+        canEdit={canEdit}
+        profileName={profileName}
+        onOpenLogin={handleTriggerLogin}
+        onSwitchToPersonal={handleTriggerSwitchPersonal}
         onClose={() =>
           setEntryModalState((prev) => ({
             ...prev,
@@ -905,6 +981,10 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
           isOpen={isImportModalOpen}
           categories={categories}
           goals={goals}
+          canEdit={canEdit}
+          profileName={profileName}
+          onOpenLogin={handleTriggerLogin}
+          onSwitchToPersonal={handleTriggerSwitchPersonal}
           onClose={() => setIsImportModalOpen(false)}
           onImported={refreshWorkspace}
         />

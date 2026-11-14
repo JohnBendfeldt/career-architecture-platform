@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, ShieldAlert, Sparkles, X } from 'lucide-react';
+import { Clock, LogIn, ShieldAlert, Sparkles, UserCheck, X } from 'lucide-react';
 import type { CareerEntry, CareerEntryPrefill, Category, CreateCareerEntryInput, Goal } from '../../types';
 import { ApiService } from '../../services/api';
 import { toLocalDateString, validateCareerEntry } from '../../utils/advancementUtils';
+import { ReadOnlyPortfolioBanner } from './ReadOnlyPortfolioBanner';
 
 const LAST_CATEGORY_STORAGE_KEY = 'cap_last_category_id';
 
@@ -14,6 +15,10 @@ interface CareerEntryModalProps {
   prefill?: CareerEntryPrefill | null;
   categories: Category[];
   goals: Goal[];
+  canEdit?: boolean;
+  profileName?: string;
+  onOpenLogin?: () => void;
+  onSwitchToPersonal?: () => void;
   onClose: () => void;
   onSaved: () => Promise<void> | void;
 }
@@ -26,6 +31,10 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
   prefill,
   categories,
   goals,
+  canEdit = true,
+  profileName,
+  onOpenLogin,
+  onSwitchToPersonal,
   onClose,
   onSaved,
 }) => {
@@ -204,6 +213,17 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
           <h3 style={{ fontSize: '1.25rem', margin: 0 }}>{modalTitle}</h3>
         </div>
 
+        {!canEdit && (
+          <div style={{ marginBottom: '16px' }}>
+            <ReadOnlyPortfolioBanner
+              profileName={profileName}
+              context="modal"
+              onOpenLogin={onOpenLogin}
+              onSwitchToPersonal={onSwitchToPersonal}
+            />
+          </div>
+        )}
+
         {readOnlyNotice && (
           <div
             role="alert"
@@ -211,9 +231,9 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
               marginBottom: '16px',
               padding: '12px 14px',
               borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#fca5a5',
+              background: 'rgba(230, 0, 18, 0.08)',
+              border: '1px solid rgba(230, 0, 18, 0.35)',
+              color: 'var(--text-secondary)',
               fontSize: '0.85rem',
               lineHeight: 1.5,
               display: 'flex',
@@ -221,12 +241,37 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
               alignItems: 'flex-start',
             }}
           >
-            <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px', color: '#f87171' }} />
+            <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-crimson)' }} />
             <div>
-              <strong style={{ color: '#fecaca', display: 'block', marginBottom: '2px' }}>
+              <strong style={{ color: 'var(--accent-crimson)', display: 'block', marginBottom: '2px' }}>
                 ASP.NET Core 403 Forbidden — Read-Only Demo Lock
               </strong>
               {readOnlyNotice}
+              {(onSwitchToPersonal || onOpenLogin) && (
+                <div style={{ marginTop: '8px' }}>
+                  {onSwitchToPersonal ? (
+                    <button
+                      type="button"
+                      onClick={onSwitchToPersonal}
+                      className="btn-secondary"
+                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                    >
+                      <UserCheck size={13} />
+                      <span>Switch to My Profile</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onOpenLogin}
+                      className="btn-secondary"
+                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                    >
+                      <LogIn size={13} />
+                      <span>Sign In / Build Your Own</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -240,7 +285,7 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
               borderRadius: 'var(--radius-md)',
               background: 'rgba(245, 158, 11, 0.12)',
               border: '1px solid rgba(245, 158, 11, 0.35)',
-              color: '#fcd34d',
+              color: '#b45309',
               fontSize: '0.85rem',
             }}
           >

@@ -130,7 +130,11 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
               onClick={onImportClick}
               className="btn-secondary"
               style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '4px' }}
-              title="Bulk import from .csv or .xlsx"
+              title={
+                canEdit
+                  ? 'Bulk import from .csv or .xlsx'
+                  : 'Preview bulk CSV/XLSX import (sign in to save to your workspace)'
+              }
             >
               <Upload size={12} />
               Import
@@ -226,48 +230,50 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => onEdit(entry)}
-                      title={canEdit ? 'Edit entry' : 'Edit entry (Guest mode triggers 403 demo)'}
-                      aria-label={`Edit ${entry.title}`}
-                      className="btn-secondary"
-                      style={{ padding: '5px 9px', fontSize: '0.76rem', gap: '4px' }}
-                    >
-                      <Edit2 size={12} />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDuplicate(entry)}
-                      title={canEdit ? 'Duplicate entry' : 'Duplicate entry (Guest mode triggers 403 demo)'}
-                      aria-label={`Duplicate ${entry.title}`}
-                      className="btn-secondary"
-                      style={{ padding: '5px 9px', fontSize: '0.76rem', gap: '4px' }}
-                    >
-                      <Copy size={12} />
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(entry.id)}
-                      title={canEdit ? 'Delete entry' : 'Delete entry (Guest mode triggers 403 demo)'}
-                      aria-label={`Delete ${entry.title}`}
-                      style={{
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
-                        padding: '5px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {canEdit && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => onEdit(entry)}
+                        title="Edit entry"
+                        aria-label={`Edit ${entry.title}`}
+                        className="btn-secondary"
+                        style={{ padding: '5px 9px', fontSize: '0.76rem', gap: '4px' }}
+                      >
+                        <Edit2 size={12} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDuplicate(entry)}
+                        title="Duplicate entry"
+                        aria-label={`Duplicate ${entry.title}`}
+                        className="btn-secondary"
+                        style={{ padding: '5px 9px', fontSize: '0.76rem', gap: '4px' }}
+                      >
+                        <Copy size={12} />
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(entry.id)}
+                        title="Delete entry"
+                        aria-label={`Delete ${entry.title}`}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#f87171',
+                          padding: '5px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -1,10 +1,11 @@
 import React from 'react';
-import { BookOpen, ExternalLink, RefreshCw, Check, Plus, Clock, ArrowRight } from 'lucide-react';
+import { BookOpen, ExternalLink, RefreshCw, Check, Plus, Clock, ArrowRight, LogIn, UserCheck } from 'lucide-react';
 import { YoutubeIcon } from '../Icons';
 import type { Goal, LearningResource } from '../../types';
 import { evaluatePortfolioSkillMatch } from './RecruiterScorecard';
 import { sanitizeExternalUrl } from '../../utils/security';
 import { formatEntryHours } from '../../utils/advancementUtils';
+import { ReadOnlyPortfolioBanner } from '../goals/ReadOnlyPortfolioBanner';
 
 interface LearningResourceListProps {
   workspaceMode: 'portfolio' | 'personal';
@@ -18,6 +19,9 @@ interface LearningResourceListProps {
   linkedGoal?: Goal | null;
   onLogResourceHours?: (resource: LearningResource) => void;
   onNavigateToGoals?: () => void;
+  canEdit?: boolean;
+  onOpenLogin?: () => void;
+  onSwitchToPersonal?: () => void;
 }
 
 export const LearningResourceList: React.FC<LearningResourceListProps> = ({
@@ -31,7 +35,10 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
   onTargetHoursChange,
   linkedGoal,
   onLogResourceHours,
-  onNavigateToGoals
+  onNavigateToGoals,
+  canEdit = true,
+  onOpenLogin,
+  onSwitchToPersonal
 }) => {
   const activeSkillMatch = evaluatePortfolioSkillMatch(activeSkill);
 
@@ -102,6 +109,16 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
             </button>
           </div>
         </div>
+
+        {!canEdit && (
+          <div style={{ marginBottom: '12px' }}>
+            <ReadOnlyPortfolioBanner
+              context="ai"
+              onOpenLogin={onOpenLogin}
+              onSwitchToPersonal={onSwitchToPersonal}
+            />
+          </div>
+        )}
 
         {linkedGoal && (
           <div style={{
@@ -181,17 +198,41 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
             flexWrap: 'wrap'
           }}>
             <span>{savedNotice}</span>
-            {onNavigateToGoals && (
-              <button
-                type="button"
-                onClick={onNavigateToGoals}
-                className="btn-secondary"
-                style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
-              >
-                <span>Open Goals &amp; Log</span>
-                <ArrowRight size={12} />
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {!canEdit && onSwitchToPersonal && (
+                <button
+                  type="button"
+                  onClick={onSwitchToPersonal}
+                  className="btn-primary"
+                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                >
+                  <UserCheck size={12} />
+                  <span>Switch to My Profile</span>
+                </button>
+              )}
+              {!canEdit && !onSwitchToPersonal && onOpenLogin && (
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="btn-primary"
+                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                >
+                  <LogIn size={12} />
+                  <span>Sign In / Build Your Own</span>
+                </button>
+              )}
+              {onNavigateToGoals && (
+                <button
+                  type="button"
+                  onClick={onNavigateToGoals}
+                  className="btn-secondary"
+                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                >
+                  <span>Open Goals &amp; Log</span>
+                  <ArrowRight size={12} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 

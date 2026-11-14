@@ -272,17 +272,20 @@ describe('Career Advancement Integration & Tandem Goals', () => {
   });
 
   describe('GoalsSection and ProfileEditModal UI components', () => {
-    it('renders Annual Career Advancement banner, toggles Board <-> Activity Log, and pre-selects goal on + Log Hours', async () => {
+    it('renders Read-Only Preview banner and hides item-level Edit/Delete/+ Log Hours in guest portfolio mode', async () => {
       const goals = await ApiService.getGoals();
       const entries = ApiService.getDefaultPortfolioEntries();
+      const onOpenLogin = vi.fn();
 
       render(
         <GoalsSection
           goals={goals}
           entries={entries}
           workspaceMode="portfolio"
+          profileName="John F. Bendfeldt"
           annualGoalHours={55}
           onRefresh={vi.fn()}
+          onOpenLogin={onOpenLogin}
         />
       );
 
@@ -291,22 +294,70 @@ describe('Career Advancement Integration & Tandem Goals', () => {
       expect(screen.getAllByText('19 / 20 hrs • 2 entries').length).toBe(2);
       expect(screen.getByText('12 / 16 hrs • 1 entry')).toBeDefined();
 
+      expect(
+        screen.getByText(/Viewing John Bendfeldt's Portfolio — Read-Only Preview/i)
+      ).toBeDefined();
+      fireEvent.click(screen.getByRole('button', { name: /Sign In \/ Build Your Own/i }));
+      expect(onOpenLogin).toHaveBeenCalledTimes(1);
+
+      // Item-level mutation controls are hidden on John's portfolio items
+      expect(screen.queryByRole('button', { name: /\+ Log Hours/i })).toBeNull();
+
       // Switch to Activity Log
       fireEvent.click(screen.getByRole('button', { name: /Activity Log \(5\)/i }));
       expect(screen.getByLabelText('Filter by Category')).toBeDefined();
       expect(screen.getByLabelText('Filter by Goal')).toBeDefined();
       expect(screen.getByText('Subscription Ledger & Checkout Accounting Architecture')).toBeDefined();
+      expect(screen.queryByRole('button', { name: /^Edit /i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Duplicate /i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Delete /i })).toBeNull();
 
-      // Switch back to Goals Board
-      fireEvent.click(screen.getByRole('button', { name: /Goals Board \(6\)/i }));
+      // Top-level Log Career Hours opens in Preview mode with upfront Read-Only banner
+      fireEvent.click(screen.getByRole('button', { name: /Log Career Hours/i }));
+      expect(screen.getByText('Log Career Development Hours')).toBeDefined();
+      expect(
+        screen.getByText(/Feel free to test-drive this form in preview mode/i)
+      ).toBeDefined();
+    });
+
+    it('renders + Log Hours and entry actions when canEdit is true and pre-selects linked goal', async () => {
+      ApiService.setSession('oauth-personal-token', {
+        id: 'user-oauth-1',
+        name: 'Taylor Engineer',
+        email: 'taylor@example.com',
+        role: 'admin',
+        avatarUrl: '',
+      });
+      const goals = await ApiService.getGoals();
+      const entries = ApiService.getDefaultPortfolioEntries();
+
+      render(
+        <GoalsSection
+          goals={goals}
+          entries={entries}
+          workspaceMode="personal"
+          annualGoalHours={55}
+          onRefresh={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByText(/Read-Only Preview/i)).toBeNull();
 
       // Click "+ Log Hours" on the first Goal card
       const logButtons = screen.getAllByRole('button', { name: /\+ Log Hours/i });
+      expect(logButtons.length).toBeGreaterThan(0);
       fireEvent.click(logButtons[0]);
 
       expect(screen.getByText('Log Career Development Hours')).toBeDefined();
       const goalSelect = screen.getByLabelText(/Linked Goal \(Auto-Rollup\)/i) as HTMLSelectElement;
       expect(goalSelect.value).toBe('1');
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      // Switch to Activity Log and confirm per-entry actions render
+      fireEvent.click(screen.getByRole('button', { name: /Activity Log \(5\)/i }));
+      expect(screen.getAllByTitle('Edit entry').length).toBe(5);
+      expect(screen.getAllByTitle('Duplicate entry').length).toBe(5);
+      expect(screen.getAllByTitle('Delete entry').length).toBe(5);
     });
 
     it('edits annualGoalHours inside ProfileEditModal and passes it to onSave', () => {

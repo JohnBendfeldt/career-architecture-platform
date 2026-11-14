@@ -21,6 +21,8 @@ interface AiSkillExtractorTabProps {
   onGoalCreated?: () => Promise<void> | void;
   onEntryLogged?: () => Promise<void> | void;
   onNavigateToGoals?: () => void;
+  onOpenLogin?: () => void;
+  onSwitchToPersonal?: () => void;
 }
 
 const PORTFOLIO_BIO = `Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.`;
@@ -52,8 +54,16 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   entries,
   onGoalCreated,
   onEntryLogged,
-  onNavigateToGoals
+  onNavigateToGoals,
+  onOpenLogin,
+  onSwitchToPersonal
 }) => {
+  const currentUser = ApiService.getUser();
+  const canEdit = Boolean(
+    currentUser?.role === 'admin' &&
+      (workspaceMode !== 'portfolio' || ApiService.isPortfolioOwner(currentUser))
+  );
+
   const [inputText, setInputText] = useState(
     workspaceMode === 'personal' ? PERSONAL_SAMPLE_BIO : PORTFOLIO_BIO
   );
@@ -524,6 +534,9 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
           linkedGoal={linkedGoal}
           onLogResourceHours={handleLogResourceHours}
           onNavigateToGoals={onNavigateToGoals}
+          canEdit={canEdit}
+          onOpenLogin={onOpenLogin}
+          onSwitchToPersonal={onSwitchToPersonal}
         />
       </div>
 
@@ -533,6 +546,23 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
         prefill={entryPrefill}
         categories={categories}
         goals={effectiveGoals}
+        canEdit={canEdit}
+        onOpenLogin={
+          onOpenLogin
+            ? () => {
+                setEntryPrefill(null);
+                onOpenLogin();
+              }
+            : undefined
+        }
+        onSwitchToPersonal={
+          onSwitchToPersonal
+            ? () => {
+                setEntryPrefill(null);
+                onSwitchToPersonal();
+              }
+            : undefined
+        }
         onClose={() => setEntryPrefill(null)}
         onSaved={handleEntrySaved}
       />

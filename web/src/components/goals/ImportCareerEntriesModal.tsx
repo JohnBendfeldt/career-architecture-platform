@@ -5,8 +5,10 @@ import {
   Download,
   FileSpreadsheet,
   FolderOpen,
+  LogIn,
   ShieldAlert,
   Upload,
+  UserCheck,
   X,
 } from 'lucide-react';
 import type {
@@ -23,11 +25,16 @@ import {
   parseImportFile,
   prepareEntriesForImport,
 } from '../../utils/advancementImportExport';
+import { ReadOnlyPortfolioBanner } from './ReadOnlyPortfolioBanner';
 
 interface ImportCareerEntriesModalProps {
   isOpen: boolean;
   categories: Category[];
   goals: Goal[];
+  canEdit?: boolean;
+  profileName?: string;
+  onOpenLogin?: () => void;
+  onSwitchToPersonal?: () => void;
   onClose: () => void;
   onImported: () => Promise<void> | void;
 }
@@ -38,6 +45,10 @@ export const ImportCareerEntriesModal: React.FC<ImportCareerEntriesModalProps> =
   isOpen,
   categories,
   goals,
+  canEdit = true,
+  profileName,
+  onOpenLogin,
+  onSwitchToPersonal,
   onClose,
   onImported,
 }) => {
@@ -269,6 +280,17 @@ export const ImportCareerEntriesModal: React.FC<ImportCareerEntriesModalProps> =
           </button>
         </div>
 
+        {!canEdit && (
+          <div style={{ marginBottom: '16px' }}>
+            <ReadOnlyPortfolioBanner
+              profileName={profileName}
+              context="modal"
+              onOpenLogin={onOpenLogin}
+              onSwitchToPersonal={onSwitchToPersonal}
+            />
+          </div>
+        )}
+
         {/* Instructions & Template Download */}
         <div
           style={{
@@ -402,6 +424,31 @@ export const ImportCareerEntriesModal: React.FC<ImportCareerEntriesModalProps> =
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
               <strong style={{ color: 'var(--accent-crimson)' }}>ASP.NET Core 403 Forbidden Policy: </strong>
               {readOnlyNotice}
+              {(onSwitchToPersonal || onOpenLogin) && (
+                <div style={{ marginTop: '8px' }}>
+                  {onSwitchToPersonal ? (
+                    <button
+                      type="button"
+                      onClick={onSwitchToPersonal}
+                      className="btn-secondary"
+                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                    >
+                      <UserCheck size={13} />
+                      <span>Switch to My Profile</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onOpenLogin}
+                      className="btn-secondary"
+                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
+                    >
+                      <LogIn size={13} />
+                      <span>Sign In / Build Your Own</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

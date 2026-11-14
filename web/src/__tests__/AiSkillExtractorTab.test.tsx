@@ -212,8 +212,13 @@ describe('AiSkillExtractorTab & Phase 3 AI Curriculum Bridge', () => {
 
   it('surfaces 403 read-only demo protection for guests on Track as Goal and Log Hours', async () => {
     await ApiService.loginAsGuest();
+    const onOpenLogin = vi.fn();
 
-    render(<AiSkillExtractorTab workspaceMode="portfolio" />);
+    render(<AiSkillExtractorTab workspaceMode="portfolio" onOpenLogin={onOpenLogin} />);
+
+    expect(
+      screen.getByText(/Viewing John Bendfeldt's Portfolio — Read-Only Preview/i)
+    ).toBeDefined();
 
     await waitFor(() => {
       expect(
@@ -233,6 +238,9 @@ describe('AiSkillExtractorTab & Phase 3 AI Curriculum Bridge', () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Activity Title \*/i)).toBeDefined();
     });
+    expect(
+      screen.getByText(/Feel free to test-drive this form in preview mode/i)
+    ).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: /^Save Entry$/i }));
     await waitFor(() => {
@@ -241,5 +249,10 @@ describe('AiSkillExtractorTab & Phase 3 AI Curriculum Bridge', () => {
 
     expect(localStorage.getItem('cap_owner_portfolio_entries')).toBeNull();
     expect(ApiService.getDefaultPortfolioEntries().length).toBe(beforeEntriesCount);
+
+    const signInButtons = screen.getAllByRole('button', { name: /Sign In \/ Build Your Own/i });
+    fireEvent.click(signInButtons[signInButtons.length - 1]);
+    expect(onOpenLogin).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText(/Activity Title \*/i)).toBeNull();
   });
 });
