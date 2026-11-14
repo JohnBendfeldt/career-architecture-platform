@@ -56,6 +56,7 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
 
     for (const netlifyFile of netlifyConfigs) {
       const toml = fs.readFileSync(netlifyFile, 'utf-8');
+      expect(toml).toContain('NODE_VERSION = "22"');
       expect(toml).toContain('max-age=31536000; includeSubDomains; preload');
     }
   });

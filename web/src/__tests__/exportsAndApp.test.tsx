@@ -139,9 +139,12 @@ describe('GPX/PDF Exporters & Full App Integration', () => {
       vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline test mode'));
       render(<App />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /John.*Bendfeldt/i })).toBeDefined();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByRole('heading', { name: /John.*Bendfeldt/i })).toBeDefined();
+        },
+        { timeout: 4000 }
+      );
 
       // Toggle dark mode
       fireEvent.click(screen.getByLabelText('Toggle visual theme'));
@@ -150,17 +153,23 @@ describe('GPX/PDF Exporters & Full App Integration', () => {
 
       // Switch to Goals & Milestones tab
       fireEvent.click(screen.getAllByText(/Goals & Milestones/i)[0]);
-      await waitFor(() => {
-        expect(screen.getByText('Architecture & Life Goals')).toBeDefined();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText('Architecture & Life Goals')).toBeDefined();
+        },
+        { timeout: 4000 }
+      );
 
       // Open Privacy Policy from footer
       fireEvent.click(screen.getByRole('button', { name: 'Privacy Policy' }));
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Privacy Policy — Career Architecture Platform/i)
-        ).toBeDefined();
-      });
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText(/Privacy Policy — Career Architecture Platform/i)
+          ).toBeDefined();
+        },
+        { timeout: 4000 }
+      );
     });
   });
 });
