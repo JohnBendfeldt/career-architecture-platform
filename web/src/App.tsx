@@ -446,7 +446,11 @@ export function App() {
             <AiSkillExtractorTab
               workspaceMode={workspaceMode}
               userName={activeDisplayName}
+              goals={workspaceMode === 'personal' ? personalGoals : goals}
+              entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
               onGoalCreated={loadData}
+              onEntryLogged={loadData}
+              onNavigateToGoals={() => handleTabSwitch('dashboard')}
             />
           )}
 

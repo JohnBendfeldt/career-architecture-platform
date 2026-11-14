@@ -64,6 +64,14 @@ export interface CreateCareerEntryInput {
   goalId?: number | null;
 }
 
+export interface CareerEntryPrefill {
+  title?: string;
+  description?: string;
+  hours?: number;
+  categoryId?: number | null;
+  goalId?: number | null;
+}
+
 export interface AnnualProgress {
   annualGoalHours: number;
   completedHours: number;

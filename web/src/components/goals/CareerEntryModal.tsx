@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, ShieldAlert, X } from 'lucide-react';
-import type { CareerEntry, Category, CreateCareerEntryInput, Goal } from '../../types';
+import { Clock, ShieldAlert, Sparkles, X } from 'lucide-react';
+import type { CareerEntry, CareerEntryPrefill, Category, CreateCareerEntryInput, Goal } from '../../types';
 import { ApiService } from '../../services/api';
 import { toLocalDateString, validateCareerEntry } from '../../utils/advancementUtils';
 
@@ -11,6 +11,7 @@ interface CareerEntryModalProps {
   mode: 'add' | 'edit' | 'duplicate';
   initialEntry?: CareerEntry | null;
   preselectedGoalId?: number | null;
+  prefill?: CareerEntryPrefill | null;
   categories: Category[];
   goals: Goal[];
   onClose: () => void;
@@ -22,6 +23,7 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
   mode,
   initialEntry,
   preselectedGoalId,
+  prefill,
   categories,
   goals,
   onClose,
@@ -65,14 +67,20 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
           ? String(categories[0].id)
           : '';
 
-    setTitle('');
-    setDescription('');
+    const resolvedCategoryId =
+      prefill?.categoryId != null && categories.some((c) => c.id === prefill.categoryId)
+        ? String(prefill.categoryId)
+        : defaultCategoryId;
+    const resolvedGoalId = prefill?.goalId ?? preselectedGoalId ?? null;
+
+    setTitle(prefill?.title ?? '');
+    setDescription(prefill?.description ?? '');
     setStartDate(today);
     setEndDate(today);
-    setHours('1.5');
-    setCategoryId(defaultCategoryId);
-    setGoalId(preselectedGoalId ? String(preselectedGoalId) : '');
-  }, [isOpen, mode, initialEntry, preselectedGoalId, categories]);
+    setHours(prefill?.hours != null ? String(prefill.hours) : '1.5');
+    setCategoryId(resolvedCategoryId);
+    setGoalId(resolvedGoalId ? String(resolvedGoalId) : '');
+  }, [isOpen, mode, initialEntry, preselectedGoalId, prefill, categories]);
 
   if (!isOpen) return null;
 
@@ -237,6 +245,29 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
             }}
           >
             {errorMsg}
+          </div>
+        )}
+
+        {mode === 'add' && prefill?.title && (
+          <div
+            style={{
+              marginBottom: '16px',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(6, 182, 212, 0.08)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              color: 'var(--text-secondary)',
+              fontSize: '0.82rem',
+              lineHeight: 1.45,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Sparkles size={15} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
+            <span>
+              Prefilled from AI Curriculum — adjust hours, dates, or linked goal before saving.
+            </span>
           </div>
         )}
 

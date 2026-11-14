@@ -142,6 +142,31 @@ export class ApiService {
     }
   }
 
+  private static async syncGoalToSupabase(userId: string, goal: Goal): Promise<void> {
+    if (!this.isUuid(userId)) return;
+    const sbClient = getOrInitSupabaseClient();
+    if (!sbClient) return;
+
+    try {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      if (sessionData?.session?.user?.id !== userId) return;
+
+      await sbClient.from('goals').insert({
+        user_id: userId,
+        title: goal.title.slice(0, 200),
+        description: (goal.description || '').slice(0, 2000),
+        category: goal.category,
+        progress: goal.progress,
+        target_hours: goal.targetHours ?? null,
+        target_date: (goal.targetDate || '2026').slice(0, 60),
+        status: goal.status,
+        tags: goal.tags,
+      });
+    } catch {
+      // Non-blocking best-effort cloud sync
+    }
+  }
+
   static getToken(): string | null {
     try {
       return localStorage.getItem(this.TOKEN_KEY);
@@ -816,6 +841,35 @@ export class ApiService {
       createdAt: new Date().toISOString(),
     };
 
+    // Try .NET API first so server-assigned integer IDs stay in sync
+    try {
+      const res = await fetch(`${API_BASE}/api/goals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          title: newGoal.title,
+          description: newGoal.description,
+          category: newGoal.category,
+          progress: newGoal.progress,
+          targetHours: newGoal.targetHours,
+          targetDate: newGoal.targetDate,
+          status: newGoal.status,
+          tags: newGoal.tags,
+        }),
+      });
+      if (res.ok && isJson(res)) {
+        const created = await res.json();
+        if (typeof created?.id === 'number' && created.id > 0) {
+          newGoal.id = created.id;
+        }
+      }
+    } catch {
+      // Handled via localStorage
+    }
+
     if (this.isPortfolioOwner(user)) {
       const currentOwnerGoals = await this.getGoals();
       localStorage.setItem('cap_owner_portfolio_goals', JSON.stringify([newGoal, ...currentOwnerGoals]));
@@ -825,19 +879,7 @@ export class ApiService {
       this.saveStoredCustomGoals([newGoal, ...currentPersonal]);
     }
 
-    // Try .NET API if running
-    try {
-      await fetch(`${API_BASE}/api/goals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify(newGoal),
-      });
-    } catch {
-      // Handled via localStorage
-    }
+    void this.syncGoalToSupabase(user.id, newGoal);
 
     return { success: true, message: 'Goal saved to your workspace!', goal: newGoal };
   }
@@ -1050,6 +1092,11 @@ export class ApiService {
       updatedAt: null,
     };
 
+    const apiGoalId =
+      isOwner && typeof input.goalId === 'number' && input.goalId > 0 && input.goalId <= 2_147_483_647
+        ? input.goalId
+        : null;
+
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries`, {
         method: 'POST',
@@ -1059,6 +1106,7 @@ export class ApiService {
         },
         body: JSON.stringify({
           ...input,
+          goalId: apiGoalId,
           clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });
@@ -1115,6 +1163,11 @@ export class ApiService {
     const isOwner = this.isPortfolioOwner(user);
     const { categoryName, goalTitle } = await this.resolveEntryMetadata(input, isOwner);
 
+    const apiGoalId =
+      isOwner && typeof input.goalId === 'number' && input.goalId > 0 && input.goalId <= 2_147_483_647
+        ? input.goalId
+        : null;
+
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries/${id}`, {
         method: 'PUT',
@@ -1124,6 +1177,7 @@ export class ApiService {
         },
         body: JSON.stringify({
           ...input,
+          goalId: apiGoalId,
           clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });

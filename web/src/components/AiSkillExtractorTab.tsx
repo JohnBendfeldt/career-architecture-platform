@@ -1,15 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles, RefreshCw, CheckCircle, Zap, Plus, Mic, MicOff } from 'lucide-react';
 import { ApiService } from '../services/api';
-import type { LearningResource } from '../types';
+import type { CareerEntry, CareerEntryPrefill, Category, Goal, LearningResource } from '../types';
 import { RecruiterScorecard, evaluatePortfolioSkillMatch } from './ai/RecruiterScorecard';
 import { useSpeechRecognition } from './ai/useSpeechRecognition';
 import { LearningResourceList } from './ai/LearningResourceList';
+import { CareerEntryModal } from './goals/CareerEntryModal';
+import { DEFAULT_CATEGORIES, enrichGoalsWithEntries } from '../utils/advancementUtils';
+import {
+  DEFAULT_SKILL_TARGET_HOURS,
+  buildResourceEntryPrefill,
+  findMatchingGoalForSkill,
+} from '../utils/aiCurriculumBridge';
 
 interface AiSkillExtractorTabProps {
   workspaceMode?: 'portfolio' | 'personal';
   userName?: string;
-  onGoalCreated?: () => void;
+  goals?: Goal[];
+  entries?: CareerEntry[];
+  onGoalCreated?: () => Promise<void> | void;
+  onEntryLogged?: () => Promise<void> | void;
+  onNavigateToGoals?: () => void;
 }
 
 const PORTFOLIO_BIO = `Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.`;
@@ -37,7 +48,11 @@ const PERSONAL_SAMPLE_SKILLS = [
 export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   workspaceMode = 'portfolio',
   userName = 'My',
-  onGoalCreated
+  goals,
+  entries,
+  onGoalCreated,
+  onEntryLogged,
+  onNavigateToGoals
 }) => {
   const [inputText, setInputText] = useState(
     workspaceMode === 'personal' ? PERSONAL_SAMPLE_BIO : PORTFOLIO_BIO
@@ -56,6 +71,15 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   const [extractionMeta, setExtractionMeta] = useState<{ source?: string; model?: string } | null>(null);
   const [customSkillInput, setCustomSkillInput] = useState('');
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [goalTargetHours, setGoalTargetHours] = useState<number>(DEFAULT_SKILL_TARGET_HOURS);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [internalGoals, setInternalGoals] = useState<Goal[]>(() =>
+    workspaceMode === 'personal' ? ApiService.getPersonalGoals() : []
+  );
+  const [internalEntries, setInternalEntries] = useState<CareerEntry[]>(() =>
+    workspaceMode === 'personal' ? ApiService.getPersonalEntries() : ApiService.getDefaultPortfolioEntries()
+  );
+  const [entryPrefill, setEntryPrefill] = useState<CareerEntryPrefill | null>(null);
 
   const {
     isListeningBio,
@@ -84,6 +108,51 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
       setActiveSkill(PORTFOLIO_SKILLS[0]);
     }
   }, [workspaceMode]);
+
+  // Load categories and fallback workspace goals/entries for standalone mounts
+  useEffect(() => {
+    let active = true;
+    ApiService.getCategories().then((cats) => {
+      if (active && cats.length > 0) {
+        setCategories(cats);
+      }
+    });
+    if (goals === undefined) {
+      if (workspaceMode === 'personal') {
+        Promise.resolve().then(() => {
+          if (active) setInternalGoals(ApiService.getPersonalGoals());
+        });
+      } else {
+        ApiService.getGoals().then((loaded) => {
+          if (active) setInternalGoals(loaded);
+        });
+      }
+    }
+    if (entries === undefined) {
+      if (workspaceMode === 'personal') {
+        Promise.resolve().then(() => {
+          if (active) setInternalEntries(ApiService.getPersonalEntries());
+        });
+      } else {
+        ApiService.getCareerEntries().then((loaded) => {
+          if (active) setInternalEntries(loaded);
+        });
+      }
+    }
+    return () => {
+      active = false;
+    };
+  }, [workspaceMode, goals, entries]);
+
+  const effectiveGoals = useMemo(
+    () => enrichGoalsWithEntries(goals ?? internalGoals, entries ?? internalEntries),
+    [goals, internalGoals, entries, internalEntries]
+  );
+
+  const linkedGoal = useMemo(
+    () => findMatchingGoalForSkill(activeSkill, effectiveGoals),
+    [activeSkill, effectiveGoals]
+  );
 
   // Load resources when active skill changes
   useEffect(() => {
@@ -127,19 +196,75 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   };
 
   const handleSaveSkillAsGoal = async () => {
+    const cleanSkill = activeSkill.trim();
+    const expectedTitle = `master ${cleanSkill.toLowerCase()}`;
+    const duplicate = effectiveGoals.find(
+      (g) => g.title.trim().toLowerCase() === expectedTitle
+    );
+    if (duplicate) {
+      setSavedNotice(`"${duplicate.title}" is already tracked in Goals & Milestones.`);
+      return;
+    }
+
+    const clampedHours = Math.max(
+      1,
+      Math.min(500, Math.round(Number(goalTargetHours) || DEFAULT_SKILL_TARGET_HOURS))
+    );
+
     const res = await ApiService.createGoal({
-      title: `Master ${activeSkill}`,
-      description: `Curated learning pathway for ${activeSkill} via YouTube architecture deep-dives and Udemy enterprise courses.`,
+      title: `Master ${cleanSkill}`,
+      description: `Curated learning pathway for ${cleanSkill} via YouTube architecture deep-dives and Udemy enterprise courses.`,
       category: 'Technical',
-      progress: 15,
+      progress: 0,
+      targetHours: clampedHours,
       targetDate: 'Q4 2026',
       status: 'InProgress',
-      tags: [activeSkill, 'AI Curriculum', 'Skill Pipeline']
+      tags: [cleanSkill, 'AI Curriculum', 'Skill Pipeline']
     });
-    setSavedNotice(res.message);
-    if (res.success && onGoalCreated) {
-      onGoalCreated();
+
+    if (!res.success) {
+      setSavedNotice(res.message);
+      return;
     }
+
+    if (goals === undefined && res.goal) {
+      const createdGoal = res.goal;
+      setInternalGoals((prev) => [createdGoal, ...prev]);
+    }
+    await onGoalCreated?.();
+    setSavedNotice(
+      `Tracked "Master ${cleanSkill}" (${clampedHours}h target) — log study hours below to advance it automatically!`
+    );
+  };
+
+  const handleLogResourceHours = (resource: LearningResource) => {
+    setEntryPrefill(
+      buildResourceEntryPrefill(activeSkill, resource, categories, effectiveGoals)
+    );
+  };
+
+  const handleEntrySaved = async () => {
+    if (entries === undefined) {
+      if (workspaceMode === 'personal') {
+        setInternalEntries(ApiService.getPersonalEntries());
+      } else {
+        setInternalEntries(await ApiService.getCareerEntries());
+      }
+    }
+    if (goals === undefined) {
+      if (workspaceMode === 'personal') {
+        setInternalGoals(ApiService.getPersonalGoals());
+      } else {
+        setInternalGoals(await ApiService.getGoals());
+      }
+    }
+    await onEntryLogged?.();
+    if (!onEntryLogged && onGoalCreated) {
+      await onGoalCreated();
+    }
+    setSavedNotice(
+      `Logged study hours for ${activeSkill}! Progress rolled up to your Career Advancement & Tandem Goals.`
+    );
   };
 
   const handleLoadPreset = (presetText: string, presetSkills: string[]) => {
@@ -394,8 +519,23 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
           loadingResources={loadingResources}
           savedNotice={savedNotice}
           onSaveSkillAsGoal={handleSaveSkillAsGoal}
+          targetHours={goalTargetHours}
+          onTargetHoursChange={setGoalTargetHours}
+          linkedGoal={linkedGoal}
+          onLogResourceHours={handleLogResourceHours}
+          onNavigateToGoals={onNavigateToGoals}
         />
       </div>
+
+      <CareerEntryModal
+        isOpen={entryPrefill !== null}
+        mode="add"
+        prefill={entryPrefill}
+        categories={categories}
+        goals={effectiveGoals}
+        onClose={() => setEntryPrefill(null)}
+        onSaved={handleEntrySaved}
+      />
     </div>
   );
 };

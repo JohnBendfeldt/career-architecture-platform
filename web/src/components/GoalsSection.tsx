@@ -525,7 +525,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                         <Clock size={11} />
                         <span>+ Log Hours</span>
                       </button>
-                      {isAuthenticated && goal.id > 100 && !hasTargetHours && (
+                      {isAuthenticated && goal.id > 6 && !hasTargetHours && (
                         <button
                           type="button"
                           onClick={() => handleIncrementProgress(goal)}
@@ -549,7 +549,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                           <span>+25%</span>
                         </button>
                       )}
-                      {isAuthenticated && goal.id > 100 && (
+                      {isAuthenticated && goal.id > 6 && (
                         <button
                           type="button"
                           onClick={() => handleDeleteCustomGoal(goal.id)}
