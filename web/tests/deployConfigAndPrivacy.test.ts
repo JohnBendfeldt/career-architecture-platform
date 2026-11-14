@@ -137,4 +137,27 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
       expect(finishAnn.lon).toBeCloseTo(data.points[data.points.length - 1].lon, 5);
     }
   });
+
+  it('enforces absolute HTTPS PNG Open Graph & Twitter link-preview metadata and raster assets', () => {
+    const indexHtml = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8');
+
+    expect(indexHtml).toContain('href="https://johnbendfeldt.com/"');
+    expect(indexHtml).toContain('property="og:url" content="https://johnbendfeldt.com/"');
+    expect(indexHtml).toContain('property="og:image" content="https://johnbendfeldt.com/og-image.png"');
+    expect(indexHtml).toContain('property="og:image:type" content="image/png"');
+    expect(indexHtml).toContain('name="twitter:image" content="https://johnbendfeldt.com/og-image.png"');
+    expect(indexHtml).toContain('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"');
+    expect(indexHtml).not.toContain('og-image.svg');
+    expect(indexHtml).not.toContain('apple-touch-icon.svg');
+
+    const ogPng = fs.readFileSync(path.join(webRoot, 'public', 'og-image.png'));
+    expect(ogPng.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(true);
+    expect(ogPng.readUInt32BE(16)).toBe(1200);
+    expect(ogPng.readUInt32BE(20)).toBe(630);
+
+    const touchPng = fs.readFileSync(path.join(webRoot, 'public', 'apple-touch-icon.png'));
+    expect(touchPng.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(true);
+    expect(touchPng.readUInt32BE(16)).toBe(180);
+    expect(touchPng.readUInt32BE(20)).toBe(180);
+  });
 });
