@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Profile, User } from '../../types';
-import { exportPrintableResume } from '../ResumeTimeline';
-import { UserCheck, Edit3, Briefcase, Link2, Check, LogIn, Globe, Download } from 'lucide-react';
+import { UserCheck, Edit3, Briefcase, Link2, Check, LogIn, Globe } from 'lucide-react';
 
 interface ProfileWorkspaceBarProps {
   profile: Profile;
@@ -15,7 +14,6 @@ interface ProfileWorkspaceBarProps {
 }
 
 export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
-  profile,
   user,
   isOwner,
   workspaceMode,
@@ -43,15 +41,16 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '12px',
-        paddingBottom: '18px',
-        marginBottom: '24px',
+        paddingBottom: '14px',
+        marginBottom: '20px',
         borderBottom: '1px solid var(--border-subtle)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          <UserCheck size={15} color="var(--accent-crimson)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+          <UserCheck size={14} color="var(--accent-crimson)" />
           <span>
-            Signed in as <strong style={{ color: 'var(--text-primary)' }}>{user.name}</strong>
-            {isOwner ? ' • Portfolio Owner' : ''}
+            {isOwner
+              ? (workspaceMode === 'personal' ? 'Owner Personal Sandbox' : 'Portfolio Owner Controls')
+              : (workspaceMode === 'personal' ? 'Personal Workspace' : "Viewing John's Portfolio")}
           </span>
         </div>
 
@@ -69,17 +68,6 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                   <span>Return to My Portfolio</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => exportPrintableResume({ workspaceMode, profile })}
-                className="btn-primary"
-                id="btn-workspace-download-resume-owner"
-                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                title="Download / Print ATS-Ready Resume PDF"
-              >
-                <Download size={13} />
-                <span>Download Resume</span>
-              </button>
               <button
                 type="button"
                 onClick={handleCopyVanityUrl}
@@ -152,18 +140,6 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                   <span>My Profile</span>
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => exportPrintableResume({ workspaceMode, profile })}
-                className="btn-primary"
-                id="btn-workspace-download-resume"
-                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                title="Download / Print ATS-Ready Resume PDF"
-              >
-                <Download size={13} />
-                <span>{workspaceMode === 'personal' ? 'Download My Resume' : 'Download Resume'}</span>
-              </button>
 
               {workspaceMode === 'personal' && (
                 <>

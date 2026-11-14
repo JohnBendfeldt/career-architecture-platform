@@ -98,6 +98,9 @@ describe('UI Components, Modals & Sanitization Boundaries', () => {
       const liLink = document.getElementById('btn-nav-linkedin') as HTMLAnchorElement;
       expect(ghLink.href).toBe('https://github.com/');
       expect(liLink.href).toBe('https://linkedin.com/');
+      expect(ghLink.textContent?.trim()).toBe('');
+      expect(liLink.textContent?.trim()).toBe('');
+      expect(document.getElementById('btn-nav-download-resume')).toBeNull();
 
       fireEvent.click(screen.getByText('Sign Out'));
       expect(onLogout).toHaveBeenCalledTimes(1);
@@ -125,6 +128,8 @@ describe('UI Components, Modals & Sanitization Boundaries', () => {
           onExploreMap={onExploreMap}
         />
       );
+
+      expect(screen.getAllByRole('button', { name: /Download.*Resume/i })).toHaveLength(1);
 
       fireEvent.click(screen.getByLabelText('Jump to Professional Experience and Resume section'));
       expect(onExploreResume).toHaveBeenCalledTimes(1);

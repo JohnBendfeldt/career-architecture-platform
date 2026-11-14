@@ -264,6 +264,17 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   <span>Download Resume (PDF)</span>
                 </button>
                 <a
+                  href={safeLinkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="social-link"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <LinkedinIcon size={15} />
+                  <span style={{ fontWeight: 600 }}>LinkedIn</span>
+                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                </a>
+                <a
                   href={safeGithubUrl}
                   target="_blank"
                   rel="noopener noreferrer"

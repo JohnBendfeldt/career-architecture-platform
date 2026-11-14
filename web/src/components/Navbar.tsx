@@ -1,7 +1,6 @@
 import React from 'react';
-import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn, Download } from 'lucide-react';
+import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from './Icons';
-import { exportPrintableResume } from './ResumeTimeline';
 import type { User, Profile } from '../types';
 import { isSafeImageUrl, sanitizeExternalUrl } from '../utils/security';
 
@@ -87,49 +86,43 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Outbound Social Links & User Controls */}
       <div className="navbar-actions">
-        {/* Outbound GitHub Link */}
+        {/* Compact Outbound Social Icon Links */}
         <a
           href={navGithubUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="social-link"
           id="btn-nav-github"
+          aria-label={`Visit ${navOwnerName} on GitHub`}
           title={`Visit ${navOwnerName} on GitHub`}
+          style={{ padding: '7px 9px', justifyContent: 'center' }}
         >
           <GithubIcon size={16} />
-          <span style={{ display: 'inline-block' }}>GitHub</span>
         </a>
 
-        {/* Outbound LinkedIn Link */}
         <a
           href={navLinkedinUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="social-link"
           id="btn-nav-linkedin"
+          aria-label={`Connect with ${navOwnerName} on LinkedIn`}
           title={`Connect with ${navOwnerName} on LinkedIn`}
+          style={{ padding: '7px 9px', justifyContent: 'center' }}
         >
           <LinkedinIcon size={16} />
-          <span style={{ display: 'inline-block' }}>LinkedIn</span>
         </a>
 
-        {/* 1-Click Download Resume Button */}
-        <button
-          type="button"
-          onClick={() =>
-            exportPrintableResume({
-              workspaceMode,
-              profile: activeProfile || undefined
-            })
-          }
-          className="btn-secondary"
-          id="btn-nav-download-resume"
-          style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }}
-          title={`Download ${navOwnerName}'s Resume (PDF)`}
-        >
-          <Download size={15} color="var(--accent-crimson)" />
-          <span>Download Resume</span>
-        </button>
+        <span
+          aria-hidden="true"
+          style={{
+            width: '1px',
+            height: '18px',
+            background: 'var(--border-subtle)',
+            margin: '0 2px',
+            flexShrink: 0
+          }}
+        />
 
         {/* Theme Toggle Button (Zen Light / Halo Dark) */}
         {onToggleTheme && (
@@ -172,8 +165,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            padding: '4px 10px 4px 6px',
+            gap: '8px',
+            padding: '3px 6px 3px 5px',
             background: 'var(--bg-primary)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-full)'
@@ -191,8 +184,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarError(true)}
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   objectFit: 'cover',
                   border: '1.5px solid var(--text-primary)'
@@ -202,15 +195,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div
                 aria-label={user.name}
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   background: 'var(--accent-crimson)',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.68rem',
+                  fontSize: '0.66rem',
                   fontWeight: 800,
                   fontFamily: 'var(--font-mono)',
                   border: '1.5px solid var(--text-primary)',
@@ -220,14 +213,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {userInitials}
               </div>
             )}
-            <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', paddingRight: '2px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {user.name}
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ShieldCheck size={11} color="var(--accent-crimson)" />
-                <span>Verified OAuth Session</span>
-              </div>
+              </span>
+              <span
+                title="Verified OAuth Session"
+                style={{ display: 'inline-flex', alignItems: 'center' }}
+              >
+                <ShieldCheck size={13} color="var(--accent-crimson)" />
+              </span>
             </div>
 
             <button
@@ -239,7 +234,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 color: 'var(--text-primary)',
                 cursor: 'pointer',
                 padding: '4px 10px',
-                marginLeft: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
