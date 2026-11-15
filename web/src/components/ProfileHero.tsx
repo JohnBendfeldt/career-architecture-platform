@@ -3,7 +3,7 @@ import type { Profile, User } from '../types';
 import { ApiService } from '../services/api';
 import { exportPrintableResume } from './ResumeTimeline';
 import { GithubIcon, LinkedinIcon } from './Icons';
-import { MapPin, CheckCircle, ExternalLink, ChevronDown, Download } from 'lucide-react';
+import { MapPin, ExternalLink, Download } from 'lucide-react';
 import { ProfileWorkspaceBar } from './profile/ProfileWorkspaceBar';
 import { ProfileEditModal } from './profile/ProfileEditModal';
 import { isSafeImageUrl, sanitizeExternalUrl } from '../utils/security';
@@ -59,9 +59,9 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
       tab: 'experience' as const,
       activeClass: 'active-experience',
       ariaLabel: 'Jump to Professional Experience and Resume section',
-      title: 'Click to jump to Professional Experience & Resume',
+      title: 'Jump to Professional Experience & Resume',
       label: '01 / Experience',
-      subtitle: workspaceMode === 'personal' ? 'My Career Builder' : '4 Roles • Certs',
+      subtitle: workspaceMode === 'personal' ? 'My Career Builder' : '4 Roles • Credentials',
       onClick: onExploreResume || onExploreTech
     },
     {
@@ -69,7 +69,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
       tab: 'dashboard' as const,
       activeClass: 'active-dashboard',
       ariaLabel: 'Jump to Engineering Goals and Milestones section',
-      title: 'Click to jump to Engineering Goals & Milestones',
+      title: 'Jump to Engineering Goals & Milestones',
       label: '02 / Architecture',
       subtitle: workspaceMode === 'personal' ? 'My Active Goals' : '6 Core Milestones',
       onClick: onExploreTech
@@ -79,7 +79,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
       tab: 'ai' as const,
       activeClass: 'active-ai',
       ariaLabel: 'Jump to AI Skill Extraction Pipeline section',
-      title: 'Click to jump to AI Skill Extraction Pipeline',
+      title: 'Jump to AI Skill Extraction Pipeline',
       label: '03 / AI Pipeline',
       subtitle: workspaceMode === 'personal' ? 'Paste Your Resume' : 'Skill Extractor',
       onClick: onExploreAi
@@ -89,7 +89,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
       tab: 'map' as const,
       activeClass: 'active-map',
       ariaLabel: 'Jump to Garmin FIT Geospatial Telemetry section',
-      title: 'Click to jump to Garmin FIT Telemetry Visualizer',
+      title: 'Jump to Garmin FIT Telemetry Visualizer',
       label: '04 / Telemetry',
       subtitle: workspaceMode === 'personal' ? 'Upload .FIT / .GPX' : 'Garmin Geospatial',
       onClick: onExploreMap
@@ -97,7 +97,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
   ];
 
   return (
-    <div className="glass-panel profile-hero-panel">
+    <section className="glass-panel profile-hero-panel" aria-label="Profile overview">
       <ProfileWorkspaceBar
         profile={profile}
         user={user}
@@ -110,15 +110,16 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
       />
 
       <div className="profile-hero-grid">
-        {/* Editorial Portrait & Status */}
+        {/* Clean Editorial Portrait */}
         <div className="profile-hero-avatar-col" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{
             position: 'relative',
-            width: '124px',
-            height: '124px',
+            width: '120px',
+            height: '120px',
             borderRadius: 'var(--radius-md)',
-            padding: '3px',
-            background: 'var(--text-primary)',
+            border: '1px solid var(--border-subtle)',
+            background: 'var(--bg-inset)',
+            overflow: 'hidden',
             flexShrink: 0
           }}>
             {safeAvatarUrl && !imgError ? (
@@ -135,19 +136,18 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 style={{
                   width: '100%',
                   height: '100%',
-                  borderRadius: 'calc(var(--radius-md) - 2px)',
                   objectFit: 'cover',
                   display: 'block'
                 }}
               />
             ) : (
               <div
+                role="img"
                 aria-label={profile.name}
                 style={{
                   width: '100%',
                   height: '100%',
-                  borderRadius: 'calc(var(--radius-md) - 2px)',
-                  background: 'var(--accent-crimson)',
+                  background: 'var(--accent-crimson-solid)',
                   color: '#ffffff',
                   display: 'flex',
                   flexDirection: 'column',
@@ -155,7 +155,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   justifyContent: 'center',
                   fontFamily: 'var(--font-heading)',
                   fontWeight: 800,
-                  fontSize: '2.4rem',
+                  fontSize: '2.3rem',
                   letterSpacing: '-0.04em',
                   userSelect: 'none'
                 }}
@@ -163,57 +163,49 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 <span>{initials}</span>
               </div>
             )}
-            <div style={{
-              position: 'absolute',
-              bottom: -6,
-              right: -6,
-              background: 'var(--accent-crimson)',
-              color: '#ffffff',
-              borderRadius: '50%',
-              padding: '4px',
-              border: '2px solid var(--bg-card)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }} title="Verified Professional Profile">
-              <CheckCircle size={16} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: '10px', textAlign: 'center' }}>
-            <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
-              VERIFIED PROFESSIONAL
-            </span>
           </div>
         </div>
 
-        {/* Editorial Typography & Index */}
+        {/* Editorial Typography & Primary Actions */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap', marginBottom: '6px' }}>
-            <h1
-              className="profile-hero-title"
-              style={{
-                fontSize: '2.75rem',
-                fontWeight: 800,
-                color: 'var(--text-primary)',
-                lineHeight: 1.05,
-                letterSpacing: '-0.04em'
-              }}
-            >
-              {profile.name}
-            </h1>
-            <span className="badge badge-cyan" style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
-              {profile.experienceYears}+ YRS PRODUCTION
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            flexWrap: 'wrap',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.76rem',
+            color: 'var(--text-muted)',
+            marginBottom: '6px'
+          }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <MapPin size={13} aria-hidden="true" />
+              <span>{profile.location}</span>
             </span>
+            <span aria-hidden="true">•</span>
+            <span>{profile.experienceYears}+ years in software engineering</span>
           </div>
 
+          <h1
+            className="profile-hero-title"
+            style={{
+              fontSize: '2.65rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              lineHeight: 1.08,
+              letterSpacing: '-0.035em',
+              marginBottom: '8px'
+            }}
+          >
+            {profile.name}
+          </h1>
+
           <h2 style={{
-            fontSize: '1rem',
-            fontFamily: 'var(--font-mono)',
+            fontSize: '1.16rem',
+            fontFamily: 'var(--font-heading)',
             fontWeight: 600,
-            color: 'var(--accent-crimson)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            color: 'var(--text-secondary)',
+            letterSpacing: '-0.015em',
             marginBottom: '14px',
             lineHeight: 1.35
           }}>
@@ -221,36 +213,22 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
           </h2>
 
           <p style={{
-            fontSize: '0.98rem',
+            fontSize: '0.97rem',
             color: 'var(--text-secondary)',
             lineHeight: 1.65,
-            maxWidth: '820px',
-            marginBottom: '20px'
+            maxWidth: '78ch',
+            marginBottom: '22px'
           }}>
             {profile.bio}
           </p>
 
-          {/* Location and Editorial Action Links */}
+          {/* Primary Action Links */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            flexWrap: 'wrap',
-            marginBottom: '8px'
+            flexWrap: 'wrap'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.82rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-muted)',
-              marginRight: '8px'
-            }}>
-              <MapPin size={14} color="var(--accent-crimson)" />
-              <span>{profile.location.toUpperCase()}</span>
-            </div>
-
             {workspaceMode === 'personal' ? (
               <>
                 <button
@@ -260,7 +238,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   id="hero-personal-resume-pdf-btn"
                   style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                 >
-                  <Download size={15} />
+                  <Download size={15} aria-hidden="true" />
                   <span>Download Resume (PDF)</span>
                 </button>
                 <a
@@ -272,7 +250,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 >
                   <LinkedinIcon size={15} />
                   <span style={{ fontWeight: 600 }}>LinkedIn</span>
-                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                  <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.7 }} />
                 </a>
                 <a
                   href={safeGithubUrl}
@@ -285,7 +263,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   <span style={{ fontWeight: 600 }}>
                     {safeGithubUrl.replace(/^https?:\/\/(www\.)?/, '') || 'github.com'}
                   </span>
-                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                  <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.7 }} />
                 </a>
               </>
             ) : (
@@ -300,7 +278,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 >
                   <LinkedinIcon size={15} />
                   <span>Message on LinkedIn</span>
-                  <ExternalLink size={12} style={{ opacity: 0.8 }} />
+                  <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.8 }} />
                 </a>
 
                 <button
@@ -310,7 +288,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                   id="hero-resume-pdf-btn"
                   style={{ padding: '8px 16px', fontSize: '0.84rem' }}
                 >
-                  <Download size={15} color="var(--accent-crimson)" />
+                  <Download size={15} aria-hidden="true" />
                   <span>Download Resume (PDF)</span>
                 </button>
 
@@ -324,7 +302,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 >
                   <GithubIcon size={15} />
                   <span style={{ fontWeight: 600 }}>github.com/JohnBendfeldt</span>
-                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                  <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.7 }} />
                 </a>
               </>
             )}
@@ -332,48 +310,44 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
         </div>
       </div>
 
-      {/* Architectural Index Grid */}
-      <div className="hero-metrics-grid" style={{ marginTop: '20px' }}>
+      {/* Flush Architectural Index Strip (Native Buttons) */}
+      <nav aria-label="Portfolio section shortcuts" className="hero-metrics-grid">
         {indexCards.map((card) => {
           const isActive = activeTab === card.tab;
           return (
-            <div
+            <button
               key={card.id}
+              type="button"
               id={card.id}
-              role="button"
-              tabIndex={0}
               aria-label={card.ariaLabel}
+              aria-current={isActive ? 'true' : undefined}
               onClick={card.onClick}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  card.onClick();
-                }
-              }}
               className={`hero-metric-card ${isActive ? card.activeClass : ''}`}
               title={card.title}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: isActive ? 'var(--accent-crimson)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
-                  {card.label}
-                </span>
-                {isActive ? (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', background: 'var(--accent-crimson)', color: '#ffffff', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    ACTIVE <ChevronDown size={11} />
-                  </span>
-                ) : (
-                  <span className="hero-card-cta" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-primary)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: 'var(--radius-sm)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', transition: 'all 0.15s ease' }}>
-                    OPEN <ChevronDown size={11} />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: card.tab === 'map' ? '1.02rem' : '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                color: isActive ? 'var(--accent-crimson)' : 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontWeight: 600
+              }}>
+                {card.label}
+              </span>
+              <span style={{
+                fontSize: '1.02rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-heading)',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em'
+              }}>
                 {card.subtitle}
-              </div>
-            </div>
+              </span>
+            </button>
           );
         })}
-      </div>
+      </nav>
 
       <ProfileEditModal
         isOpen={isEditingProfile}
@@ -382,6 +356,6 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
         onClose={() => setIsEditingProfile(false)}
         onSave={onSaveCustomProfile}
       />
-    </div>
+    </section>
   );
 };

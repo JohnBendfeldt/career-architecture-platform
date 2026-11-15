@@ -17,6 +17,8 @@ export const GithubIcon: React.FC<IconProps> = ({ size = 16, color = 'currentCol
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
     className={className}
     style={style}
   >
@@ -35,6 +37,8 @@ export const LinkedinIcon: React.FC<IconProps> = ({ size = 16, color = 'currentC
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
     className={className}
     style={style}
   >
@@ -54,6 +58,8 @@ export const YoutubeIcon: React.FC<IconProps> = ({ size = 16, color = 'currentCo
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
     className={className}
     style={style}
   >

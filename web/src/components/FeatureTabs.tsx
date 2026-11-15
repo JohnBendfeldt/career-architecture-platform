@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Briefcase, Layers, Sparkles, Activity, ChevronDown, Check, SlidersHorizontal, LayoutGrid } from 'lucide-react';
+import { ChevronDown, Check, SlidersHorizontal, LayoutGrid } from 'lucide-react';
 
 export type TabType = 'experience' | 'dashboard' | 'ai' | 'map';
 
@@ -15,16 +15,19 @@ interface TabConfig {
   label: string;
   shortLabel: string;
   badge: string;
-  badgeClass: string;
-  icon: React.ReactNode;
-  accent: string;
   description: string;
 }
 
-export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab, goalsCount, workspaceMode = 'portfolio' }) => {
+export const FeatureTabs: React.FC<FeatureTabsProps> = ({
+  activeTab,
+  onChangeTab,
+  goalsCount,
+  workspaceMode = 'portfolio'
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [forceDropdown, setForceDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const tabs: TabConfig[] = [
     {
@@ -32,9 +35,6 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
       label: 'Professional Experience & Resume',
       shortLabel: 'Experience & Resume',
       badge: workspaceMode === 'personal' ? 'My Roles' : '4 Roles',
-      badgeClass: 'badge-emerald',
-      icon: <Briefcase size={16} />,
-      accent: 'var(--accent-emerald)',
       description: 'Enterprise roles, contracts, .NET 10 microservices, and verified credentials'
     },
     {
@@ -42,9 +42,6 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
       label: 'Engineering Goals & Milestones',
       shortLabel: 'Goals & Milestones',
       badge: `${goalsCount} Goals`,
-      badgeClass: 'badge-indigo',
-      icon: <Layers size={16} />,
-      accent: 'var(--accent-indigo)',
       description: 'Active technical initiatives, enterprise SaaS features, and personal milestones'
     },
     {
@@ -52,26 +49,19 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
       label: 'AI Skill Extraction Pipeline',
       shortLabel: 'AI Skill Pipeline',
       badge: 'Gemini',
-      badgeClass: 'badge-cyan',
-      icon: <Sparkles size={16} />,
-      accent: 'var(--accent-violet)',
-      description: 'Automated skill extraction from job postings & curated learning playlists'
+      description: 'Automated skill extraction from job postings and curated learning playlists'
     },
     {
       id: 'map',
       label: 'Garmin Geospatial Visualizer',
       shortLabel: 'Garmin Geospatial',
       badge: 'FIT & GPS',
-      badgeClass: 'badge-emerald',
-      icon: <Activity size={16} />,
-      accent: 'var(--accent-cyan)',
       description: 'Garmin binary FIT telemetry decoded into interactive GPS polylines and elevation splits'
     }
   ];
 
   const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -99,6 +89,26 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
     setIsOpen(false);
   };
 
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight') {
+      nextIndex = (index + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (index - 1 + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = tabs.length - 1;
+    }
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      const targetTab = tabs[nextIndex];
+      onChangeTab(targetTab.id);
+      tabRefs.current[nextIndex]?.focus();
+    }
+  };
+
   return (
     <div
       id="feature-tabs-navigation"
@@ -108,66 +118,34 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
         position: 'relative'
       }}
     >
-      {/* 1. DESKTOP VIEW: Tactile, clearly clickable editorial tab cards */}
+      {/* 1. DESKTOP VIEW: WAI-ARIA Editorial Tablist */}
       {!forceDropdown && (
-        <div
-          className="feature-tabs-desktop"
-          style={{
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid var(--border-subtle)',
-            paddingBottom: '12px',
-            gap: '8px',
-            flexWrap: 'wrap'
-          }}
-        >
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {tabs.map((tab) => {
+        <div className="feature-tabs-desktop">
+          <div
+            role="tablist"
+            aria-label="Portfolio sections"
+            className="editorial-tablist"
+          >
+            {tabs.map((tab, index) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => {
+                    tabRefs.current[index] = el;
+                  }}
+                  type="button"
+                  role="tab"
                   id={`tab-${tab.id}`}
+                  aria-selected={isActive}
+                  aria-controls={`panel-${tab.id}`}
+                  tabIndex={isActive ? 0 : -1}
                   onClick={() => onChangeTab(tab.id)}
-                  style={{
-                    padding: '8px 12px',
-                    background: isActive ? 'var(--bg-card)' : 'var(--bg-surface)',
-                    border: isActive ? '1.5px solid var(--text-primary)' : '1px solid var(--border-subtle)',
-                    borderTop: isActive ? '3px solid var(--accent-crimson)' : '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: isActive ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-heading)',
-                    fontSize: '0.82rem',
-                    fontWeight: isActive ? 700 : 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                    whiteSpace: 'nowrap',
-                    opacity: isActive ? 1 : 0.9
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.borderColor = 'var(--text-primary)';
-                      e.currentTarget.style.opacity = '1';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                      e.currentTarget.style.opacity = '0.9';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }
-                  }}
+                  onKeyDown={(e) => handleTabKeyDown(e, index)}
+                  className="editorial-tab"
                 >
-                  <span style={{ color: isActive ? 'var(--accent-crimson)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    {tab.icon}
-                  </span>
                   <span>{tab.shortLabel}</span>
-                  <span className={`badge ${tab.badgeClass}`} style={{ fontSize: '0.6rem', padding: '1px 5px' }}>
+                  <span className="editorial-tab-count">
                     {tab.badge}
                   </span>
                 </button>
@@ -175,39 +153,20 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
             })}
           </div>
 
-          {/* Quick Dropdown Mode Toggle Pill on Desktop */}
+          {/* Compact Dropdown Mode Toggle */}
           <button
+            type="button"
             onClick={() => setForceDropdown(true)}
             title="Switch to Dropdown View"
             className="btn-secondary"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 12px',
-              borderRadius: 'var(--radius-full)',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap',
+              padding: '6px 12px',
+              fontSize: '0.78rem',
+              marginBottom: '6px',
               flexShrink: 0
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--text-primary)';
-              e.currentTarget.style.color = 'var(--bg-surface)';
-              e.currentTarget.style.borderColor = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--bg-card)';
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            }}
           >
-            <SlidersHorizontal size={13} />
+            <SlidersHorizontal size={13} aria-hidden="true" />
             <span>Dropdown Mode</span>
           </button>
         </div>
@@ -221,44 +180,23 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <div style={{
-            fontSize: '0.72rem',
+            fontSize: '0.75rem',
             fontFamily: 'var(--font-mono)',
-            fontWeight: 700,
+            fontWeight: 600,
             textTransform: 'uppercase',
-            letterSpacing: '0.08em',
+            letterSpacing: '0.06em',
             color: 'var(--text-muted)'
           }}>
             Select Portfolio View
           </div>
           {forceDropdown && (
             <button
+              type="button"
               onClick={() => setForceDropdown(false)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)',
-                fontSize: '0.74rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--text-primary)';
-                e.currentTarget.style.color = 'var(--bg-surface)';
-                e.currentTarget.style.borderColor = 'var(--text-primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--bg-card)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              }}
+              className="btn-secondary"
+              style={{ padding: '5px 12px', fontSize: '0.78rem' }}
             >
-              <LayoutGrid size={12} />
+              <LayoutGrid size={13} aria-hidden="true" />
               <span>Tabs View</span>
             </button>
           )}
@@ -266,80 +204,66 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
 
         {/* Dropdown Trigger Button */}
         <button
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
           aria-expanded={isOpen}
+          aria-haspopup="listbox"
           style={{
             width: '100%',
             padding: '14px 18px',
-            background: 'var(--bg-card)',
-            border: `1.5px solid ${isOpen ? currentTab.accent : 'var(--border-subtle)'}`,
+            background: 'var(--bg-surface)',
+            border: `1px solid ${isOpen ? 'var(--text-primary)' : 'var(--border-control)'}`,
             borderRadius: 'var(--radius-md)',
-            boxShadow: isOpen ? `0 0 20px ${currentTab.accent}33` : 'var(--shadow-sm)',
+            boxShadow: 'var(--shadow-sm)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '12px',
-            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'border-color 0.15s ease',
             textAlign: 'left'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: `${currentTab.accent}22`,
-              border: `1px solid ${currentTab.accent}55`,
-              color: currentTab.accent,
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-heading)',
+              fontSize: '0.98rem',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
+              gap: '10px',
+              flexWrap: 'wrap'
             }}>
-              {currentTab.icon}
+              <span>{currentTab.label}</span>
+              <span className="badge badge-cyan">
+                {currentTab.badge}
+              </span>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-heading)',
-                fontSize: '0.98rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                flexWrap: 'wrap'
-              }}>
-                <span>{currentTab.label}</span>
-                <span className={`badge ${currentTab.badgeClass}`} style={{ fontSize: '0.65rem', padding: '1px 7px' }}>
-                  {currentTab.badge}
-                </span>
-              </div>
-              <div style={{
-                color: 'var(--text-muted)',
-                fontSize: '0.78rem',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {currentTab.description}
-              </div>
+            <div style={{
+              color: 'var(--text-muted)',
+              fontSize: '0.8rem',
+              marginTop: '3px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {currentTab.description}
             </div>
           </div>
 
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            color: 'var(--text-muted)',
+            color: 'var(--text-secondary)',
             flexShrink: 0
           }}>
             <ChevronDown
-              size={20}
+              size={18}
+              aria-hidden="true"
               style={{
                 transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.25s ease',
-                color: isOpen ? currentTab.accent : 'var(--text-muted)'
+                transition: 'transform 0.2s ease'
               }}
             />
           </div>
@@ -348,18 +272,20 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
         {/* Dropdown Menu Popover */}
         {isOpen && (
           <div
+            role="listbox"
+            aria-label="Portfolio sections"
             style={{
               position: 'absolute',
-              top: 'calc(100% + 8px)',
+              top: 'calc(100% + 6px)',
               left: 0,
               right: 0,
               zIndex: 1000,
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-control)',
+              borderRadius: 'var(--radius-md)',
               boxShadow: 'var(--shadow-lg)',
-              padding: '8px',
-              animation: 'fadeInUp 0.18s ease-out'
+              padding: '6px',
+              animation: 'fadeInUp 0.15s ease-out'
             }}
           >
             {tabs.map((tab) => {
@@ -367,84 +293,64 @@ export const FeatureTabs: React.FC<FeatureTabsProps> = ({ activeTab, onChangeTab
               return (
                 <button
                   key={tab.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => handleSelect(tab.id)}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: isSelected ? '1px solid var(--accent-crimson)' : '1px solid transparent',
-                    background: isSelected ? 'var(--bg-primary)' : 'transparent',
+                    borderRadius: 'var(--radius-sm)',
+                    border: isSelected ? '1px solid var(--border-control)' : '1px solid transparent',
+                    background: isSelected ? 'var(--bg-inset)' : 'transparent',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '12px',
                     textAlign: 'left',
-                    transition: 'all 0.18s ease',
-                    marginBottom: '4px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'var(--bg-primary)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    marginBottom: '2px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                  <div>
                     <div style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '8px',
-                      background: isSelected ? 'rgba(230, 0, 18, 0.1)' : 'var(--bg-primary)',
-                      border: `1px solid ${isSelected ? 'var(--accent-crimson)' : 'var(--border-subtle)'}`,
-                      color: isSelected ? 'var(--accent-crimson)' : 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '0.92rem',
+                      fontWeight: isSelected ? 700 : 600,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
+                      gap: '8px',
+                      flexWrap: 'wrap'
                     }}>
-                      {tab.icon}
+                      <span>{tab.label}</span>
+                      <span className="badge badge-cyan">
+                        {tab.badge}
+                      </span>
                     </div>
-                    <div>
-                      <div style={{
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-heading)',
-                        fontSize: '0.92rem',
-                        fontWeight: isSelected ? 700 : 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        flexWrap: 'wrap'
-                      }}>
-                        <span>{tab.label}</span>
-                        <span className={`badge ${tab.badgeClass}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
-                          {tab.badge}
-                        </span>
-                      </div>
-                      <div style={{
-                        color: 'var(--text-muted)',
-                        fontSize: '0.75rem',
-                        marginTop: '2px'
-                      }}>
-                        {tab.description}
-                      </div>
+                    <div style={{
+                      color: 'var(--text-muted)',
+                      fontSize: '0.78rem',
+                      marginTop: '2px'
+                    }}>
+                      {tab.description}
                     </div>
                   </div>
 
                   {isSelected && (
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
+                    <span style={{
+                      width: '22px',
+                      height: '22px',
                       borderRadius: '50%',
-                      background: 'var(--accent-crimson)',
-                      color: '#ffffff',
+                      background: 'var(--text-primary)',
+                      color: 'var(--bg-surface)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0
                     }}>
-                      <Check size={14} strokeWidth={3} />
-                    </div>
+                      <Check size={13} strokeWidth={3} aria-hidden="true" />
+                    </span>
                   )}
                 </button>
               );

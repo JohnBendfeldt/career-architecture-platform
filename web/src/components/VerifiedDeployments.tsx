@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, ShieldCheck, Terminal, Globe, Building2, Code2, Plus, Trash2, X } from 'lucide-react';
+import { ExternalLink, Globe, Plus, Trash2, X } from 'lucide-react';
 import { GithubIcon } from './Icons';
+import { ModalDialog } from './ui/ModalDialog';
 import { isSafeHttpsUrl, safeParseStorageArray, sanitizeExternalUrl } from '../utils/security';
 
 interface VerifiedDeploymentsProps {
@@ -160,7 +161,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         consoleLog: 'Designed and built by John Bendfeldt with Claude Sonnet (Anthropic).'
       },
       tags: ['Enterprise B2B', 'Corporate Auth', 'Session Management', 'SPA'],
-      note: 'Protected by ASI staff login. Public landing page includes author metadata & DevTools console signature.',
+      note: 'Protected by ASI staff login. Public landing page includes author metadata and console signature.',
       linkText: 'Inspect trainingtracker.advsol.com'
     },
     {
@@ -177,8 +178,8 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         metaTag: 'Creator: John Bendfeldt • PWA Architecture',
         consoleLog: 'PWA Ready (Workbox) • 210 Language Pairs • 1,000+ Automated Tests'
       },
-      tags: ['PWA', 'TypeScript', 'Vite', 'Supabase', '14,400+ Audio Assets', 'Vitest & Playwright', 'Custom Keyboards'],
-      note: 'Live production SaaS supporting 15 languages. Features offline audio caching via Service Workers, custom active-recall keyboards, and 1,000+ Vitest/Playwright integration tests.',
+      tags: ['PWA', 'TypeScript', 'Vite', 'Supabase', 'Vitest & Playwright'],
+      note: 'Live production SaaS supporting 15 languages with offline Service Worker caching and 1,000+ automated tests.',
       linkText: 'Launch basiclanguage.school'
     },
     {
@@ -195,7 +196,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         metaTag: 'npm install country-province-data (v1.0.0)',
         consoleLog: '8 Years in Production • Thousands of Annual Downloads • 0 Open Issues'
       },
-      tags: ['npm', 'Open Source', 'Zero-Dependency', 'Hundreds of dls/wk', 'MIT'],
+      tags: ['npm', 'Open Source', 'Zero-Dependency', 'MIT'],
       note: 'Published 8 years ago. Still embedded in production checkout forms and address validators worldwide.',
       linkText: 'View on npm Registry'
     },
@@ -205,48 +206,35 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       title: 'Career & Skill Architecture',
       domain: 'johnbendfeldt.com',
       url: '#',
-      organization: 'Future Home of johnbendfeldt.com',
+      organization: 'Live Portfolio Architecture',
       badgeColor: 'badge-indigo',
       verificationBadge: 'YARP Reverse Proxy & .NET 10',
       description: 'Multi-service containerized microservices platform with high-frequency Garmin FIT telemetry parsing and AI curriculum extraction.',
       verificationDetails: {
         metaTag: 'Architecture: YARP Reverse Proxy + .NET Minimal APIs',
-        consoleLog: 'Native AOT readiness, Leaflet polylines, 1-Click Guest JWT'
+        consoleLog: 'Native AOT readiness, Leaflet polylines, OAuth workspace isolation'
       },
       tags: ['.NET 10', 'YARP Gateway', 'Garmin FIT', 'Leaflet', 'Azure'],
-      note: 'You are currently experiencing this platform live in Guest Recruiter mode.',
-      linkText: 'Currently Exploring'
+      note: 'Multi-service C# and React 19 architecture powering this live site.',
+      linkText: 'Current Live Deployment'
     }
   ];
 
   const activeDeployments = workspaceMode === 'personal' ? personalProjects : portfolioDeployments;
 
   return (
-    <div style={{ marginBottom: '36px' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '20px'
-      }}>
+    <section aria-labelledby="deployments-heading" style={{ marginBottom: '40px' }}>
+      <div className="section-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <Building2 size={24} color="var(--accent-cyan)" />
-            <h2 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              {workspaceMode === 'personal'
-                ? `${userName}'s Projects & Live Deployments`
-                : 'Verified Production Deployments & Live Ships'}
-            </h2>
-            <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
-              {workspaceMode === 'personal' ? 'Personal Sandbox' : 'Live Proof of Work'}
-            </span>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+          <h2 id="deployments-heading" className="section-title">
+            {workspaceMode === 'personal'
+              ? `${userName}'s Projects & Live Deployments`
+              : 'Verified Production Deployments & Live Ships'}
+          </h2>
+          <p className="section-subtitle">
             {workspaceMode === 'personal'
               ? 'Production web applications, open-source packages, and active repositories.'
-              : 'Real software running in production on corporate and public domains with verifiable authorship.'}
+              : 'Software running in production across corporate and public domains with verifiable authorship.'}
           </p>
         </div>
 
@@ -257,7 +245,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
             className="btn-primary"
             style={{ padding: '8px 18px', fontSize: '0.84rem' }}
           >
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
             <span>Add My Project</span>
           </button>
         )}
@@ -265,7 +253,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
 
       <div className="responsive-card-grid">
         {activeDeployments.map((item) => (
-          <div
+          <article
             key={item.id}
             className="glass-panel"
             style={{
@@ -277,89 +265,67 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
             }}
           >
             <div>
-              {/* Category & Verified Badge */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span className={`badge ${item.badgeColor}`} style={{ fontSize: '0.7rem' }}>
+              {/* Category Eyebrow & Optional Delete Control */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-muted)'
+                }}>
                   {item.category}
                 </span>
-                <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
-                  <ShieldCheck size={14} color="var(--accent-crimson)" />
-                  <span>{workspaceMode === 'personal' ? 'WORKSPACE' : 'VERIFIED'}</span>
-                  {workspaceMode === 'personal' && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProject(item.id)}
-                      title="Remove project card"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'inline-flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </span>
+                {workspaceMode === 'personal' && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(item.id)}
+                    className="icon-btn"
+                    title="Remove project card"
+                    aria-label={`Remove ${item.title}`}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                )}
               </div>
 
-              {/* Title & Organization */}
-              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              {/* Title & Domain */}
+              <h3 style={{ fontSize: '1.22rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
                 {item.title}
               </h3>
-              <div style={{ fontSize: '0.82rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-mono)', fontWeight: 600, marginBottom: '12px' }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-mono)', fontWeight: 600, marginBottom: '12px' }}>
                 {item.domain}
               </div>
 
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
                 {item.description}
               </p>
 
-              {/* DOM / Authorship Proof Box */}
-              <div style={{
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px',
-                marginBottom: '16px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                  <Code2 size={12} color="var(--text-primary)" />
-                  <span>Proof of Authorship</span>
+              {item.tags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+                  {item.tags.slice(0, 5).map((tag) => (
+                    <span key={tag} className="tag-chip">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-                <div style={{
-                  fontSize: '0.75rem',
-                  fontFamily: 'var(--font-mono)',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.4,
-                  overflowWrap: 'break-word'
-                }}>
-                  {item.verificationDetails.metaTag}
-                </div>
-                {item.id === 'asi-tracker' && (
-                  <div style={{
-                    fontSize: '0.72rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--accent-emerald)',
-                    marginTop: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <Terminal size={12} />
-                    <span>DevTools Console Signature Verified</span>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            <div>
-              {/* Note for recruiters */}
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.4 }}>
-                ℹ️ {item.note}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+              <div style={{
+                fontSize: '0.76rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+                overflowWrap: 'break-word'
+              }}>
+                {item.verificationDetails.metaTag}
+              </div>
+
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.45 }}>
+                {item.note}
               </p>
 
               {/* Outbound Link Buttons */}
@@ -373,14 +339,14 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                     style={{
                       width: '100%',
                       justifyContent: 'center',
-                      padding: '10px 16px',
+                      padding: '9px 16px',
                       textDecoration: 'none',
                       fontSize: '0.84rem'
                     }}
                   >
-                    <Globe size={15} />
+                    <Globe size={15} aria-hidden="true" />
                     <span>{item.linkText}</span>
-                    <ExternalLink size={13} style={{ opacity: 0.8 }} />
+                    <ExternalLink size={13} aria-hidden="true" style={{ opacity: 0.8 }} />
                   </a>
                 ) : (
                   <div
@@ -388,15 +354,15 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                       width: '100%',
                       textAlign: 'center',
                       padding: '9px 16px',
-                      fontSize: '0.84rem',
+                      fontSize: '0.82rem',
                       fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      background: 'var(--bg-primary)',
+                      color: 'var(--text-secondary)',
+                      background: 'var(--bg-inset)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-subtle)'
                     }}
                   >
-                    {workspaceMode === 'personal' ? `✨ ${item.linkText}` : '⚡ Active App (Hosting Target: johnbendfeldt.com)'}
+                    {workspaceMode === 'personal' ? item.linkText : 'Current live deployment — johnbendfeldt.com'}
                   </div>
                 )}
 
@@ -410,121 +376,111 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                       width: '100%',
                       justifyContent: 'center',
                       padding: '8px 16px',
-                      fontSize: '0.85rem'
+                      fontSize: '0.84rem'
                     }}
                   >
                     <GithubIcon size={15} />
                     <span>View Repository on GitHub</span>
-                    <ExternalLink size={12} style={{ opacity: 0.8 }} />
+                    <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.8 }} />
                   </a>
                 )}
               </div>
             </div>
-          </div>
+          </article>
         ))}
       </div>
 
       {/* Add Personal Project Modal */}
-      {isAddOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '520px',
-            width: '100%',
-            background: 'var(--bg-card)',
-            padding: '28px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Plus size={20} color="var(--accent-crimson)" />
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Add Project to My Workspace</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddProject}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Project Title</label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Distributed Order Engine"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Category</label>
-                  <input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="e.g. Production SaaS"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Live URL or Repo</label>
-                  <input
-                    type="text"
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder="https://..."
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tech Stack (comma-separated)</label>
-                <input
-                  type="text"
-                  value={newStack}
-                  onChange={(e) => setNewStack(e.target.value)}
-                  placeholder="React, TypeScript, .NET 10, PostgreSQL"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Description</label>
-                <textarea
-                  rows={3}
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Describe what you built and its impact..."
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem', resize: 'vertical' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={() => setIsAddOpen(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Save Project</button>
-              </div>
-            </form>
-          </div>
+      <ModalDialog
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        labelledBy="add-project-modal-title"
+        maxWidth="520px"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 id="add-project-modal-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+            Add Project to My Workspace
+          </h3>
+          <button
+            type="button"
+            onClick={() => setIsAddOpen(false)}
+            className="icon-btn"
+            aria-label="Close add project modal"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
-      )}
-    </div>
+
+        <form onSubmit={handleAddProject}>
+          <div style={{ marginBottom: '14px' }}>
+            <label htmlFor="proj-title-input" className="form-label">Project Title</label>
+            <input
+              id="proj-title-input"
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Distributed Order Engine"
+              className="form-input"
+              required
+            />
+          </div>
+
+          <div className="modal-two-col-grid">
+            <div>
+              <label htmlFor="proj-category-input" className="form-label">Category</label>
+              <input
+                id="proj-category-input"
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="e.g. Production SaaS"
+                className="form-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="proj-url-input" className="form-label">Live URL or Repo</label>
+              <input
+                id="proj-url-input"
+                type="text"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="https://..."
+                className="form-input"
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label htmlFor="proj-stack-input" className="form-label">Tech Stack (comma-separated)</label>
+            <input
+              id="proj-stack-input"
+              type="text"
+              value={newStack}
+              onChange={(e) => setNewStack(e.target.value)}
+              placeholder="React, TypeScript, .NET 10, PostgreSQL"
+              className="form-input"
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="proj-desc-input" className="form-label">Description</label>
+            <textarea
+              id="proj-desc-input"
+              rows={3}
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="Describe what you built and its impact..."
+              className="form-textarea"
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button type="button" onClick={() => setIsAddOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-primary">Save Project</button>
+          </div>
+        </form>
+      </ModalDialog>
+    </section>
   );
 };

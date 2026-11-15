@@ -13,13 +13,20 @@ describe('FeatureTabs Component', () => {
     expect(screen.getAllByText(/Garmin Geospatial/i).length).toBeGreaterThan(0);
   });
 
-  it('triggers onChangeTab when a tab is clicked', () => {
+  it('triggers onChangeTab when a tab is clicked or navigated via arrow keys', () => {
     const handleChangeTab = vi.fn();
     render(<FeatureTabs activeTab="experience" onChangeTab={handleChangeTab} goalsCount={6} />);
 
-    const aiTabButtons = screen.getAllByRole('button', { name: /AI Skill Pipeline/i });
+    const aiTabButtons = screen.getAllByRole('tab', { name: /AI Skill Pipeline/i });
     fireEvent.click(aiTabButtons[0]);
     expect(handleChangeTab).toHaveBeenCalledWith('ai');
+
+    const expTab = screen.getByRole('tab', { name: /Experience & Resume/i });
+    fireEvent.keyDown(expTab, { key: 'ArrowRight' });
+    expect(handleChangeTab).toHaveBeenCalledWith('dashboard');
+
+    fireEvent.keyDown(expTab, { key: 'End' });
+    expect(handleChangeTab).toHaveBeenCalledWith('map');
   });
 
   it('toggles dropdown mode on button click for Windows scrollbar accessibility', () => {

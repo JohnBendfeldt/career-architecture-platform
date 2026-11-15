@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, LogIn, ShieldAlert, Sparkles, UserCheck, X } from 'lucide-react';
+import { LogIn, ShieldAlert, UserCheck, X } from 'lucide-react';
 import type { CareerEntry, CareerEntryPrefill, Category, CreateCareerEntryInput, Goal } from '../../types';
 import { ApiService } from '../../services/api';
 import { toLocalDateString, validateCareerEntry } from '../../utils/advancementUtils';
 import { ReadOnlyPortfolioBanner } from './ReadOnlyPortfolioBanner';
+import { ModalDialog } from '../ui/ModalDialog';
 
 const LAST_CATEGORY_STORAGE_KEY = 'cap_last_category_id';
 
@@ -164,376 +165,254 @@ export const CareerEntryModal: React.FC<CareerEntryModalProps> = ({
         : 'Log Career Development Hours';
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 3000,
-        background: 'rgba(6, 9, 14, 0.84)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
+    <ModalDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      disableClose={submitting}
+      labelledBy="career-entry-modal-title"
+      maxWidth="580px"
     >
-      <div
-        className="glass-panel"
-        style={{
-          width: '100%',
-          maxWidth: '580px',
-          padding: '28px',
-          position: 'relative',
-          background: 'var(--bg-card)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          maxHeight: '92vh',
-          overflowY: 'auto',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+        <h2 id="career-entry-modal-title" style={{ fontSize: '1.25rem', margin: 0 }}>
+          {modalTitle}
+        </h2>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close Career Entry Modal"
+          className="icon-btn"
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {!canEdit && (
+        <div style={{ marginBottom: '16px' }}>
+          <ReadOnlyPortfolioBanner
+            profileName={profileName}
+            context="modal"
+            onOpenLogin={onOpenLogin}
+            onSwitchToPersonal={onSwitchToPersonal}
+          />
+        </div>
+      )}
+
+      {readOnlyNotice && (
+        <div
+          role="alert"
+          className="callout-danger"
           style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
+            marginBottom: '16px',
+            fontSize: '0.85rem',
+            lineHeight: 1.5,
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'flex-start',
           }}
         >
-          <X size={20} />
-        </button>
+          <ShieldAlert size={18} aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px', color: 'var(--status-danger)' }} />
+          <div>
+            <strong style={{ color: 'var(--status-danger)', display: 'block', marginBottom: '2px' }}>
+              ASP.NET Core 403 Forbidden — Read-Only Demo Lock
+            </strong>
+            {readOnlyNotice}
+            {(onSwitchToPersonal || onOpenLogin) && (
+              <div style={{ marginTop: '8px' }}>
+                {onSwitchToPersonal ? (
+                  <button
+                    type="button"
+                    onClick={onSwitchToPersonal}
+                    className="btn-secondary"
+                    style={{ minHeight: '32px', padding: '5px 10px', fontSize: '0.78rem' }}
+                  >
+                    <UserCheck size={13} aria-hidden="true" />
+                    <span>Switch to My Profile</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onOpenLogin}
+                    className="btn-secondary"
+                    style={{ minHeight: '32px', padding: '5px 10px', fontSize: '0.78rem' }}
+                  >
+                    <LogIn size={13} aria-hidden="true" />
+                    <span>Sign In / Build Your Own</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <Clock size={20} style={{ color: 'var(--accent-cyan)' }} />
-          <h3 style={{ fontSize: '1.25rem', margin: 0 }}>{modalTitle}</h3>
+      {errorMsg && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '16px',
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--status-warning-bg)',
+            border: '1px solid var(--status-warning-border)',
+            color: 'var(--status-warning)',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
+
+      {mode === 'add' && prefill?.title && (
+        <div
+          className="callout-banner"
+          style={{
+            marginBottom: '16px',
+            fontSize: '0.82rem',
+            lineHeight: 1.45,
+          }}
+        >
+          Prefilled from AI Curriculum — adjust hours, dates, or linked goal before saving.
+        </div>
+      )}
+
+      <form onSubmit={handleFormSubmit}>
+        <div style={{ marginBottom: '14px' }}>
+          <label htmlFor="entry-title-input" className="form-label">
+            Activity Title *
+          </label>
+          <input
+            id="entry-title-input"
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. .NET 10 Distributed Tracing Spike"
+            className="form-input"
+          />
         </div>
 
-        {!canEdit && (
-          <div style={{ marginBottom: '16px' }}>
-            <ReadOnlyPortfolioBanner
-              profileName={profileName}
-              context="modal"
-              onOpenLogin={onOpenLogin}
-              onSwitchToPersonal={onSwitchToPersonal}
-            />
-          </div>
-        )}
-
-        {readOnlyNotice && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: '16px',
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(230, 0, 18, 0.08)',
-              border: '1px solid rgba(230, 0, 18, 0.35)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.85rem',
-              lineHeight: 1.5,
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'flex-start',
-            }}
-          >
-            <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-crimson)' }} />
-            <div>
-              <strong style={{ color: 'var(--accent-crimson)', display: 'block', marginBottom: '2px' }}>
-                ASP.NET Core 403 Forbidden — Read-Only Demo Lock
-              </strong>
-              {readOnlyNotice}
-              {(onSwitchToPersonal || onOpenLogin) && (
-                <div style={{ marginTop: '8px' }}>
-                  {onSwitchToPersonal ? (
-                    <button
-                      type="button"
-                      onClick={onSwitchToPersonal}
-                      className="btn-secondary"
-                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
-                    >
-                      <UserCheck size={13} />
-                      <span>Switch to My Profile</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={onOpenLogin}
-                      className="btn-secondary"
-                      style={{ padding: '5px 10px', fontSize: '0.76rem' }}
-                    >
-                      <LogIn size={13} />
-                      <span>Sign In / Build Your Own</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {errorMsg && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: '16px',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              color: '#b45309',
-              fontSize: '0.85rem',
-            }}
-          >
-            {errorMsg}
-          </div>
-        )}
-
-        {mode === 'add' && prefill?.title && (
-          <div
-            style={{
-              marginBottom: '16px',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(6, 182, 212, 0.08)',
-              border: '1px solid rgba(6, 182, 212, 0.3)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.82rem',
-              lineHeight: 1.45,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <Sparkles size={15} style={{ flexShrink: 0, color: 'var(--accent-cyan)' }} />
-            <span>
-              Prefilled from AI Curriculum — adjust hours, dates, or linked goal before saving.
-            </span>
-          </div>
-        )}
-
-        <form onSubmit={handleFormSubmit}>
-          <div style={{ marginBottom: '14px' }}>
-            <label
-              htmlFor="entry-title-input"
-              style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
+        <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+          <div>
+            <label htmlFor="entry-category-select" className="form-label">
+              Category
+            </label>
+            <select
+              id="entry-category-select"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="form-select"
             >
-              Activity Title *
+              <option value="">Uncategorized</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={String(cat.id)}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="entry-goal-select" className="form-label">
+              Linked Goal (Auto-Rollup)
+            </label>
+            <select
+              id="entry-goal-select"
+              value={goalId}
+              onChange={(e) => setGoalId(e.target.value)}
+              className="form-select"
+            >
+              <option value="">Standalone (No Goal)</option>
+              {goals.map((g) => (
+                <option key={g.id} value={String(g.id)}>
+                  {g.title}
+                  {g.targetHours ? ` (${g.targetHours}h target)` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: '12px', marginBottom: '14px' }}>
+          <div>
+            <label htmlFor="entry-start-date" className="form-label">
+              Start Date *
             </label>
             <input
-              id="entry-title-input"
-              type="text"
+              id="entry-start-date"
+              type="date"
               required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. .NET 10 Distributed Tracing Spike"
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.95rem',
-              }}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="form-input"
             />
           </div>
 
-          <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-            <div>
-              <label
-                htmlFor="entry-category-select"
-                style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-              >
-                Category
-              </label>
-              <select
-                id="entry-category-select"
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                <option value="">Uncategorized</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={String(cat.id)}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="entry-goal-select"
-                style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-              >
-                Linked Goal (Auto-Rollup)
-              </label>
-              <select
-                id="entry-goal-select"
-                value={goalId}
-                onChange={(e) => setGoalId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              >
-                <option value="">Standalone (No Goal)</option>
-                {goals.map((g) => (
-                  <option key={g.id} value={String(g.id)}>
-                    {g.title}
-                    {g.targetHours ? ` (${g.targetHours}h target)` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: '12px', marginBottom: '14px' }}>
-            <div>
-              <label
-                htmlFor="entry-start-date"
-                style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-              >
-                Start Date *
-              </label>
-              <input
-                id="entry-start-date"
-                type="date"
-                required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="entry-end-date"
-                style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-              >
-                End Date *
-              </label>
-              <input
-                id="entry-end-date"
-                type="date"
-                required
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="entry-hours-input"
-                style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-              >
-                Hours *
-              </label>
-              <input
-                id="entry-hours-input"
-                type="number"
-                required
-                step="0.25"
-                min="0.25"
-                max="1000"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label
-              htmlFor="entry-description-input"
-              style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-            >
-              Notes / Evidence
+          <div>
+            <label htmlFor="entry-end-date" className="form-label">
+              End Date *
             </label>
-            <textarea
-              id="entry-description-input"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Summarize outcomes, pull requests, coursework modules, or architecture findings..."
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9rem',
-                fontFamily: 'inherit',
-                resize: 'vertical',
-              }}
+            <input
+              id="entry-end-date"
+              type="date"
+              required
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="form-input"
             />
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            {mode !== 'edit' && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => submitEntry(true)}
-                className="btn-secondary"
-                style={{ borderColor: 'rgba(6, 182, 212, 0.35)', color: 'var(--accent-cyan)' }}
-              >
-                Save &amp; Add Another
-              </button>
-            )}
-            <button type="submit" disabled={submitting} className="btn-primary">
-              {mode === 'edit' ? 'Update Entry' : 'Save Entry'}
-            </button>
+          <div>
+            <label htmlFor="entry-hours-input" className="form-label">
+              Hours *
+            </label>
+            <input
+              id="entry-hours-input"
+              type="number"
+              required
+              step="0.25"
+              min="0.25"
+              max="1000"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              className="form-input"
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label htmlFor="entry-description-input" className="form-label">
+            Notes / Evidence
+          </label>
+          <textarea
+            id="entry-description-input"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Summarize outcomes, pull requests, coursework modules, or architecture findings..."
+            className="form-textarea"
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
+          {mode !== 'edit' && (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => submitEntry(true)}
+              className="btn-secondary"
+            >
+              Save &amp; Add Another
+            </button>
+          )}
+          <button type="submit" disabled={submitting} className="btn-primary">
+            {mode === 'edit' ? 'Update Entry' : 'Save Entry'}
+          </button>
+        </div>
+      </form>
+    </ModalDialog>
   );
 };

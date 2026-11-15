@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { ExperienceItem } from './resumePdfExport';
+import { ModalDialog } from '../ui/ModalDialog';
 
 interface AddRoleModalProps {
   isOpen: boolean;
@@ -44,124 +45,118 @@ export const AddRoleModal: React.FC<AddRoleModalProps> = ({ isOpen, onClose, onA
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
-      zIndex: 3000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div className="glass-panel" style={{
-        maxWidth: '540px',
-        width: '100%',
-        background: 'var(--bg-card)',
-        padding: '28px',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border-subtle)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Plus size={20} color="var(--accent-crimson)" />
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>Add Role to My Timeline</h3>
+    <ModalDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      labelledBy="add-role-modal-title"
+      maxWidth="540px"
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h3 id="add-role-modal-title" style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+          Add Role to My Timeline
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="icon-btn"
+          aria-label="Close add role modal"
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div className="modal-two-col-grid">
+          <div>
+            <label htmlFor="role-title-input" className="form-label">Role / Title</label>
+            <input
+              id="role-title-input"
+              type="text"
+              value={roleTitle}
+              onChange={(e) => setRoleTitle(e.target.value)}
+              placeholder="e.g. Senior Full-Stack Engineer"
+              className="form-input"
+              required
+            />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-          >
-            <X size={20} />
-          </button>
+          <div>
+            <label htmlFor="role-company-input" className="form-label">Company / Org</label>
+            <input
+              id="role-company-input"
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g. Acme Systems"
+              className="form-input"
+              required
+            />
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Role / Title</label>
-              <input
-                type="text"
-                value={roleTitle}
-                onChange={(e) => setRoleTitle(e.target.value)}
-                placeholder="e.g. Senior Full-Stack Engineer"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Company / Org</label>
-              <input
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Acme Systems"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Location</label>
-              <input
-                type="text"
-                value={roleLocation}
-                onChange={(e) => setRoleLocation(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Dates / Period</label>
-              <input
-                type="text"
-                value={rolePeriod}
-                onChange={(e) => setRolePeriod(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Key Highlight Summary</label>
+        <div className="modal-two-col-grid">
+          <div>
+            <label htmlFor="role-location-input" className="form-label">Location</label>
             <input
+              id="role-location-input"
               type="text"
-              value={roleHighlight}
-              onChange={(e) => setRoleHighlight(e.target.value)}
-              placeholder="e.g. Cloud microservices, CI/CD automation & frontend modernization"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem' }}
+              value={roleLocation}
+              onChange={(e) => setRoleLocation(e.target.value)}
+              className="form-input"
             />
           </div>
-
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Bullet Points (One per line)</label>
-            <textarea
-              rows={3}
-              value={roleBullets}
-              onChange={(e) => setRoleBullets(e.target.value)}
-              placeholder={'Built scalable APIs serving 50k+ daily users.\nReduced CI/CD deployment times by 40%.'}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.88rem', resize: 'vertical' }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tech Badges (comma-separated)</label>
+          <div>
+            <label htmlFor="role-period-input" className="form-label">Dates / Period</label>
             <input
+              id="role-period-input"
               type="text"
-              value={roleBadges}
-              onChange={(e) => setRoleBadges(e.target.value)}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '0.84rem', fontFamily: 'var(--font-mono)' }}
+              value={rolePeriod}
+              onChange={(e) => setRolePeriod(e.target.value)}
+              className="form-input"
             />
           </div>
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">Save Role</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ marginBottom: '14px' }}>
+          <label htmlFor="role-highlight-input" className="form-label">Key Highlight Summary</label>
+          <input
+            id="role-highlight-input"
+            type="text"
+            value={roleHighlight}
+            onChange={(e) => setRoleHighlight(e.target.value)}
+            placeholder="e.g. Cloud microservices, CI/CD automation & frontend modernization"
+            className="form-input"
+          />
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label htmlFor="role-bullets-input" className="form-label">Bullet Points (One per line)</label>
+          <textarea
+            id="role-bullets-input"
+            rows={3}
+            value={roleBullets}
+            onChange={(e) => setRoleBullets(e.target.value)}
+            placeholder={'Built scalable APIs serving 50k+ daily users.\nReduced CI/CD deployment times by 40%.'}
+            className="form-textarea"
+          />
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label htmlFor="role-badges-input" className="form-label">Tech Badges (comma-separated)</label>
+          <input
+            id="role-badges-input"
+            type="text"
+            value={roleBadges}
+            onChange={(e) => setRoleBadges(e.target.value)}
+            className="form-input"
+            style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          <button type="submit" className="btn-primary">Save Role</button>
+        </div>
+      </form>
+    </ModalDialog>
   );
 };

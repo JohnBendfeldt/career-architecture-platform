@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Award, GraduationCap, MapPin, CheckCircle2, ExternalLink, Code2, Globe, Plus, Trash2, Download } from 'lucide-react';
+import { MapPin, ExternalLink, Globe, Plus, Trash2, Download } from 'lucide-react';
 import type { Profile } from '../types';
 import {
   PORTFOLIO_EXPERIENCES,
@@ -45,13 +45,13 @@ const PORTFOLIO_CERTIFICATIONS = [
     title: 'Enterprise .NET & Cloud Architecture',
     issuer: 'Microsoft Developer Ecosystem',
     license: 'C#, .NET 10, Minimal APIs & Azure Cloud Services',
-    date: 'Production Mastery'
+    date: 'Production Focus'
   },
   {
     title: 'Modern React & Frontend Systems',
     issuer: 'Modern Web Architecture',
     license: 'TypeScript, Vite, SPA Performance & State Design',
-    date: 'Production Mastery'
+    date: 'Production Focus'
   },
   {
     title: 'Open Source Software Engineering',
@@ -112,31 +112,18 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
 
   return (
     <div style={{ marginBottom: '32px' }}>
-      {/* Header with Quick Actions */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '28px'
-      }}>
+      {/* Editorial Section Header */}
+      <div className="section-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <Briefcase size={24} color="var(--accent-blue)" />
-            <h2 style={{ fontSize: '1.75rem', color: 'var(--text-primary)', fontWeight: 800 }}>
-              {workspaceMode === 'personal'
-                ? `${userName}'s Experience & Career Builder`
-                : 'Professional Experience & Credentials'}
-            </h2>
-            <span className="badge badge-indigo" style={{ fontSize: '0.8rem', padding: '5px 14px' }}>
-              {workspaceMode === 'personal' ? `${activeExperiences.length} Roles` : '9 Years Experience'}
-            </span>
-          </div>
-          <p style={{ fontSize: '0.98rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+          <h2 className="section-title">
+            {workspaceMode === 'personal'
+              ? `${userName}'s Experience & Career Builder`
+              : 'Professional Experience & Credentials'}
+          </h2>
+          <p className="section-subtitle">
             {workspaceMode === 'personal'
               ? 'Build out your own work history and technical achievements below, or switch back to "John\'s Portfolio" at the top.'
-              : 'Track record of building large-scale SaaS applications, shipping full-stack features, and engineering non-profit accounting and membership platforms.'}
+              : 'Nine years building enterprise SaaS applications, full-stack features, and high-reliability accounting and membership platforms.'}
           </p>
         </div>
 
@@ -151,9 +138,9 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
               })
             }
             className={workspaceMode === 'personal' ? 'btn-secondary' : 'btn-primary'}
-            style={{ padding: '10px 20px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ padding: '9px 18px', fontSize: '0.86rem' }}
           >
-            <Download size={16} color={workspaceMode === 'personal' ? 'var(--accent-crimson)' : undefined} />
+            <Download size={15} aria-hidden="true" />
             <span>Download / Print PDF Resume</span>
           </button>
 
@@ -162,58 +149,48 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
               type="button"
               onClick={() => setIsAddRoleOpen(true)}
               className="btn-primary"
-              style={{ padding: '10px 22px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+              style={{ padding: '9px 18px', fontSize: '0.86rem' }}
             >
-              <Plus size={17} />
+              <Plus size={16} aria-hidden="true" />
               <span>Add Role / Experience</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Skills Matrix Pill Grid (John's Portfolio Mode) */}
+      {/* Skills Matrix (John's Portfolio Mode) */}
       {workspaceMode !== 'personal' && (
-        <div className="glass-panel" style={{ padding: '28px', marginBottom: '32px' }}>
-          <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Award size={20} color="var(--accent-cyan)" />
-            <span>Technical Skills & Methodologies</span>
+        <section className="glass-panel" style={{ padding: '26px 28px', marginBottom: '32px' }} aria-labelledby="skills-matrix-heading">
+          <h3 id="skills-matrix-heading" style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '18px' }}>
+            Technical Skills & Methodologies
           </h3>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '22px'
           }}>
             {PORTFOLIO_SKILLS.map((group) => (
-              <div key={group.category} style={{
-                background: 'var(--bg-card-hover)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '18px'
-              }}>
+              <div
+                key={group.category}
+                style={{
+                  borderTop: '1px solid var(--border-subtle)',
+                  paddingTop: '12px'
+                }}
+              >
                 <div style={{
-                  fontSize: '0.8rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: 'var(--accent-blue)',
-                  fontWeight: 700,
-                  marginBottom: '12px'
+                  letterSpacing: '0.06em',
+                  color: 'var(--text-muted)',
+                  fontWeight: 600,
+                  marginBottom: '10px'
                 }}>
                   {group.category}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {group.items.map((skill) => (
-                    <span
-                      key={skill}
-                      style={{
-                        fontSize: '0.85rem',
-                        padding: '5px 12px',
-                        borderRadius: '6px',
-                        background: 'var(--bg-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        fontWeight: 600
-                      }}
-                    >
+                    <span key={skill} className="tag-chip" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                       {skill}
                     </span>
                   ))}
@@ -221,19 +198,18 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Experience Timeline */}
-      <div style={{ marginBottom: '36px' }}>
-        <h3 style={{ fontSize: '1.35rem', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Briefcase size={22} color="var(--accent-blue)" />
-          <span>Career History</span>
+      <section style={{ marginBottom: '36px' }} aria-labelledby="career-history-heading">
+        <h3 id="career-history-heading" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '18px' }}>
+          Career History
         </h3>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {activeExperiences.map((exp, idx) => (
-            <div key={exp.id || idx} className="glass-panel timeline-card">
+            <article key={exp.id || idx} className="glass-panel timeline-card">
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -243,126 +219,100 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                 marginBottom: '12px'
               }}>
                 <div>
-                  <h4 style={{ fontSize: '1.4rem', color: 'var(--text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                  <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, letterSpacing: '-0.02em' }}>
                     {exp.role}
                   </h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
-                    <span style={{ fontSize: '1.08rem', color: 'var(--accent-crimson)', fontWeight: 700 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 700 }}>
                       {exp.company}
                     </span>
-                    <span style={{ color: 'var(--border-subtle)' }}>•</span>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 500 }}>
-                      <MapPin size={15} color="var(--text-muted)" />
-                      {exp.location}
+                    <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
+                    <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <MapPin size={14} aria-hidden="true" />
+                      <span>{exp.location}</span>
                     </span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="badge badge-indigo" style={{ fontSize: '0.82rem', padding: '6px 14px', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-inset)',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '4px 11px',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
                     {exp.period}
                   </span>
                   {workspaceMode === 'personal' && exp.id && (
                     <button
                       type="button"
                       onClick={() => handleDeleteRole(exp.id)}
+                      className="icon-btn"
                       title="Delete role"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'inline-flex',
-                        alignItems: 'center'
-                      }}
+                      aria-label={`Delete ${exp.role}`}
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={15} aria-hidden="true" />
                     </button>
                   )}
                 </div>
               </div>
 
-              <div style={{
+              <p style={{
                 fontSize: '0.9rem',
                 color: 'var(--text-primary)',
-                padding: '8px 14px',
-                borderRadius: '6px',
-                background: 'var(--bg-primary)',
-                borderLeft: '3px solid var(--accent-crimson)',
-                marginBottom: '18px',
-                display: 'inline-block',
+                paddingLeft: '12px',
+                borderLeft: '2px solid var(--accent-crimson)',
+                marginBottom: '16px',
                 fontWeight: 600
               }}>
                 {exp.highlight}
-              </div>
+              </p>
 
               <ul style={{
-                paddingLeft: '0',
-                listStyle: 'none',
-                margin: '0 0 20px 0',
+                paddingLeft: '18px',
+                margin: '0 0 18px 0',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px'
+                gap: '10px'
               }}>
                 {exp.bullets.map((bullet, bIdx) => (
                   <li key={bIdx} style={{
-                    fontSize: '0.98rem',
+                    fontSize: '0.95rem',
                     color: 'var(--text-secondary)',
-                    lineHeight: 1.65,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px'
+                    lineHeight: 1.65
                   }}>
-                    <span style={{
-                      color: 'var(--accent-blue)',
-                      fontSize: '1.25rem',
-                      lineHeight: '1.2rem',
-                      marginTop: '3px',
-                      flexShrink: 0
-                    }}>
-                      •
-                    </span>
-                    <span>{bullet}</span>
+                    {bullet}
                   </li>
                 ))}
               </ul>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
                 {exp.badges.map((b) => (
-                  <span
-                    key={b}
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      background: 'var(--bg-surface)',
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  >
+                  <span key={b} className="tag-chip">
                     {b}
                   </span>
                 ))}
               </div>
-            </div>
+            </article>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Projects & Education (John's Portfolio Mode) */}
       {workspaceMode !== 'personal' && (
         <>
-          <div style={{ marginBottom: '36px' }}>
-            <h3 style={{ fontSize: '1.35rem', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Code2 size={22} color="var(--accent-cyan)" />
-              <span>Projects</span>
+          <section style={{ marginBottom: '36px' }} aria-labelledby="selected-projects-heading">
+            <h3 id="selected-projects-heading" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '18px' }}>
+              Selected Engineering Projects
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {PORTFOLIO_PROJECTS.map((proj, idx) => (
-                <div key={idx} className="glass-panel timeline-card">
+                <article key={idx} className="glass-panel timeline-card">
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -372,10 +322,10 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     marginBottom: '14px'
                   }}>
                     <div>
-                      <h4 style={{ fontSize: '1.4rem', color: 'var(--text-primary)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <span>{proj.title}</span>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 400 }}>•</span>
-                        <span style={{ fontSize: '1.05rem', color: 'var(--accent-crimson)', fontWeight: 600 }}>{proj.role}</span>
+                        <span aria-hidden="true" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 400 }}>•</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 600 }}>{proj.role}</span>
                       </h4>
                     </div>
 
@@ -384,124 +334,89 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="social-link"
-                      style={{ padding: '8px 18px', fontSize: '0.85rem', fontWeight: 600 }}
+                      style={{ padding: '7px 14px', fontSize: '0.84rem' }}
                     >
-                      <Globe size={15} />
+                      <Globe size={14} aria-hidden="true" />
                       <span>{proj.domain}</span>
-                      <ExternalLink size={13} />
+                      <ExternalLink size={12} aria-hidden="true" />
                     </a>
                   </div>
 
                   <ul style={{
-                    paddingLeft: '0',
-                    listStyle: 'none',
-                    margin: '0 0 20px 0',
+                    paddingLeft: '18px',
+                    margin: '0 0 18px 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '10px'
                   }}>
                     {proj.bullets.map((bullet, bIdx) => (
                       <li key={bIdx} style={{
-                        fontSize: '0.98rem',
+                        fontSize: '0.95rem',
                         color: 'var(--text-secondary)',
-                        lineHeight: 1.65,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '12px'
+                        lineHeight: 1.65
                       }}>
-                        <span style={{
-                          color: 'var(--accent-crimson)',
-                          fontSize: '1.25rem',
-                          lineHeight: '1.2rem',
-                          marginTop: '3px',
-                          flexShrink: 0
-                        }}>
-                          •
-                        </span>
-                        <span>{bullet}</span>
+                        {bullet}
                       </li>
                     ))}
                   </ul>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
                     {proj.badges.map((b) => (
-                      <span
-                        key={b}
-                        style={{
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          padding: '4px 12px',
-                          borderRadius: '6px',
-                          background: 'var(--bg-primary)',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid var(--border-subtle)'
-                        }}
-                      >
+                      <span key={b} className="tag-chip">
                         {b}
                       </span>
                     ))}
                   </div>
-                </div>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div>
-            <h3 style={{ fontSize: '1.35rem', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <GraduationCap size={22} color="var(--accent-emerald)" />
-              <span>Education & Credentials</span>
+          <section aria-labelledby="education-credentials-heading">
+            <h3 id="education-credentials-heading" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '18px' }}>
+              Education & Credentials
             </h3>
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '18px'
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '16px'
             }}>
               {PORTFOLIO_CERTIFICATIONS.map((cert, idx) => (
-                <div
+                <article
                   key={idx}
                   className="glass-panel"
                   style={{
-                    padding: '24px',
+                    padding: '22px',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '16px',
-                    borderLeft: '4px solid var(--accent-crimson)',
-                    borderRadius: 'var(--radius-md)'
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '8px'
                   }}
                 >
-                  <div style={{
-                    background: 'var(--bg-primary)',
-                    color: 'var(--accent-crimson)',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <CheckCircle2 size={20} />
-                  </div>
-
                   <div>
-                    <h5 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700, marginBottom: '4px' }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-muted)',
+                      marginBottom: '6px'
+                    }}>
+                      {cert.date}
+                    </div>
+                    <h4 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700, marginBottom: '4px' }}>
                       {cert.title}
-                    </h5>
+                    </h4>
                     <div style={{ fontSize: '0.88rem', color: 'var(--accent-crimson)', marginBottom: '6px', fontWeight: 600 }}>
                       {cert.issuer}
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                      {cert.license}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '6px', fontWeight: 600 }}>
-                      {cert.date}
-                    </div>
                   </div>
-                </div>
+                  <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                    {cert.license}
+                  </p>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
         </>
       )}
 

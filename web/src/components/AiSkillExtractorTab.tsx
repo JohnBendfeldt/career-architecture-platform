@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Sparkles, RefreshCw, CheckCircle, Zap, Plus, Mic, MicOff } from 'lucide-react';
+import { RefreshCw, CheckCircle, Zap, Plus, Mic, MicOff } from 'lucide-react';
 import { ApiService } from '../services/api';
 import type { CareerEntry, CareerEntryPrefill, Category, Goal, LearningResource } from '../types';
 import { RecruiterScorecard, evaluatePortfolioSkillMatch } from './ai/RecruiterScorecard';
@@ -285,28 +285,24 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
 
   return (
     <div style={{ marginBottom: '36px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <Sparkles size={24} color="var(--accent-violet)" />
-          <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+      <div className="section-header">
+        <div>
+          <h2 className="section-title">
             {workspaceMode === 'personal'
               ? `${userName}'s AI Skill Extractor & Study Planner`
               : 'AI Skill Extraction & Automated Curriculum'}
           </h2>
-          <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
-            JOB MATCH &amp; STUDY PLANNER
-          </span>
+          <p className="section-subtitle">
+            Paste any job description or resume to evaluate stack overlap, inspect production proof, or launch curated study searches.
+          </p>
         </div>
-        <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-          Paste any job description or resume to evaluate stack overlap, inspect production proof, or launch curated study searches.
-        </p>
       </div>
 
       <div className="ai-extractor-grid">
         {/* Left Column: Text Input & Skill Chips */}
         <div className="glass-panel" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            <label htmlFor="ai-job-bio-input" className="form-label" style={{ marginBottom: 0 }}>
               1. Job Description or Resume Bio
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -320,7 +316,7 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                   'Docker & Automated Testing'
                 ])}
                 className="btn-secondary"
-                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+                style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
               >
                 Sample: .NET / React Job
               </button>
@@ -328,7 +324,7 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                 type="button"
                 onClick={() => handleLoadPreset(PERSONAL_SAMPLE_BIO, PERSONAL_SAMPLE_SKILLS)}
                 className="btn-secondary"
-                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+                style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
               >
                 Sample: Cloud / AI Job
               </button>
@@ -336,66 +332,68 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                 type="button"
                 onClick={() => handleLoadPreset(PORTFOLIO_BIO, PORTFOLIO_SKILLS)}
                 className="btn-secondary"
-                style={{ padding: '3px 9px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+                style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
               >
                 John&apos;s Bio
               </button>
               <button
                 type="button"
                 onClick={toggleVoiceBio}
+                aria-pressed={isListeningBio}
                 className={isListeningBio ? 'btn-primary' : 'btn-secondary'}
                 style={{
-                  padding: '3px 10px',
-                  fontSize: '0.7rem',
+                  minHeight: '30px',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
                   fontFamily: 'var(--font-mono)',
-                  background: isListeningBio ? 'var(--accent-crimson)' : undefined,
+                  background: isListeningBio ? 'var(--accent-crimson-solid)' : undefined,
+                  borderColor: isListeningBio ? 'var(--accent-crimson-solid)' : undefined,
                   color: isListeningBio ? '#ffffff' : undefined
                 }}
                 title="Speak a job description or bio using live browser speech recognition"
               >
-                {isListeningBio ? <MicOff size={12} /> : <Mic size={12} color="var(--accent-crimson)" />}
+                {isListeningBio ? (
+                  <MicOff size={12} aria-hidden="true" />
+                ) : (
+                  <Mic size={12} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
+                )}
                 <span>{isListeningBio ? 'Listening... (Stop)' : 'Voice Input'}</span>
               </button>
             </div>
           </div>
 
           {voiceError && (
-            <div style={{
-              padding: '8px 12px',
-              marginBottom: '10px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--accent-crimson)',
-              fontSize: '0.75rem',
-              color: 'var(--text-secondary)'
-            }}>
+            <div
+              role="alert"
+              className="callout-danger"
+              style={{
+                padding: '8px 12px',
+                marginBottom: '10px',
+                fontSize: '0.78rem',
+              }}
+            >
               {voiceError}
             </div>
           )}
           <textarea
+            id="ai-job-bio-input"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             rows={6}
+            className="form-textarea"
             style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-primary)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-body)',
+              marginBottom: '16px',
               fontSize: '0.88rem',
               lineHeight: 1.5,
-              resize: 'vertical',
-              marginBottom: '16px'
             }}
           />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               Identifies languages, frameworks, cloud tools &amp; architecture patterns
             </span>
             <button
+              type="button"
               onClick={handleExtract}
               disabled={isExtracting}
               className="btn-primary"
@@ -404,12 +402,12 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
             >
               {isExtracting ? (
                 <>
-                  <RefreshCw size={15} className="animate-spin" />
+                  <RefreshCw size={15} aria-hidden="true" className="animate-spin" />
                   <span>Extracting Skills...</span>
                 </>
               ) : (
                 <>
-                  <Zap size={15} />
+                  <Zap size={15} aria-hidden="true" />
                   <span>Extract Skills via AI</span>
                 </>
               )}
@@ -422,12 +420,12 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Extracted Skill Tokens ({extractedSkills.length}) • Click a skill to inspect
+              <div className="section-eyebrow" style={{ marginBottom: 0 }}>
+                Extracted Skill Tokens ({extractedSkills.length}) • Select a skill to inspect
               </div>
               {extractionMeta?.source === 'gemini' && (
-                <span className="badge badge-emerald" style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Sparkles size={11} /> Live Gemini AI ({extractionMeta.model || 'gemini-3.5-flash-lite'})
+                <span className="badge badge-emerald">
+                  Live Gemini AI ({extractionMeta.model || 'gemini-3.5-flash-lite'})
                 </span>
               )}
             </div>
@@ -439,22 +437,25 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                   <button
                     key={sIdx}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => setActiveSkill(skill)}
                     title={workspaceMode === 'portfolio' ? matchInfo.evidence : undefined}
                     style={{
-                      padding: '8px 14px',
-                      borderRadius: 'var(--radius-full)',
-                      border: `1.5px solid ${isActive ? 'var(--accent-crimson)' : 'var(--border-subtle)'}`,
-                      background: isActive ? 'var(--bg-primary)' : 'var(--bg-card)',
+                      padding: '7px 13px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: isActive
+                        ? '1.5px solid var(--accent-crimson)'
+                        : '1px solid var(--border-control)',
+                      background: isActive ? 'var(--bg-inset)' : 'var(--bg-surface)',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                       fontSize: '0.82rem',
                       fontWeight: isActive ? 700 : 600,
                       cursor: 'pointer',
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
                       whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease'
+                      transition: 'background-color 0.15s ease, border-color 0.15s ease',
                     }}
                   >
                     <span style={{
@@ -466,9 +467,9 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                       flexShrink: 0
                     }}>
                       {isActive ? (
-                        <CheckCircle size={13} color="var(--accent-crimson)" />
+                        <CheckCircle size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
                       ) : workspaceMode === 'portfolio' && matchInfo.matched ? (
-                        <CheckCircle size={13} color="#16a34a" />
+                        <CheckCircle size={13} aria-hidden="true" style={{ color: 'var(--status-success)' }} />
                       ) : (
                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-muted)' }} />
                       )}
@@ -481,40 +482,48 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
 
             {/* Quick Custom Skill Builder */}
             <form onSubmit={handleAddCustomSkill} style={{ display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+              <label htmlFor="ai-custom-skill-input" className="sr-only">
+                Add custom skill
+              </label>
               <input
+                id="ai-custom-skill-input"
                 type="text"
                 value={customSkillInput}
                 onChange={(e) => setCustomSkillInput(e.target.value)}
                 placeholder="Add or speak any skill (e.g. Kubernetes, Rust)..."
+                className="form-input"
                 style={{
                   flex: 1,
                   minWidth: '180px',
+                  width: 'auto',
                   padding: '8px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.82rem'
+                  fontSize: '0.84rem',
                 }}
               />
               <button
                 type="button"
                 onClick={toggleVoiceSkill}
+                aria-pressed={isListeningSkill}
                 className={isListeningSkill ? 'btn-primary' : 'btn-secondary'}
                 style={{
                   padding: '8px 12px',
                   fontSize: '0.8rem',
                   whiteSpace: 'nowrap',
-                  background: isListeningSkill ? 'var(--accent-crimson)' : undefined,
+                  background: isListeningSkill ? 'var(--accent-crimson-solid)' : undefined,
+                  borderColor: isListeningSkill ? 'var(--accent-crimson-solid)' : undefined,
                   color: isListeningSkill ? '#ffffff' : undefined
                 }}
                 title="Speak a skill name to add it hands-free"
               >
-                {isListeningSkill ? <MicOff size={14} /> : <Mic size={14} color="var(--accent-crimson)" />}
+                {isListeningSkill ? (
+                  <MicOff size={14} aria-hidden="true" />
+                ) : (
+                  <Mic size={14} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
+                )}
                 <span>{isListeningSkill ? 'Listening...' : 'Speak'}</span>
               </button>
               <button type="submit" className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                <Plus size={14} />
+                <Plus size={14} aria-hidden="true" />
                 <span>Add Skill</span>
               </button>
             </form>

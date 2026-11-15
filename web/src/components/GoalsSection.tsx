@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { CareerEntry, Category, Goal } from '../types';
 import { ApiService } from '../services/api';
-import { Calendar, Plus, ShieldAlert, Code, Heart, X, Trash2, TrendingUp, Clock, List, LayoutGrid, LogIn, UserCheck } from 'lucide-react';
+import { Calendar, Plus, ShieldAlert, X, Trash2, TrendingUp, Clock, List, LayoutGrid, LogIn, UserCheck } from 'lucide-react';
 import {
   DEFAULT_CATEGORIES,
   computeAnnualProgress,
@@ -12,6 +12,7 @@ import { CareerEntryModal } from './goals/CareerEntryModal';
 import { CareerEntriesList } from './goals/CareerEntriesList';
 import { ImportCareerEntriesModal } from './goals/ImportCareerEntriesModal';
 import { ReadOnlyPortfolioBanner } from './goals/ReadOnlyPortfolioBanner';
+import { ModalDialog } from './ui/ModalDialog';
 
 interface GoalsSectionProps {
   goals: Goal[];
@@ -285,161 +286,79 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
       />
 
       {/* Section Header & Filters */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '20px'
-      }}>
+      <div className="section-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
-              Architecture & Life Goals
-            </h2>
-            <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
-              Pre-Seeded Active State
-            </span>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <h2 className="section-title">Architecture &amp; Life Goals</h2>
+          <p className="section-subtitle">
             Technical initiatives and career advancement hours working in tandem
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Board / Activity Log View Switcher */}
-          <div style={{
-            display: 'flex',
-            background: 'var(--bg-card)',
-            padding: '4px',
-            borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--border-subtle)'
-          }}>
+          <div className="segmented-control" role="group" aria-label="Goals view mode">
             <button
               type="button"
               onClick={() => setViewMode('board')}
-              style={{
-                background: viewMode === 'board' ? 'var(--accent-cyan)' : 'transparent',
-                color: viewMode === 'board' ? '#ffffff' : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: 'var(--radius-full)',
-                padding: '6px 14px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                transition: 'all 0.2s'
-              }}
+              aria-pressed={viewMode === 'board'}
+              className="segmented-btn"
             >
-              <LayoutGrid size={13} />
-              Goals Board ({goals.length})
+              <LayoutGrid size={13} aria-hidden="true" />
+              <span>Goals Board ({goals.length})</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('log')}
-              style={{
-                background: viewMode === 'log' ? 'var(--accent-cyan)' : 'transparent',
-                color: viewMode === 'log' ? '#ffffff' : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: 'var(--radius-full)',
-                padding: '6px 14px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                transition: 'all 0.2s'
-              }}
+              aria-pressed={viewMode === 'log'}
+              className="segmented-btn"
             >
-              <List size={13} />
-              Activity Log ({selectedYearEntriesCount})
+              <List size={13} aria-hidden="true" />
+              <span>Activity Log ({selectedYearEntriesCount})</span>
             </button>
           </div>
 
           {viewMode === 'board' && (
             /* Category Filter Chips */
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              background: 'var(--bg-card)',
-              padding: '4px',
-              borderRadius: 'var(--radius-full)',
-              border: '1px solid var(--border-subtle)'
-            }}>
+            <div className="segmented-control" role="group" aria-label="Goal category filter">
               <button
+                type="button"
                 onClick={() => setFilter('All')}
-                style={{
-                  background: filter === 'All' ? 'var(--text-primary)' : 'transparent',
-                  color: filter === 'All' ? 'var(--bg-card)' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '6px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                aria-pressed={filter === 'All'}
+                className="segmented-btn"
               >
                 All ({goals.length})
               </button>
               <button
+                type="button"
                 onClick={() => setFilter('Technical')}
-                style={{
-                  background: filter === 'Technical' ? 'var(--text-primary)' : 'transparent',
-                  color: filter === 'Technical' ? 'var(--bg-card)' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '6px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  transition: 'all 0.2s'
-                }}
+                aria-pressed={filter === 'Technical'}
+                className="segmented-btn"
               >
-                <Code size={13} />
-                <span>Technical ({goals.filter(g => g.category === 'Technical').length})</span>
+                Technical ({goals.filter((g) => g.category === 'Technical').length})
               </button>
               <button
+                type="button"
                 onClick={() => setFilter('Personal')}
-                style={{
-                  background: filter === 'Personal' ? 'var(--text-primary)' : 'transparent',
-                  color: filter === 'Personal' ? 'var(--bg-card)' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '6px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  transition: 'all 0.2s'
-                }}
+                aria-pressed={filter === 'Personal'}
+                className="segmented-btn"
               >
-                <Heart size={13} />
-                <span>Personal ({goals.filter(g => g.category === 'Personal').length})</span>
+                Personal ({goals.filter((g) => g.category === 'Personal').length})
               </button>
             </div>
           )}
 
           {/* Add Goal Action Button */}
           <button
+            type="button"
             onClick={() => {
               setReadOnlyNotice(null);
               setIsModalOpen(true);
             }}
             className="btn-primary"
             id="btn-add-goal"
-            style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
-            <Plus size={16} />
+            <Plus size={15} aria-hidden="true" />
             <span>Add Goal</span>
           </button>
         </div>
@@ -448,22 +367,19 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
       {activityNotice && (
         <div
           role="alert"
+          className="callout-danger"
           style={{
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(230, 0, 18, 0.08)',
-            border: '1px solid rgba(230, 0, 18, 0.3)',
             marginBottom: '18px',
             display: 'flex',
             justifyContent: 'space-between',
             gap: '12px',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-            <ShieldAlert size={18} color="var(--accent-crimson)" style={{ flexShrink: 0 }} />
+            <ShieldAlert size={18} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--status-danger)' }} />
             <span>
-              <strong style={{ color: 'var(--accent-crimson)' }}>ASP.NET Core 403 Forbidden: </strong>
+              <strong style={{ color: 'var(--status-danger)' }}>ASP.NET Core 403 Forbidden: </strong>
               {activityNotice}
             </span>
           </div>
@@ -471,9 +387,9 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
             type="button"
             onClick={() => setActivityNotice(null)}
             aria-label="Dismiss Notice"
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            className="icon-btn"
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -522,42 +438,37 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  position: 'relative'
+                  position: 'relative',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
                     <span
                       className={goal.category === 'Technical' ? 'badge badge-cyan' : 'badge badge-amber'}
-                      style={{ fontSize: '0.7rem' }}
                     >
                       {goal.category}
                     </span>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      <Calendar size={13} />
-                      <span>{goal.targetDate}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.76rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={13} aria-hidden="true" />
+                        <span>{goal.targetDate}</span>
+                      </span>
                       {canEdit && (
                         <button
                           type="button"
                           onClick={() => openLogHoursModal(goal.id)}
                           title={`Log hours toward ${goal.title}`}
+                          className="btn-secondary"
                           style={{
-                            background: 'rgba(6, 182, 212, 0.1)',
-                            border: '1px solid rgba(6, 182, 212, 0.35)',
-                            color: 'var(--accent-cyan)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '2px 7px',
-                            fontSize: '0.68rem',
+                            minHeight: '28px',
+                            padding: '3px 9px',
+                            fontSize: '0.75rem',
                             fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px'
+                            gap: '4px',
                           }}
                         >
-                          <Clock size={11} />
+                          <Clock size={12} aria-hidden="true" />
                           <span>+ Log Hours</span>
                         </button>
                       )}
@@ -566,22 +477,17 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                           type="button"
                           onClick={() => handleIncrementProgress(goal)}
                           title="Advance goal progress (+25%)"
+                          aria-label={`Advance ${goal.title} progress by 25 percent`}
+                          className="btn-secondary"
                           style={{
-                            background: 'var(--bg-primary)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '2px 6px',
-                            fontSize: '0.68rem',
+                            minHeight: '28px',
+                            padding: '3px 8px',
+                            fontSize: '0.75rem',
                             fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px'
+                            gap: '3px',
                           }}
                         >
-                          <TrendingUp size={11} color="var(--accent-crimson)" />
+                          <TrendingUp size={12} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
                           <span>+25%</span>
                         </button>
                       )}
@@ -590,27 +496,21 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                           type="button"
                           onClick={() => handleDeleteCustomGoal(goal.id)}
                           title="Remove custom goal"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '2px',
-                            display: 'inline-flex',
-                            alignItems: 'center'
-                          }}
+                          aria-label={`Remove ${goal.title}`}
+                          className="icon-btn"
+                          style={{ minWidth: '28px', minHeight: '28px', padding: '4px' }}
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '8px', lineHeight: 1.3 }}>
+                  <h3 style={{ fontSize: '1.12rem', color: 'var(--text-primary)', marginBottom: '8px', lineHeight: 1.3 }}>
                     {goal.title}
                   </h3>
 
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '16px' }}>
+                  <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: '16px' }}>
                     {goal.description}
                   </p>
                 </div>
@@ -618,7 +518,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                 <div>
                   {/* Progress Bar & Percentage */}
                   <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '6px' }}>
                       <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
                         {hasTargetHours
                           ? `${formatEntryHours(goal.loggedHours ?? 0)} / ${formatEntryHours(goal.targetHours ?? 0)} hrs • ${goal.entryCount ?? 0} ${(goal.entryCount ?? 0) === 1 ? 'entry' : 'entries'}`
@@ -626,14 +526,23 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                             ? `${formatEntryHours(goal.loggedHours ?? 0)} hrs logged • ${goal.entryCount ?? 0} ${(goal.entryCount ?? 0) === 1 ? 'entry' : 'entries'}`
                             : 'Progress'}
                       </span>
-                      <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>{goal.progress}%</span>
+                      <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        {goal.progress}%
+                      </span>
                     </div>
-                    <div className="progress-track">
+                    <div
+                      className="progress-track"
+                      role="progressbar"
+                      aria-valuenow={goal.progress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${goal.title} progress`}
+                    >
                       <div
                         className="progress-fill"
                         style={{
                           width: `${goal.progress}%`,
-                          background: goal.category === 'Technical' ? 'var(--cyan-gradient)' : 'var(--emerald-gradient)'
+                          background: goal.category === 'Technical' ? 'var(--text-primary)' : 'var(--accent-crimson)',
                         }}
                       />
                     </div>
@@ -644,15 +553,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                     {goal.tags.map((tag, tIdx) => (
                       <span
                         key={tIdx}
-                        style={{
-                          fontSize: '0.7rem',
-                          padding: '2px 8px',
-                          background: 'var(--bg-primary)',
-                          border: '1px solid var(--border-subtle)',
-                          color: 'var(--text-muted)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontFamily: 'var(--font-mono)'
-                        }}
+                        className="tag-chip"
+                        style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
                       >
                         #{tag}
                       </span>
@@ -666,293 +568,224 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
       )}
 
       {/* Add Goal Modal / Guest Write Protection Demo */}
-      {isModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          zIndex: 3000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div className="glass-panel" style={{
-            maxWidth: '520px',
-            width: '100%',
-            background: 'var(--bg-card)',
-            padding: '30px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Plus size={22} color="var(--accent-crimson)" />
-                <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Add New Architecture Goal</h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      <ModalDialog
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        disableClose={isSubmitting}
+        labelledBy="add-goal-modal-title"
+        maxWidth="520px"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+          <h2 id="add-goal-modal-title" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0 }}>
+            Add New Architecture Goal
+          </h2>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(false)}
+            aria-label="Close add goal modal"
+            className="icon-btn"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
 
-            {!canEdit && (
-              <div style={{ marginBottom: '16px' }}>
-                <ReadOnlyPortfolioBanner
-                  profileName={profileName}
-                  context="modal"
-                  onOpenLogin={handleTriggerLogin}
-                  onSwitchToPersonal={handleTriggerSwitchPersonal}
-                />
-              </div>
-            )}
+        {!canEdit && (
+          <div style={{ marginBottom: '16px' }}>
+            <ReadOnlyPortfolioBanner
+              profileName={profileName}
+              context="modal"
+              onOpenLogin={handleTriggerLogin}
+              onSwitchToPersonal={handleTriggerSwitchPersonal}
+            />
+          </div>
+        )}
 
-            {/* Read-Only Notice (Triggered on 403 Forbidden) */}
-            {readOnlyNotice && (
-              <div style={{
-                padding: '14px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(230, 0, 18, 0.08)',
-                border: '1px solid rgba(230, 0, 18, 0.3)',
-                marginBottom: '18px',
-                display: 'flex',
-                gap: '12px',
-                alignItems: 'flex-start'
-              }}>
-                <ShieldAlert size={20} color="var(--accent-crimson)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-crimson)' }}>
-                    ASP.NET Core 403 Forbidden Policy
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: '2px' }}>
-                    {readOnlyNotice}
-                  </div>
-                  {(handleTriggerSwitchPersonal || handleTriggerLogin) && (
-                    <div style={{ marginTop: '8px' }}>
-                      {handleTriggerSwitchPersonal ? (
-                        <button
-                          type="button"
-                          onClick={handleTriggerSwitchPersonal}
-                          className="btn-secondary"
-                          style={{ padding: '5px 10px', fontSize: '0.76rem' }}
-                        >
-                          <UserCheck size={13} />
-                          <span>Switch to My Profile</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleTriggerLogin}
-                          className="btn-secondary"
-                          style={{ padding: '5px 10px', fontSize: '0.76rem' }}
-                        >
-                          <LogIn size={13} />
-                          <span>Sign In / Build Your Own</span>
-                        </button>
-                      )}
-                    </div>
+        {/* Read-Only Notice (Triggered on 403 Forbidden) */}
+        {readOnlyNotice && (
+          <div
+            role="alert"
+            className="callout-danger"
+            style={{
+              marginBottom: '18px',
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'flex-start',
+            }}
+          >
+            <ShieldAlert size={20} aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px', color: 'var(--status-danger)' }} />
+            <div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--status-danger)' }}>
+                ASP.NET Core 403 Forbidden Policy
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, marginTop: '2px' }}>
+                {readOnlyNotice}
+              </div>
+              {(handleTriggerSwitchPersonal || handleTriggerLogin) && (
+                <div style={{ marginTop: '8px' }}>
+                  {handleTriggerSwitchPersonal ? (
+                    <button
+                      type="button"
+                      onClick={handleTriggerSwitchPersonal}
+                      className="btn-secondary"
+                      style={{ minHeight: '32px', padding: '5px 10px', fontSize: '0.78rem' }}
+                    >
+                      <UserCheck size={13} aria-hidden="true" />
+                      <span>Switch to My Profile</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleTriggerLogin}
+                      className="btn-secondary"
+                      style={{ minHeight: '32px', padding: '5px 10px', fontSize: '0.78rem' }}
+                    >
+                      <LogIn size={13} aria-hidden="true" />
+                      <span>Sign In / Build Your Own</span>
+                    </button>
                   )}
                 </div>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateAttempt}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Goal Title
-                </label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Distributed Consensus in .NET 10"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '0.9rem'
-                  }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Category
-                  </label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as 'Technical' | 'Personal')}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: '0.9rem'
-                    }}
-                  >
-                    <option value="Technical">Technical Architecture</option>
-                    <option value="Personal">Personal Milestone</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Target Date / Quarter
-                  </label>
-                  <input
-                    type="text"
-                    value={newTargetDate}
-                    onChange={(e) => setNewTargetDate(e.target.value)}
-                    placeholder="e.g. Q4 2026"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: '0.9rem'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label
-                    htmlFor="goal-target-hours-input"
-                    style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}
-                  >
-                    Target Hours (Optional Auto-Rollup)
-                  </label>
-                  <input
-                    id="goal-target-hours-input"
-                    type="number"
-                    min={0}
-                    max={2000}
-                    step={0.5}
-                    value={newTargetHours}
-                    onChange={(e) => setNewTargetHours(e.target.value)}
-                    placeholder="e.g. 20 (leave blank for manual %)"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: '0.9rem'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    {Number(newTargetHours) > 0
-                      ? 'Initial Progress (0% — rolls up from logged hours)'
-                      : `Initial Progress (${newProgress}%)`}
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    disabled={Number(newTargetHours) > 0}
-                    value={Number(newTargetHours) > 0 ? 0 : newProgress}
-                    onChange={(e) => setNewProgress(Number(e.target.value))}
-                    style={{ width: '100%', marginTop: '10px', accentColor: 'var(--accent-crimson)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Tags (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={newTags}
-                  onChange={(e) => setNewTags(e.target.value)}
-                  placeholder="e.g. .NET 10, Cloud"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.82rem'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Description
-                </label>
-                <textarea
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Describe architectural scope or training schedule..."
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '0.9rem',
-                    resize: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn-primary"
-                  id="btn-submit-goal"
-                >
-                  {isSubmitting
-                    ? 'Saving...'
-                    : canEdit
-                      ? 'Save Goal to Workspace'
-                      : 'Submit to API (Test Write Lock)'}
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        <form onSubmit={handleCreateAttempt}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="goal-title-input" className="form-label">
+              Goal Title
+            </label>
+            <input
+              id="goal-title-input"
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Distributed Consensus in .NET 10"
+              className="form-input"
+              required
+            />
+          </div>
+
+          <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label htmlFor="goal-category-select" className="form-label">
+                Category
+              </label>
+              <select
+                id="goal-category-select"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as 'Technical' | 'Personal')}
+                className="form-select"
+              >
+                <option value="Technical">Technical Architecture</option>
+                <option value="Personal">Personal Milestone</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="goal-target-date-input" className="form-label">
+                Target Date / Quarter
+              </label>
+              <input
+                id="goal-target-date-input"
+                type="text"
+                value={newTargetDate}
+                onChange={(e) => setNewTargetDate(e.target.value)}
+                placeholder="e.g. Q4 2026"
+                className="form-input"
+              />
+            </div>
+          </div>
+
+          <div className="modal-two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label htmlFor="goal-target-hours-input" className="form-label">
+                Target Hours (Optional Auto-Rollup)
+              </label>
+              <input
+                id="goal-target-hours-input"
+                type="number"
+                min={0}
+                max={2000}
+                step={0.5}
+                value={newTargetHours}
+                onChange={(e) => setNewTargetHours(e.target.value)}
+                placeholder="e.g. 20 (leave blank for manual %)"
+                className="form-input"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="goal-progress-range" className="form-label">
+                {Number(newTargetHours) > 0
+                  ? 'Initial Progress (0% — rolls up from logged hours)'
+                  : `Initial Progress (${newProgress}%)`}
+              </label>
+              <input
+                id="goal-progress-range"
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                disabled={Number(newTargetHours) > 0}
+                value={Number(newTargetHours) > 0 ? 0 : newProgress}
+                onChange={(e) => setNewProgress(Number(e.target.value))}
+                style={{ width: '100%', marginTop: '10px', accentColor: 'var(--accent-crimson)' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="goal-tags-input" className="form-label">
+              Tags (comma-separated)
+            </label>
+            <input
+              id="goal-tags-input"
+              type="text"
+              value={newTags}
+              onChange={(e) => setNewTags(e.target.value)}
+              placeholder="e.g. .NET 10, Cloud"
+              className="form-input"
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label htmlFor="goal-description-input" className="form-label">
+              Description
+            </label>
+            <textarea
+              id="goal-description-input"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Describe architectural scope or training schedule..."
+              rows={3}
+              className="form-textarea"
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary"
+              id="btn-submit-goal"
+            >
+              {isSubmitting
+                ? 'Saving...'
+                : canEdit
+                  ? 'Save Goal to Workspace'
+                  : 'Submit to API (Test Write Lock)'}
+            </button>
+          </div>
+        </form>
+      </ModalDialog>
 
       <CareerEntryModal
         isOpen={entryModalState.isOpen}

@@ -10,7 +10,6 @@ import { ResumeTimeline } from './components/ResumeTimeline';
 import { FeatureTabs } from './components/FeatureTabs';
 import type { LegalTab } from './components/LegalModal';
 import { GithubIcon, LinkedinIcon } from './components/Icons';
-import { Terminal } from 'lucide-react';
 
 const GoalsSection = lazy(() =>
   import('./components/GoalsSection').then((m) => ({ default: m.GoalsSection }))
@@ -314,7 +313,11 @@ export function App() {
       setTimeout(() => {
         const navEl = document.getElementById('feature-tabs-navigation');
         if (navEl && typeof navEl.scrollIntoView === 'function') {
-          navEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const prefersReduced =
+            typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          navEl.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
         }
       }, 50);
     }
@@ -334,8 +337,19 @@ export function App() {
       ? () => handleToggleWorkspaceMode('personal')
       : undefined;
 
+  const tabPanelNames: Record<'experience' | 'dashboard' | 'ai' | 'map', string> = {
+    experience: 'Experience & Resume',
+    dashboard: 'Goals & Milestones',
+    ai: 'AI Skill Pipeline',
+    map: 'Garmin Geospatial',
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Optional On-Demand Sign-In Modal (Never blocks initial page load!) */}
       {showLoginModal && (
         <Suspense fallback={null}>
@@ -374,12 +388,16 @@ export function App() {
       />
 
       {/* Main App Container */}
-      <main style={{
-        maxWidth: '1280px',
-        width: 'calc(100% - 32px)',
-        margin: '0 auto',
-        flex: 1
-      }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        style={{
+          maxWidth: '1240px',
+          width: 'calc(100% - 32px)',
+          margin: '0 auto',
+          flex: 1
+        }}
+      >
         {/* Profile Hero Card with Pre-Seeded State & Outbound Links */}
         {profile && (
           <ProfileHero
@@ -411,65 +429,71 @@ export function App() {
           workspaceMode={workspaceMode}
         />
 
-        {/* Tab Content Panes */}
-        <Suspense
-          fallback={
-            <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Loading section...
-            </div>
-          }
+        {/* Accessible Tab Content Pane */}
+        <div
+          id={`panel-${activeTab}`}
+          role="tabpanel"
+          aria-label={tabPanelNames[activeTab]}
         >
-          {activeTab === 'experience' && (
-            <ResumeTimeline
-              workspaceMode={workspaceMode}
-              userName={activeDisplayName}
-              profile={workspaceMode === 'personal' && customProfile ? customProfile : profile}
-            />
-          )}
+          <Suspense
+            fallback={
+              <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                Loading section...
+              </div>
+            }
+          >
+            {activeTab === 'experience' && (
+              <ResumeTimeline
+                workspaceMode={workspaceMode}
+                userName={activeDisplayName}
+                profile={workspaceMode === 'personal' && customProfile ? customProfile : profile}
+              />
+            )}
 
-          {activeTab === 'dashboard' && (
-            <GoalsSection
-              goals={workspaceMode === 'personal' ? personalGoals : goals}
-              entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
-              workspaceMode={workspaceMode}
-              profileName={
-                workspaceMode === 'personal'
-                  ? (customProfile?.name || activeDisplayName)
-                  : (profile?.name || 'John F. Bendfeldt')
-              }
-              annualGoalHours={
-                workspaceMode === 'personal'
-                  ? (customProfile?.annualGoalHours ?? 45)
-                  : (profile?.annualGoalHours ?? 55)
-              }
-              onAnnualGoalHoursChange={handleAnnualGoalHoursChange}
-              onRefresh={loadData}
-              onOpenLogin={() => setShowLoginModal(true)}
-              onSwitchToPersonal={externalSwitchToPersonal}
-            />
-          )}
+            {activeTab === 'dashboard' && (
+              <GoalsSection
+                goals={workspaceMode === 'personal' ? personalGoals : goals}
+                entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
+                workspaceMode={workspaceMode}
+                profileName={
+                  workspaceMode === 'personal'
+                    ? (customProfile?.name || activeDisplayName)
+                    : (profile?.name || 'John F. Bendfeldt')
+                }
+                annualGoalHours={
+                  workspaceMode === 'personal'
+                    ? (customProfile?.annualGoalHours ?? 45)
+                    : (profile?.annualGoalHours ?? 55)
+                }
+                onAnnualGoalHoursChange={handleAnnualGoalHoursChange}
+                onRefresh={loadData}
+                onOpenLogin={() => setShowLoginModal(true)}
+                onSwitchToPersonal={externalSwitchToPersonal}
+              />
+            )}
 
-          {activeTab === 'ai' && (
-            <AiSkillExtractorTab
-              workspaceMode={workspaceMode}
-              userName={activeDisplayName}
-              goals={workspaceMode === 'personal' ? personalGoals : goals}
-              entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
-              onGoalCreated={loadData}
-              onEntryLogged={loadData}
-              onNavigateToGoals={() => handleTabSwitch('dashboard')}
-              onOpenLogin={() => setShowLoginModal(true)}
-              onSwitchToPersonal={externalSwitchToPersonal}
-            />
-          )}
+            {activeTab === 'ai' && (
+              <AiSkillExtractorTab
+                workspaceMode={workspaceMode}
+                userName={activeDisplayName}
+                goals={workspaceMode === 'personal' ? personalGoals : goals}
+                entries={workspaceMode === 'personal' ? personalEntries : careerEntries}
+                onGoalCreated={loadData}
+                onEntryLogged={loadData}
+                onNavigateToGoals={() => handleTabSwitch('dashboard')}
+                onOpenLogin={() => setShowLoginModal(true)}
+                onSwitchToPersonal={externalSwitchToPersonal}
+              />
+            )}
 
-          {activeTab === 'map' && (
-            <GeospatialMapTab
-              workspaceMode={workspaceMode}
-              userName={activeDisplayName}
-            />
-          )}
-        </Suspense>
+            {activeTab === 'map' && (
+              <GeospatialMapTab
+                workspaceMode={workspaceMode}
+                userName={activeDisplayName}
+              />
+            )}
+          </Suspense>
+        </div>
       </main>
 
       {/* Interactive Micro-Tour Walkthrough */}
@@ -486,13 +510,13 @@ export function App() {
 
       {/* Application Footer */}
       <footer style={{
-        marginTop: '60px',
+        marginTop: '64px',
         borderTop: '1px solid var(--border-subtle)',
         padding: '32px 24px',
-        background: 'var(--bg-card)'
+        background: 'var(--bg-surface)'
       }}>
         <div style={{
-          maxWidth: '1280px',
+          maxWidth: '1240px',
           margin: '0 auto',
           display: 'flex',
           justifyContent: 'space-between',
@@ -501,18 +525,15 @@ export function App() {
           gap: '20px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Terminal size={18} color="var(--accent-crimson)" />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                Career Architecture Platform by John Bendfeldt (CAP / BJB)
-              </span>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px', fontFamily: 'var(--font-heading)' }}>
+              Career Architecture Platform by John Bendfeldt (CAP / BJB)
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, fontFamily: 'var(--font-mono)' }}>
               C# .NET 10 Minimal APIs • YARP Gateway • React 19 • Garmin FIT Engine
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <a
               href="https://github.com/johnbendfeldt"
               target="_blank"
@@ -538,12 +559,14 @@ export function App() {
                 background: 'transparent',
                 border: 'none',
                 color: 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8125rem',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
                 cursor: 'pointer',
                 textDecoration: 'underline',
                 textUnderlineOffset: '3px',
-                padding: '4px'
+                padding: '6px 8px',
+                minHeight: '32px'
               }}
             >
               Privacy Policy
@@ -555,17 +578,19 @@ export function App() {
                 background: 'transparent',
                 border: 'none',
                 color: 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8125rem',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
                 cursor: 'pointer',
                 textDecoration: 'underline',
                 textUnderlineOffset: '3px',
-                padding: '4px'
+                padding: '6px 8px',
+                minHeight: '32px'
               }}
             >
               Terms of Service
             </button>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               © 2026 John Bendfeldt
             </span>
           </div>

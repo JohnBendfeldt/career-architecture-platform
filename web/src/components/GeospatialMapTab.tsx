@@ -11,7 +11,6 @@ import {
   Clock,
   Upload,
   CheckCircle2,
-  Sparkles,
   ChevronDown,
   Check,
   SlidersHorizontal,
@@ -177,8 +176,8 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
   if (initialLoading || !route) {
     return (
-      <div className="glass-panel" style={{ padding: '60px', textAlign: 'center' }}>
-        <Activity size={32} color="var(--accent-cyan)" className="animate-spin" style={{ margin: '0 auto 16px' }} />
+      <div className="glass-panel" role="status" style={{ padding: '60px', textAlign: 'center' }}>
+        <Activity size={32} color="var(--text-primary)" aria-hidden="true" className="animate-spin" style={{ margin: '0 auto 16px' }} />
         <p style={{ color: 'var(--text-secondary)' }}>Parsing Garmin Forerunner 255 Music Binary Telemetry (.FIT)...</p>
       </div>
     );
@@ -196,12 +195,17 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
   return (
     <div style={{ marginBottom: '36px' }}>
-      {/* Hidden File Input for .FIT and .GPX uploads */}
+      {/* Screen-reader accessible file input for .FIT and .GPX uploads */}
+      <label htmlFor="fit-gpx-upload-input" className="sr-only">
+        Upload Garmin FIT or GPX telemetry file
+      </label>
       <input
+        id="fit-gpx-upload-input"
         type="file"
         ref={fileInputRef}
         accept=".fit,.gpx"
-        style={{ display: 'none' }}
+        className="sr-only"
+        tabIndex={-1}
         onChange={(e) => {
           if (e.target.files && e.target.files[0]) {
             handleFileUpload(e.target.files[0]);
@@ -210,129 +214,103 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       />
 
       {/* Header and Telemetry Actions */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '20px'
-      }}>
+      <div className="section-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <Activity size={24} color="var(--accent-cyan)" />
-            <h2 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              {workspaceMode === 'personal'
-                ? `${userName}'s GPS Telemetry Visualizer`
-                : 'Garmin Telemetry Visualizer & Binary FIT Parser'}
-            </h2>
-            <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
-              Garmin.FIT.Sdk
-            </span>
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+          <div className="section-eyebrow">Geospatial Telemetry • Garmin FIT &amp; GPX</div>
+          <h2 className="section-title">
+            {workspaceMode === 'personal'
+              ? `${userName}'s GPS Telemetry Visualizer`
+              : 'Garmin Telemetry Visualizer & Binary FIT Parser'}
+          </h2>
+          <p className="section-subtitle">
             {workspaceMode === 'personal'
               ? 'Click "Upload .FIT / .GPX" on the right to plot your own GPS activity files onto the interactive map, or export the sample route below to test.'
-              : <>Binary telemetry decoded directly from John's <strong>Garmin Forerunner 255 Music</strong> into Leaflet vector polylines, elevation profiles, and GPX streams.</>}
+              : <>Binary telemetry decoded directly from John&apos;s <strong>Garmin Forerunner 255 Music</strong> into Leaflet vector polylines, elevation profiles, and GPX streams.</>}
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="btn-secondary"
             id="btn-upload-fit"
-            style={{ padding: '9px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '9px 18px', fontSize: '0.85rem' }}
           >
-            <Upload size={15} />
+            <Upload size={15} aria-hidden="true" />
             <span>{uploading ? 'Parsing Telemetry...' : 'Upload .FIT / .GPX'}</span>
           </button>
 
           <button
+            type="button"
             onClick={() => exportRouteToGpx(route)}
             className="btn-primary"
             id="btn-export-gpx"
-            style={{ padding: '9px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '9px 18px', fontSize: '0.85rem' }}
           >
-            <Download size={15} />
+            <Download size={15} aria-hidden="true" />
             <span>Export .GPX</span>
           </button>
         </div>
       </div>
 
       {/* Favorite Rides Selector Bar */}
-      <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '20px', position: 'relative' }}>
+      <div className="glass-panel" style={{ padding: '18px 20px', marginBottom: '20px', position: 'relative' }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '12px',
+          marginBottom: '14px',
           flexWrap: 'wrap',
           gap: '10px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={16} color="var(--accent-crimson)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               {workspaceMode === 'personal'
                 ? `${userName}'s Uploaded Routes & Starter Sample`
                 : "John's Favorite Central Texas Rides"}
-            </span>
-            <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>
+            </h3>
+            <span className="badge badge-indigo">
               {workspaceMode === 'personal'
                 ? `${rides.length} ${rides.length === 1 ? 'Sample Route' : 'Routes'}`
                 : `${rides.length} Preloaded Rides`}
             </span>
             {switchingRide && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '0.72rem',
-                color: 'var(--accent-crimson)'
-              }}>
-                <Loader2 size={12} className="animate-spin" />
+              <span
+                role="status"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '0.75rem',
+                  color: 'var(--accent-crimson)'
+                }}
+              >
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
                 <span>Loading route...</span>
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Select a route to view interactive GPS splits &amp; elevation
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Select a route to inspect GPS splits &amp; elevation
             </span>
             <button
+              type="button"
               onClick={() => setUseDropdown(!useDropdown)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.72rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--text-primary)';
-                e.currentTarget.style.borderColor = 'var(--text-primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--text-secondary)';
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              }}
+              className="btn-secondary"
+              style={{ padding: '5px 12px', minHeight: '32px', fontSize: '0.78rem' }}
             >
               {useDropdown ? (
                 <>
-                  <LayoutGrid size={12} />
+                  <LayoutGrid size={13} aria-hidden="true" />
                   <span>Grid View</span>
                 </>
               ) : (
                 <>
-                  <SlidersHorizontal size={12} />
+                  <SlidersHorizontal size={13} aria-hidden="true" />
                   <span>Dropdown View</span>
                 </>
               )}
@@ -344,66 +322,74 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         {useDropdown ? (
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={isDropdownOpen}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               style={{
                 width: '100%',
                 padding: '12px 16px',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-primary)',
-                border: `1.5px solid ${isDropdownOpen ? 'var(--accent-crimson)' : 'var(--border-subtle)'}`,
+                background: 'var(--bg-surface)',
+                border: isDropdownOpen ? '1.5px solid var(--accent-crimson)' : '1px solid var(--border-control)',
                 color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'border-color 0.15s ease',
                 textAlign: 'left'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.2rem' }}>🚴</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                    {activeRide?.title || route.activityName}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
-                    <span>{route.distanceKm} km</span>
-                    <span>•</span>
-                    <span>+{route.elevationGainM}m ascent</span>
-                    <span>•</span>
-                    <span>{durationText}</span>
-                  </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                  {activeRide?.title || route.activityName}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                  <span>{route.distanceKm} km</span>
+                  <span aria-hidden="true">•</span>
+                  <span>+{route.elevationGainM}m ascent</span>
+                  <span aria-hidden="true">•</span>
+                  <span>{durationText}</span>
                 </div>
               </div>
               <ChevronDown
                 size={18}
+                aria-hidden="true"
                 style={{
                   transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.25s ease',
+                  transition: 'transform 0.2s ease',
                   color: isDropdownOpen ? 'var(--accent-crimson)' : 'var(--text-muted)'
                 }}
               />
             </button>
 
             {isDropdownOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-lg)',
-                padding: '6px',
-                maxHeight: '340px',
-                overflowY: 'auto'
-              }}>
+              <div
+                role="listbox"
+                aria-label="Available GPS routes"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-control)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                  padding: '6px',
+                  maxHeight: '340px',
+                  overflowY: 'auto'
+                }}
+              >
                 {rides.map(r => {
                   const isSelected = selectedRideId === r.id;
                   return (
                     <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
                       key={r.id}
                       onClick={() => {
                         handleSelectRide(r);
@@ -413,7 +399,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: 'var(--radius-sm)',
-                        background: isSelected ? 'var(--bg-primary)' : 'transparent',
+                        background: isSelected ? 'var(--bg-inset)' : 'transparent',
                         border: isSelected ? '1px solid var(--accent-crimson)' : '1px solid transparent',
                         color: 'var(--text-primary)',
                         display: 'flex',
@@ -422,41 +408,38 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                         cursor: 'pointer',
                         textAlign: 'left',
                         marginBottom: '3px',
-                        transition: 'all 0.18s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = 'var(--bg-primary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                        transition: 'background-color 0.15s ease'
                       }}
                     >
                       <div>
                         <div style={{ fontWeight: isSelected ? 700 : 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-                          🚴 {r.title}
+                          {r.title}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
                           <span>{r.distanceKm} km</span>
-                          <span>•</span>
+                          <span aria-hidden="true">•</span>
                           <span>+{r.elevationGainM}m</span>
-                          <span>•</span>
+                          <span aria-hidden="true">•</span>
                           <span>{r.durationMinutes} min</span>
-                          <span>•</span>
+                          <span aria-hidden="true">•</span>
                           <span>{r.date}</span>
                         </div>
                       </div>
                       {isSelected && (
-                        <div style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          background: 'var(--accent-crimson)',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
+                        <div
+                          aria-hidden="true"
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: 'var(--accent-crimson-solid)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
                           <Check size={12} strokeWidth={3} />
                         </div>
                       )}
@@ -467,65 +450,56 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             )}
           </div>
         ) : (
-          /* 2. RESPONSIVE GRID / TABS MODE */
+          /* 2. RESPONSIVE GRID MODE */
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
             gap: '10px'
           }}>
             {rides.map((r) => {
               const isSelected = selectedRideId === r.id;
               return (
                 <button
+                  type="button"
+                  aria-pressed={isSelected}
                   key={r.id}
                   onClick={() => handleSelectRide(r)}
                   style={{
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderRadius: 'var(--radius-md)',
-                    background: isSelected ? 'var(--bg-primary)' : 'var(--bg-card)',
-                    border: isSelected ? '1.5px solid var(--accent-crimson)' : '1px solid var(--border-subtle)',
+                    background: isSelected ? 'var(--bg-inset)' : 'var(--bg-surface)',
+                    border: isSelected ? '1.5px solid var(--accent-crimson)' : '1px solid var(--border-control)',
                     color: 'var(--text-primary)',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    transition: 'all 0.2s',
+                    transition: 'border-color 0.15s ease, background-color 0.15s ease',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                    }
-                  }}
                 >
                   <div style={{
-                    fontSize: '0.86rem',
+                    fontSize: '0.88rem',
                     fontWeight: isSelected ? 700 : 600,
                     color: 'var(--text-primary)',
                     marginBottom: '6px',
                     lineHeight: 1.3
                   }}>
-                    🚴 {r.title}
+                    {r.title}
                   </div>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     flexWrap: 'wrap',
-                    gap: '4px',
-                    fontSize: '0.69rem',
+                    gap: '5px',
+                    fontSize: '0.75rem',
                     color: isSelected ? 'var(--accent-crimson)' : 'var(--text-muted)',
-                    fontFamily: 'var(--font-mono)',
-                    whiteSpace: 'nowrap'
+                    fontFamily: 'var(--font-mono)'
                   }}>
                     <span style={{ fontWeight: 600 }}>{r.distanceKm} km</span>
-                    <span>•</span>
+                    <span aria-hidden="true">•</span>
                     <span>+{r.elevationGainM}m</span>
-                    <span>•</span>
+                    <span aria-hidden="true">•</span>
                     <span>{r.date}</span>
                   </div>
                 </button>
@@ -537,19 +511,18 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
       {/* Upload Notification Message */}
       {uploadMessage && (
-        <div style={{
-          background: 'rgba(16, 185, 129, 0.15)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          color: 'var(--accent-emerald)',
-          padding: '12px 18px',
-          borderRadius: 'var(--radius-md)',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '0.88rem'
-        }}>
-          <CheckCircle2 size={18} />
+        <div
+          className="callout-success"
+          role="status"
+          style={{
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '0.88rem'
+          }}
+        >
+          <CheckCircle2 size={18} aria-hidden="true" />
           <span>{uploadMessage}</span>
         </div>
       )}
@@ -565,8 +538,8 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       }}>
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Navigation size={16} color="var(--accent-crimson)" />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Distance</span>
+            <Navigation size={16} color="var(--accent-crimson)" aria-hidden="true" />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Active Distance</span>
           </div>
           <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {route.distanceKm} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>km</span>
@@ -575,8 +548,8 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Mountain size={16} color="var(--text-primary)" />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Ascent</span>
+            <Mountain size={16} color="var(--text-primary)" aria-hidden="true" />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Total Ascent</span>
           </div>
           <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             +{route.elevationGainM} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>m</span>
@@ -585,8 +558,8 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Clock size={16} color="var(--text-primary)" />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Duration</span>
+            <Clock size={16} color="var(--text-primary)" aria-hidden="true" />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Duration</span>
           </div>
           <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {durationText}
@@ -595,8 +568,8 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Compass size={16} color="var(--accent-emerald)" />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Recording Device</span>
+            <Compass size={16} color="var(--status-success)" aria-hidden="true" />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Recording Device</span>
           </div>
           <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             {route.recordedDevice}
@@ -613,23 +586,25 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           position: 'relative'
         }}>
           {switchingRide && (
-            <div style={{
-              position: 'absolute',
-              top: '14px',
-              right: '14px',
-              zIndex: 1000,
-              background: 'var(--bg-card)',
-              backdropFilter: 'blur(8px)',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--accent-crimson)',
-              fontSize: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <Loader2 size={13} className="animate-spin" />
+            <div
+              role="status"
+              style={{
+                position: 'absolute',
+                top: '14px',
+                right: '14px',
+                zIndex: 1000,
+                background: 'var(--bg-card)',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--accent-crimson)',
+                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Loader2 size={13} className="animate-spin" aria-hidden="true" />
               <span>Panning route...</span>
             </div>
           )}
@@ -650,7 +625,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             <Polyline
               positions={polylinePositions}
               pathOptions={{
-                color: '#E60012',
+                color: '#c40010',
                 weight: 5,
                 opacity: 0.9,
                 lineCap: 'round',
@@ -684,7 +659,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                       {ann.text}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
                       Lat: {ann.lat.toFixed(4)}, Lon: {ann.lon.toFixed(4)}
                     </div>
                   </div>
@@ -703,32 +678,31 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           width: 'fit-content',
           maxWidth: 'calc(100% - 44px)',
           background: 'var(--bg-card)',
-          backdropFilter: 'blur(10px)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           padding: '8px 12px',
           zIndex: 1000,
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '10px',
-          fontSize: '0.72rem',
+          gap: '12px',
+          fontSize: '0.75rem',
           color: 'var(--text-secondary)',
           boxShadow: 'var(--shadow-md)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
             <span>Departure</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
             <span>Halfway Split</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
             <span>Peak Elevation</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
             <span>Finish</span>
           </div>
         </div>

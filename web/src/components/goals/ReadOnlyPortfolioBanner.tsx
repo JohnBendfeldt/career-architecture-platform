@@ -42,11 +42,8 @@ export const ReadOnlyPortfolioBanner: React.FC<ReadOnlyPortfolioBannerProps> = (
 
   return (
     <div
+      className="callout-banner"
       style={{
-        background: 'rgba(6, 182, 212, 0.08)',
-        border: '1px solid rgba(6, 182, 212, 0.32)',
-        borderRadius: 'var(--radius-md)',
-        padding: '12px 14px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -55,12 +52,12 @@ export const ReadOnlyPortfolioBanner: React.FC<ReadOnlyPortfolioBannerProps> = (
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: '1 1 280px' }}>
-        <Eye size={17} color="var(--accent-cyan)" style={{ flexShrink: 0, marginTop: '2px' }} />
+        <Eye size={17} aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px', color: 'var(--text-primary)' }} />
         <div>
-          <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+          <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
             Viewing {ownerLabel}&apos;s Portfolio — Read-Only Preview
           </strong>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.79rem', lineHeight: 1.45, marginTop: '2px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.45, marginTop: '2px' }}>
             {subtitle}
           </div>
         </div>
@@ -71,9 +68,9 @@ export const ReadOnlyPortfolioBanner: React.FC<ReadOnlyPortfolioBannerProps> = (
           type="button"
           onClick={onSwitchToPersonal}
           className="btn-primary"
-          style={{ padding: '6px 12px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+          style={{ padding: '7px 13px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
         >
-          <UserCheck size={13} />
+          <UserCheck size={14} aria-hidden="true" />
           <span>Switch to My Profile</span>
         </button>
       ) : onOpenLogin ? (
@@ -81,9 +78,9 @@ export const ReadOnlyPortfolioBanner: React.FC<ReadOnlyPortfolioBannerProps> = (
           type="button"
           onClick={onOpenLogin}
           className="btn-primary"
-          style={{ padding: '6px 12px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+          style={{ padding: '7px 13px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
         >
-          <LogIn size={13} />
+          <LogIn size={14} aria-hidden="true" />
           <span>Sign In / Build Your Own</span>
         </button>
       ) : null}

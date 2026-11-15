@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Check, Download, Edit2, Plus, Target, TrendingUp, Upload, X } from 'lucide-react';
+import { Calendar, Check, Download, Edit2, Plus, Target, Upload, X } from 'lucide-react';
 import type { AnnualProgress } from '../../types';
 import { formatEntryHours } from '../../utils/advancementUtils';
 
@@ -51,18 +51,16 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
     0,
     Math.round((progress.annualGoalHours - progress.completedHours) * 100) / 100
   );
+  const clampedPercent = Math.min(100, Math.max(0, Math.round(progress.percentComplete)));
   const fillWidth = `${Math.min(100, Math.max(0, progress.percentComplete))}%`;
-  const fillGradient = progress.isOnTrack
-    ? 'linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan))'
-    : 'linear-gradient(90deg, #f59e0b, var(--accent-cyan))';
+  const fillColor = progress.isOnTrack ? 'var(--status-success)' : 'var(--accent-crimson)';
 
   return (
     <div
       className="glass-panel"
       style={{
-        padding: '20px 24px',
-        marginBottom: '24px',
-        border: '1px solid rgba(6, 182, 212, 0.28)',
+        padding: '22px 24px',
+        marginBottom: '26px',
       }}
     >
       <div
@@ -77,15 +75,14 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '6px' }}>
-            <TrendingUp size={18} style={{ color: 'var(--accent-cyan)' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
               Annual Career Advancement
-            </h3>
+            </h2>
             <span className={`badge ${progress.isOnTrack ? 'badge-emerald' : 'badge-amber'}`}>
               {progress.isOnTrack ? 'ON TRACK' : 'BEHIND PACE'}
             </span>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>
             {progress.quarterLabel} • Checkpoint target: <strong>{progress.expectedProgressPercent}%</strong> •{' '}
             <strong>{progress.totalEntries}</strong> logged {progress.totalEntries === 1 ? 'entry' : 'entries'} in {selectedYear}
           </p>
@@ -93,17 +90,15 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+            <Calendar size={14} aria-hidden="true" style={{ color: 'var(--text-muted)' }} />
             <select
               aria-label="Select Advancement Year"
               value={selectedYear}
               onChange={(e) => onYearChange(Number(e.target.value))}
+              className="form-select"
               style={{
+                width: 'auto',
                 padding: '7px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
                 fontSize: '0.85rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -123,15 +118,15 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               type="button"
               onClick={onImportClick}
               className="btn-secondary"
-              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+              style={{ padding: '7px 12px', fontSize: '0.82rem' }}
               title={
                 canEdit
                   ? 'Bulk import from .csv or .xlsx'
                   : 'Preview bulk CSV/XLSX import (sign in to save to your workspace)'
               }
             >
-              <Upload size={14} />
-              Import
+              <Upload size={14} aria-hidden="true" />
+              <span>Import</span>
             </button>
           )}
 
@@ -141,11 +136,11 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               type="button"
               onClick={onExportClick}
               className="btn-secondary"
-              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+              style={{ padding: '7px 12px', fontSize: '0.82rem' }}
               title="Export career development report (.xlsx)"
             >
-              <Download size={14} />
-              Export .xlsx
+              <Download size={14} aria-hidden="true" />
+              <span>Export .xlsx</span>
             </button>
           )}
 
@@ -161,8 +156,8 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
                 : 'Preview logging career hours (sign in to save to your workspace)'
             }
           >
-            <Plus size={16} />
-            Log Career Hours
+            <Plus size={15} aria-hidden="true" />
+            <span>Log Career Hours</span>
           </button>
         </div>
       </div>
@@ -194,9 +189,9 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.95rem',
+              fontSize: '0.92rem',
               fontWeight: 700,
-              color: 'var(--accent-cyan)',
+              color: 'var(--text-primary)',
               marginLeft: '4px',
             }}
           >
@@ -216,12 +211,12 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               type="button"
               onClick={() => setIsEditingGoal(true)}
               className="btn-secondary"
-              style={{ padding: '4px 10px', fontSize: '0.78rem', gap: '5px' }}
+              style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.78rem', gap: '5px' }}
               title="Customize Annual Hour Target"
             >
-              <Target size={13} />
-              Edit Target
-              <Edit2 size={11} />
+              <Target size={13} aria-hidden="true" />
+              <span>Edit Target</span>
+              <Edit2 size={11} aria-hidden="true" />
             </button>
           )}
 
@@ -238,13 +233,10 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
                 step={0.5}
                 value={goalHoursInput}
                 onChange={(e) => setGoalHoursInput(e.target.value)}
+                className="form-input"
                 style={{
-                  width: '78px',
-                  padding: '4px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--accent-cyan)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
+                  width: '82px',
+                  padding: '5px 8px',
                   fontSize: '0.82rem',
                 }}
               />
@@ -253,17 +245,18 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
                 disabled={savingGoal}
                 aria-label="Save Annual Target"
                 style={{
-                  padding: '5px 8px',
+                  minHeight: '30px',
+                  padding: '5px 9px',
                   borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  background: 'rgba(16, 185, 129, 0.16)',
-                  color: '#6ee7b7',
+                  border: '1px solid var(--status-success-border)',
+                  background: 'var(--status-success-bg)',
+                  color: 'var(--status-success)',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                 }}
               >
-                <Check size={13} />
+                <Check size={14} aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -272,30 +265,33 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
                   setIsEditingGoal(false);
                 }}
                 aria-label="Cancel Editing Target"
+                className="btn-secondary"
                 style={{
-                  padding: '5px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'rgba(255,255,255,0.04)',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
+                  minHeight: '30px',
+                  padding: '5px 9px',
                 }}
               >
-                <X size={13} />
+                <X size={14} aria-hidden="true" />
               </button>
             </form>
           )}
         </div>
       </div>
 
-      <div className="progress-track" style={{ height: '10px' }}>
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-valuenow={clampedPercent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Annual career advancement progress"
+        style={{ height: '8px' }}
+      >
         <div
           className="progress-fill"
           style={{
             width: fillWidth,
-            background: fillGradient,
+            background: fillColor,
           }}
         />
       </div>

@@ -45,8 +45,8 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
         marginBottom: '20px',
         borderBottom: '1px solid var(--border-subtle)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          <UserCheck size={14} color="var(--accent-crimson)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+          <UserCheck size={14} aria-hidden="true" color="var(--accent-crimson)" />
           <span>
             {isOwner
               ? (workspaceMode === 'personal' ? 'Owner Personal Sandbox' : 'Portfolio Owner Controls')
@@ -62,9 +62,9 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                   type="button"
                   onClick={() => onToggleWorkspaceMode('portfolio')}
                   className="btn-secondary"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}
                 >
-                  <Briefcase size={13} />
+                  <Briefcase size={13} aria-hidden="true" />
                   <span>Return to My Portfolio</span>
                 </button>
               )}
@@ -72,71 +72,41 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                 type="button"
                 onClick={handleCopyVanityUrl}
                 className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
+                style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}
                 title="Copy portfolio link"
               >
-                {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
+                {copiedVanity ? <Check size={13} aria-hidden="true" color="var(--accent-crimson)" /> : <Link2 size={13} aria-hidden="true" />}
                 <span>{copiedVanity ? 'Copied Link!' : 'johnbendfeldt.com'}</span>
               </button>
               <button
                 type="button"
                 onClick={onOpenEdit}
                 className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
               >
-                <Edit3 size={13} />
+                <Edit3 size={13} aria-hidden="true" />
                 <span>Edit Profile</span>
               </button>
             </>
           ) : (
             <>
-              <div style={{
-                display: 'inline-flex',
-                background: 'var(--bg-primary)',
-                padding: '3px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)'
-              }}>
+              <div className="segmented-control" role="group" aria-label="Workspace mode">
                 <button
                   type="button"
+                  aria-pressed={workspaceMode === 'portfolio'}
                   onClick={() => onToggleWorkspaceMode('portfolio')}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-mono)',
-                    borderRadius: '2px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: workspaceMode === 'portfolio' ? 'var(--text-primary)' : 'transparent',
-                    color: workspaceMode === 'portfolio' ? 'var(--bg-surface)' : 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
+                  className="segmented-btn"
                 >
-                  <Briefcase size={12} />
+                  <Briefcase size={13} aria-hidden="true" />
                   <span>John's Portfolio</span>
                 </button>
                 <button
                   type="button"
+                  aria-pressed={workspaceMode === 'personal'}
                   onClick={() => onToggleWorkspaceMode('personal')}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-mono)',
-                    borderRadius: '2px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: workspaceMode === 'personal' ? 'var(--accent-crimson)' : 'transparent',
-                    color: workspaceMode === 'personal' ? '#ffffff' : 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}
+                  className="segmented-btn"
                 >
-                  <UserCheck size={12} />
+                  <UserCheck size={13} aria-hidden="true" />
                   <span>My Profile</span>
                 </button>
               </div>
@@ -147,10 +117,10 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                     type="button"
                     onClick={handleCopyVanityUrl}
                     className="btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
+                    style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}
                     title="Copy shareable profile link"
                   >
-                    {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
+                    {copiedVanity ? <Check size={13} aria-hidden="true" color="var(--accent-crimson)" /> : <Link2 size={13} aria-hidden="true" />}
                     <span>
                       {copiedVanity ? 'Copied Link!' : `johnbendfeldt.com/profile/${currentSlug}`}
                     </span>
@@ -159,9 +129,9 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
                     type="button"
                     onClick={onOpenEdit}
                     className="btn-secondary"
-                    style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                    style={{ padding: '6px 12px', fontSize: '0.78rem' }}
                   >
-                    <Edit3 size={13} />
+                    <Edit3 size={13} aria-hidden="true" />
                     <span>Edit Profile</span>
                   </button>
                 </>
@@ -186,7 +156,7 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
         borderBottom: '1px solid var(--border-subtle)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          <Globe size={15} color="var(--accent-crimson)" />
+          <Globe size={15} aria-hidden="true" color="var(--accent-crimson)" />
           <span>Public Workspace Preview</span>
         </div>
 
@@ -196,9 +166,9 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
               type="button"
               onClick={() => onToggleWorkspaceMode('portfolio')}
               className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}
+              style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}
             >
-              <Briefcase size={12} />
+              <Briefcase size={13} aria-hidden="true" />
               <span>John's Portfolio</span>
             </button>
           )}
@@ -206,10 +176,10 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
             type="button"
             onClick={handleCopyVanityUrl}
             className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.73rem', fontFamily: 'var(--font-mono)' }}
+            style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}
             title="Copy shareable profile link"
           >
-            {copiedVanity ? <Check size={13} color="var(--accent-crimson)" /> : <Link2 size={13} color="var(--accent-crimson)" />}
+            {copiedVanity ? <Check size={13} aria-hidden="true" color="var(--accent-crimson)" /> : <Link2 size={13} aria-hidden="true" />}
             <span>{copiedVanity ? 'Copied Link!' : `johnbendfeldt.com/profile/${currentSlug}`}</span>
           </button>
           {onOpenLogin && (
@@ -217,9 +187,9 @@ export const ProfileWorkspaceBar: React.FC<ProfileWorkspaceBarProps> = ({
               type="button"
               onClick={onOpenLogin}
               className="btn-primary"
-              style={{ padding: '6px 14px', fontSize: '0.75rem' }}
+              style={{ padding: '6px 14px', fontSize: '0.78rem' }}
             >
-              <LogIn size={13} />
+              <LogIn size={13} aria-hidden="true" />
               <span>Sign In to Edit</span>
             </button>
           )}

@@ -69,35 +69,35 @@ export const RecruiterScorecard: React.FC<RecruiterScorecardProps> = ({ extracte
       padding: '14px 16px',
       marginBottom: '18px',
       borderRadius: 'var(--radius-md)',
-      background: 'var(--bg-primary)',
+      background: 'var(--bg-inset)',
       border: '1px solid var(--border-subtle)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <ShieldCheck size={16} color="#16a34a" />
+          <ShieldCheck size={16} aria-hidden="true" style={{ color: 'var(--status-success)' }} />
           <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Recruiter Job-Match Score
           </span>
         </div>
-        <span style={{
-          fontSize: '0.75rem',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 700,
-          padding: '2px 8px',
-          borderRadius: '4px',
-          background: matchPercentage >= 70 ? 'rgba(22, 163, 74, 0.12)' : 'rgba(230, 0, 18, 0.1)',
-          color: matchPercentage >= 70 ? '#16a34a' : 'var(--accent-crimson)'
-        }}>
+        <span className={`badge ${matchPercentage >= 70 ? 'badge-emerald' : 'badge-amber'}`}>
           {matchPercentage}% Stack Match ({matchedCount}/{extractedSkills.length} Verified)
         </span>
       </div>
-      <div style={{ width: '100%', height: '6px', background: 'var(--border-subtle)', borderRadius: '999px', overflow: 'hidden' }}>
-        <div style={{
-          width: `${matchPercentage}%`,
-          height: '100%',
-          background: matchPercentage >= 70 ? '#16a34a' : 'var(--accent-crimson)',
-          transition: 'width 0.3s ease'
-        }} />
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-valuenow={matchPercentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Recruiter stack match percentage"
+      >
+        <div
+          className="progress-fill"
+          style={{
+            width: `${matchPercentage}%`,
+            background: matchPercentage >= 70 ? 'var(--status-success)' : 'var(--accent-crimson)',
+          }}
+        />
       </div>
     </div>
   );

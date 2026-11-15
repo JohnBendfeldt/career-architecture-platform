@@ -45,12 +45,12 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
   return (
     <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '440px' }}>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', gap: '10px', flexWrap: 'wrap' }}>
           <div>
-            <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>
-              2. SKILL EVIDENCE &amp; CURATED STUDY SEARCHES
-            </span>
-            <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div className="section-eyebrow">
+              2. Skill Evidence &amp; Curated Study Searches
+            </div>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', margin: 0 }}>
               {activeSkill}
             </h3>
           </div>
@@ -59,12 +59,12 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '3px 8px',
+                gap: '6px',
+                padding: '4px 9px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-primary)',
+                background: 'var(--bg-inset)',
                 border: '1px solid var(--border-subtle)',
-                fontSize: '0.72rem',
+                fontSize: '0.76rem',
                 fontFamily: 'var(--font-mono)',
                 color: 'var(--text-secondary)'
               }}>
@@ -83,13 +83,13 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                     onTargetHoursChange(Math.max(1, Math.min(500, Number(e.target.value) || 12)))
                   }
                   style={{
-                    width: '48px',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    border: '1px solid var(--border-subtle)',
+                    width: '52px',
+                    padding: '3px 5px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-control)',
                     background: 'var(--bg-surface)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.74rem',
+                    fontSize: '0.78rem',
                     fontFamily: 'var(--font-mono)',
                     textAlign: 'right'
                   }}
@@ -101,10 +101,10 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
               type="button"
               onClick={onSaveSkillAsGoal}
               className="btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.76rem' }}
+              style={{ minHeight: '34px', padding: '6px 12px', fontSize: '0.78rem' }}
               title="Save this skill pathway as a tracked milestone in Goals & Milestones"
             >
-              <Plus size={13} color="var(--accent-crimson)" />
+              <Plus size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
               <span>Track as Goal</span>
             </button>
           </div>
@@ -121,30 +121,29 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
         )}
 
         {linkedGoal && (
-          <div style={{
-            padding: '10px 12px',
-            marginBottom: '12px',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(6, 182, 212, 0.08)',
-            border: '1px solid rgba(6, 182, 212, 0.28)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            flexWrap: 'wrap',
-            fontSize: '0.78rem'
-          }}>
+          <div
+            className="callout-banner"
+            style={{
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
+              fontSize: '0.8rem'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', color: 'var(--text-primary)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
                 Linked Tandem Goal:
               </span>
               <span style={{ fontWeight: 600 }}>{linkedGoal.title}</span>
               {typeof linkedGoal.targetHours === 'number' && linkedGoal.targetHours > 0 ? (
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                   {formatEntryHours(linkedGoal.loggedHours ?? 0)} / {formatEntryHours(linkedGoal.targetHours)} hrs ({linkedGoal.progress}%)
                 </span>
               ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                   {linkedGoal.progress}%
                 </span>
               )}
@@ -154,10 +153,10 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                 type="button"
                 onClick={onNavigateToGoals}
                 className="btn-secondary"
-                style={{ padding: '4px 9px', fontSize: '0.72rem' }}
+                style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem' }}
               >
                 <span>View in Goals</span>
-                <ArrowRight size={12} />
+                <ArrowRight size={12} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -168,35 +167,38 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
             padding: '12px 14px',
             marginBottom: '14px',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-primary)',
-            borderLeft: `3px solid ${activeSkillMatch.matched ? '#16a34a' : 'var(--accent-crimson)'}`,
+            background: 'var(--bg-inset)',
+            borderLeft: `3px solid ${activeSkillMatch.matched ? 'var(--status-success)' : 'var(--accent-crimson)'}`,
             borderTop: '1px solid var(--border-subtle)',
             borderRight: '1px solid var(--border-subtle)',
             borderBottom: '1px solid var(--border-subtle)',
-            fontSize: '0.8rem',
+            fontSize: '0.82rem',
             color: 'var(--text-secondary)',
-            lineHeight: 1.45
+            lineHeight: 1.5
           }}>
             {activeSkillMatch.evidence}
           </div>
         )}
 
         {savedNotice && (
-          <div style={{
-            padding: '8px 12px',
-            marginBottom: '12px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--accent-crimson)',
-            fontSize: '0.78rem',
-            color: 'var(--text-primary)',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            flexWrap: 'wrap'
-          }}>
+          <div
+            role="status"
+            style={{
+              padding: '10px 12px',
+              marginBottom: '12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-inset)',
+              border: '1px solid var(--accent-crimson-border)',
+              fontSize: '0.8rem',
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap'
+            }}
+          >
             <span>{savedNotice}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {!canEdit && onSwitchToPersonal && (
@@ -204,9 +206,9 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                   type="button"
                   onClick={onSwitchToPersonal}
                   className="btn-primary"
-                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                  style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', flexShrink: 0 }}
                 >
-                  <UserCheck size={12} />
+                  <UserCheck size={12} aria-hidden="true" />
                   <span>Switch to My Profile</span>
                 </button>
               )}
@@ -215,9 +217,9 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                   type="button"
                   onClick={onOpenLogin}
                   className="btn-primary"
-                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                  style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', flexShrink: 0 }}
                 >
-                  <LogIn size={12} />
+                  <LogIn size={12} aria-hidden="true" />
                   <span>Sign In / Build Your Own</span>
                 </button>
               )}
@@ -226,10 +228,10 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                   type="button"
                   onClick={onNavigateToGoals}
                   className="btn-secondary"
-                  style={{ padding: '4px 9px', fontSize: '0.72rem', flexShrink: 0 }}
+                  style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.75rem', flexShrink: 0 }}
                 >
                   <span>Open Goals &amp; Log</span>
-                  <ArrowRight size={12} />
+                  <ArrowRight size={12} aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -246,13 +248,12 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               background: 'var(--bg-surface)',
-              backdropFilter: 'blur(2px)',
               borderRadius: 'var(--radius-md)',
               zIndex: 2,
               gap: '8px',
               color: 'var(--text-muted)'
             }}>
-              <RefreshCw size={22} className="animate-spin" color="var(--accent-crimson)" />
+              <RefreshCw size={22} aria-hidden="true" className="animate-spin" style={{ color: 'var(--accent-crimson)' }} />
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Building study search links...</span>
             </div>
           )}
@@ -274,14 +275,13 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                   style={{
                     padding: '14px',
                     borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-primary)',
+                    background: 'var(--bg-inset)',
                     border: '1px solid var(--border-subtle)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '12px',
                     flexWrap: 'wrap',
-                    transition: 'all 0.2s'
                   }}
                 >
                   <a
@@ -302,8 +302,8 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                       <div style={{
                         width: '38px',
                         height: '38px',
-                        borderRadius: '10px',
-                        background: res.provider === 'YouTube' ? 'rgba(230, 0, 18, 0.1)' : 'var(--bg-card)',
+                        borderRadius: 'var(--radius-md)',
+                        background: res.provider === 'YouTube' ? 'var(--accent-crimson-tint)' : 'var(--bg-surface)',
                         border: '1px solid var(--border-subtle)',
                         display: 'flex',
                         alignItems: 'center',
@@ -311,9 +311,9 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                         flexShrink: 0
                       }}>
                         {res.provider === 'YouTube' ? (
-                          <YoutubeIcon size={20} color="#E60012" />
+                          <YoutubeIcon size={20} color="var(--accent-crimson)" />
                         ) : (
-                          <BookOpen size={20} color="var(--text-primary)" />
+                          <BookOpen size={19} aria-hidden="true" style={{ color: 'var(--text-primary)' }} />
                         )}
                       </div>
 
@@ -323,13 +323,13 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
                           <span style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
                             padding: '1px 7px',
-                            borderRadius: '4px',
-                            background: res.provider === 'YouTube' ? 'rgba(230, 0, 18, 0.1)' : 'var(--bg-card)',
-                            color: res.provider === 'YouTube' ? '#E60012' : 'var(--text-primary)',
-                            border: '1px solid var(--border-subtle)'
+                            borderRadius: 'var(--radius-sm)',
+                            background: res.provider === 'YouTube' ? 'var(--accent-crimson-tint)' : 'var(--bg-surface)',
+                            color: res.provider === 'YouTube' ? 'var(--accent-crimson)' : 'var(--text-primary)',
+                            border: res.provider === 'YouTube' ? '1px solid var(--accent-crimson-border)' : '1px solid var(--border-subtle)'
                           }}>
                             {res.provider}
                           </span>
@@ -341,16 +341,16 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                             </>
                           )}
                           <span>•</span>
-                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                             {res.badge}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
                       <span>{isSearchUrl ? `Search ${res.provider}` : `Open ${res.provider}`}</span>
-                      <ExternalLink size={14} />
+                      <ExternalLink size={14} aria-hidden="true" />
                     </div>
                   </a>
 
@@ -361,9 +361,9 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
                       className="btn-secondary"
                       aria-label={`Log hours for ${res.title}`}
                       title="Log study hours for this resource toward your Career Advancement & Tandem Goals"
-                      style={{ padding: '6px 11px', fontSize: '0.74rem', flexShrink: 0 }}
+                      style={{ minHeight: '32px', padding: '5px 11px', fontSize: '0.76rem', flexShrink: 0 }}
                     >
-                      <Clock size={13} color="var(--accent-crimson)" />
+                      <Clock size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
                       <span>Log Hours</span>
                     </button>
                   )}
@@ -376,20 +376,22 @@ export const LearningResourceList: React.FC<LearningResourceListProps> = ({
 
       <div style={{
         marginTop: '20px',
-        padding: '12px',
+        padding: '12px 14px',
         borderRadius: 'var(--radius-md)',
-        background: 'var(--bg-primary)',
+        background: 'var(--bg-inset)',
         border: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '12px'
+        gap: '12px',
+        flexWrap: 'wrap'
       }}>
-        <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           Each card launches a targeted {activeSkill} search paired with vetted engineering instructors so links never go stale for custom skills.
         </span>
-        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-          Live Links <Check size={13} />
+        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--status-success)', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          <span>Live Links</span>
+          <Check size={13} aria-hidden="true" />
         </span>
       </div>
     </div>

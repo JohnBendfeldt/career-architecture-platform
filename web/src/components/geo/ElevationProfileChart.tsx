@@ -66,6 +66,25 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
     setHoverIdx(Math.max(0, Math.min(coords.length - 1, idx)));
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<SVGSVGElement>) => {
+    const stepSize = Math.max(1, Math.round(coords.length / 20));
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setHoverIdx(prev => (prev === null ? 0 : Math.min(coords.length - 1, prev + stepSize)));
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setHoverIdx(prev => (prev === null ? coords.length - 1 : Math.max(0, prev - stepSize)));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHoverIdx(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setHoverIdx(coords.length - 1);
+    } else if (e.key === 'Escape') {
+      setHoverIdx(null);
+    }
+  };
+
   return (
     <div className="glass-panel" style={{ padding: '16px 20px', marginTop: '18px' }}>
       <div style={{
@@ -77,16 +96,16 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
         marginBottom: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Mountain size={16} color="var(--accent-crimson)" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <Mountain size={16} color="var(--accent-crimson)" aria-hidden="true" />
+          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Elevation Profile
           </span>
-          <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
             {Math.round(minEle)}m – {Math.round(maxEle)}m
           </span>
         </div>
 
-        <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+        <div aria-live="polite" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
           {hovered ? (
             <span>
               <strong style={{ color: 'var(--accent-crimson)' }}>{hovered.pt.elevation.toFixed(1)} m</strong> @ {hoveredKm} km
@@ -98,16 +117,19 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
       </div>
 
       <svg
+        role="img"
+        tabIndex={0}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        style={{ width: '100%', height: '140px', display: 'block', cursor: 'crosshair' }}
+        style={{ width: '100%', height: '140px', display: 'block', cursor: 'crosshair', borderRadius: 'var(--radius-sm)' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoverIdx(null)}
+        onKeyDown={handleKeyDown}
         aria-label="Route elevation profile chart"
       >
         <defs>
           <linearGradient id="cap-elevation-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E60012" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="#E60012" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--accent-crimson)" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="var(--accent-crimson)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -116,7 +138,7 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
         <line x1={PAD_X} y1={PAD_TOP + plotH} x2={WIDTH - PAD_X} y2={PAD_TOP + plotH} stroke="var(--border-subtle)" />
 
         <path d={areaPath} fill="url(#cap-elevation-fill)" />
-        <path d={linePath} fill="none" stroke="#E60012" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="var(--accent-crimson)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
         {hovered && (
           <>
@@ -128,7 +150,7 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
               stroke="var(--text-muted)"
               strokeDasharray="3 3"
             />
-            <circle cx={hovered.x} cy={hovered.y} r="5" fill="#E60012" stroke="#ffffff" strokeWidth="2" />
+            <circle cx={hovered.x} cy={hovered.y} r="5" fill="var(--accent-crimson)" stroke="var(--bg-surface)" strokeWidth="2" />
           </>
         )}
       </svg>
