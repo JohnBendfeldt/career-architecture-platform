@@ -4,8 +4,10 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 
 const candidatePaths = [
   path.resolve(import.meta.dirname, '../../netlify/functions/extract-skills.ts'),
+  path.resolve(import.meta.dirname, '../netlify/functions/extract-skills.ts'),
   path.resolve(process.cwd(), '../netlify/functions/extract-skills.ts'),
   path.resolve(process.cwd(), 'netlify/functions/extract-skills.ts'),
+  path.resolve(process.cwd(), 'web/netlify/functions/extract-skills.ts'),
   path.resolve('/opt/build/repo/netlify/functions/extract-skills.ts'),
 ];
 
@@ -37,7 +39,7 @@ describe.skipIf(!isFunctionAvailable)('Netlify Serverless Function: extract-skil
 
   beforeAll(async () => {
     if (!isFunctionAvailable) return;
-    const mod = (await import(/* @vite-ignore */ fnFilePath)) as { handler: HandlerFn };
+    const mod = await import('../../netlify/functions/extract-skills');
     handler = mod.handler;
   });
 
