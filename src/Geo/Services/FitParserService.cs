@@ -50,13 +50,77 @@ public class FitParserService : IFitParserService
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
     }
 
+    private const int MaxLabelLength = 120;
+
+    private static string SanitizeTelemetryLabel(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var sb = new System.Text.StringBuilder(Math.Min(value.Length, MaxLabelLength));
+        foreach (var ch in value)
+        {
+            if (!char.IsControl(ch))
+            {
+                sb.Append(ch);
+            }
+        }
+
+        var cleaned = sb.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            return fallback;
+        }
+
+        return cleaned.Length > MaxLabelLength ? cleaned[..MaxLabelLength].TrimEnd() : cleaned;
+    }
+
+    private sealed class BoundedTelemetryStream : Stream
+    {
+        private readonly Stream _inner;
+        private readonly Func<bool> _shouldStop;
+
+        public BoundedTelemetryStream(Stream inner, Func<bool> shouldStop)
+        {
+            _inner = inner;
+            _shouldStop = shouldStop;
+        }
+
+        public override bool CanRead => _inner.CanRead;
+        public override bool CanSeek => _inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => _inner.Length;
+
+        public override long Position
+        {
+            get => _shouldStop() && _inner.CanSeek ? _inner.Length : _inner.Position;
+            set => _inner.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            _shouldStop() ? 0 : _inner.Read(buffer, offset, count);
+
+        public override int Read(Span<byte> buffer) =>
+            _shouldStop() ? 0 : _inner.Read(buffer);
+
+        public override int ReadByte() =>
+            _shouldStop() ? -1 : _inner.ReadByte();
+
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     public ActivityTelemetry ParseFitStream(Stream fitStream, string fileName)
     {
         var rawPoints = new List<TelemetryPoint>();
         var annotations = new List<TelemetryAnnotation>();
 
         var rawName = Path.GetFileNameWithoutExtension(fileName).Replace('_', ' ').Trim();
-        var activityName = FormatRideTitle(rawName);
+        var activityName = SanitizeTelemetryLabel(FormatRideTitle(rawName), "Garmin Ride");
         var recordedDevice = DefaultDevice;
         double totalDistanceMeters = 0;
         double totalElevationGain = 0;
@@ -131,11 +195,12 @@ public class FitParserService : IFitParserService
                 var nameStr = dev.GetProductNameAsString();
                 if (!string.IsNullOrWhiteSpace(nameStr))
                 {
-                    recordedDevice = nameStr;
+                    recordedDevice = SanitizeTelemetryLabel(nameStr, DefaultDevice);
                 }
             };
 
-            decode.Read(fitStream);
+            using var boundedStream = new BoundedTelemetryStream(fitStream, () => rawPoints.Count >= MaxRawTelemetryPoints);
+            decode.Read(boundedStream);
         }
         catch (Exception)
         {
@@ -229,8 +294,8 @@ public class FitParserService : IFitParserService
         }
 
         return new ActivityTelemetry(
-            ActivityName: activityName,
-            RecordedDevice: recordedDevice,
+            ActivityName: SanitizeTelemetryLabel(activityName, "Garmin Ride"),
+            RecordedDevice: SanitizeTelemetryLabel(recordedDevice, DefaultDevice),
             DistanceKm: distanceKm,
             ElevationGainM: elevationGainM,
             DurationMinutes: durationMinutes,

@@ -184,4 +184,107 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
     expect(touchPng.readUInt32BE(16)).toBe(180);
     expect(touchPng.readUInt32BE(20)).toBe(180);
   });
+
+  it('preserves all security headers inside Nginx child location blocks and disables server_tokens', () => {
+    const nginxConf = fs.readFileSync(path.join(webRoot, 'nginx.conf'), 'utf-8');
+    expect(nginxConf).toContain('listen 8080;');
+    expect(nginxConf).toContain('server_tokens off;');
+
+    const assetsMatch = nginxConf.match(/location\s+\/assets\/\s*\{([\s\S]*?)\}/);
+    const indexMatch = nginxConf.match(/location\s*=\s*\/index\.html\s*\{([\s\S]*?)\}/);
+    expect(assetsMatch, 'Missing location /assets/ block in nginx.conf').not.toBeNull();
+    expect(indexMatch, 'Missing location = /index.html block in nginx.conf').not.toBeNull();
+
+    const requiredHeaders = [
+      'X-Content-Type-Options',
+      'X-Frame-Options',
+      'X-XSS-Protection',
+      'Cross-Origin-Opener-Policy',
+      'Referrer-Policy',
+      'Permissions-Policy',
+      'Content-Security-Policy',
+    ];
+
+    for (const header of requiredHeaders) {
+      expect(assetsMatch![1], `/assets/ block dropped ${header}`).toContain(header);
+      expect(indexMatch![1], `= /index.html block dropped ${header}`).toContain(header);
+    }
+
+    expect(assetsMatch![1]).toContain('immutable');
+    expect(indexMatch![1]).toContain('no-store, no-cache, must-revalidate');
+  });
+
+  it('keeps root netlify.toml and web/netlify.toml API and Geo proxy redirects synchronized before SPA fallback', () => {
+    const netlifyFiles = [
+      path.join(repoRoot, 'netlify.toml'),
+      path.join(webRoot, 'netlify.toml'),
+    ].filter((p) => fs.existsSync(p));
+
+    for (const filePath of netlifyFiles) {
+      const toml = fs.readFileSync(filePath, 'utf-8');
+      const extractIdx = toml.indexOf('from = "/api/skills/extract"');
+      const apiProxyIdx = toml.indexOf('from = "/api/*"');
+      const geoProxyIdx = toml.indexOf('from = "/geo/*"');
+      const spaFallbackIdx = toml.indexOf('from = "/*"');
+
+      expect(extractIdx, `${filePath} missing /api/skills/extract redirect`).toBeGreaterThan(-1);
+      expect(apiProxyIdx, `${filePath} missing /api/* proxy redirect`).toBeGreaterThan(extractIdx);
+      expect(geoProxyIdx, `${filePath} missing /geo/* proxy redirect`).toBeGreaterThan(extractIdx);
+      expect(spaFallbackIdx, `${filePath} SPA fallback must come after /api/* and /geo/*`).toBeGreaterThan(
+        Math.max(apiProxyIdx, geoProxyIdx)
+      );
+    }
+  });
+
+  it.skipIf(!fs.existsSync(path.join(repoRoot, '.github', 'workflows', 'ci.yml')))(
+    'enforces Option-1 runtime audit in ci.yml, scheduled full audit in security-audit.yml, and SHA-pinned actions',
+    () => {
+      const ciYml = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'ci.yml'), 'utf-8');
+      const secAuditPath = path.join(repoRoot, '.github', 'workflows', 'security-audit.yml');
+      const dependabotPath = path.join(repoRoot, '.github', 'dependabot.yml');
+
+      expect(fs.existsSync(secAuditPath)).toBe(true);
+      expect(fs.existsSync(dependabotPath)).toBe(true);
+
+      // Every uses: in ci.yml and security-audit.yml must be pinned to a 40-char commit SHA
+      for (const wfPath of [path.join(repoRoot, '.github', 'workflows', 'ci.yml'), secAuditPath]) {
+        const wf = fs.readFileSync(wfPath, 'utf-8');
+        const usesMatches = [...wf.matchAll(/uses:\s*([^\s#]+)/g)].map((m) => m[1]);
+        expect(usesMatches.length).toBeGreaterThan(0);
+        for (const actionRef of usesMatches) {
+          expect(actionRef, `${wfPath} has unpinned action ${actionRef}`).toMatch(/@[0-9a-f]{40}$/);
+        }
+      }
+
+      // ci.yml typechecks serverless functions and audits runtime dependencies (--omit=dev)
+      expect(ciYml).toContain('./web/node_modules/.bin/tsc -p tsconfig.json --noEmit');
+      expect(ciYml).toContain('npm --prefix web audit --omit=dev --audit-level=high');
+
+      // security-audit.yml runs ONLY on schedule and workflow_dispatch with full audit
+      const secYml = fs.readFileSync(secAuditPath, 'utf-8');
+      expect(secYml).toContain('schedule:');
+      expect(secYml).toContain('workflow_dispatch:');
+      expect(secYml).not.toMatch(/^\s*push:/m);
+      expect(secYml).not.toMatch(/^\s*pull_request:/m);
+      expect(secYml).toContain('npm --prefix web audit --audit-level=high');
+      expect(secYml).not.toContain('--omit=dev');
+      expect(secYml).toContain('dotnet list CareerPlatform.sln package --vulnerable --include-transitive');
+
+      const dependabotYml = fs.readFileSync(dependabotPath, 'utf-8');
+      expect(dependabotYml).toContain('package-ecosystem: "npm"');
+      expect(dependabotYml).toContain('directory: "/web"');
+      expect(dependabotYml).toContain('package-ecosystem: "nuget"');
+      expect(dependabotYml).toContain('minor-and-patch:');
+      expect(dependabotYml).toContain('major:');
+
+      const autoMergePath = path.join(repoRoot, '.github', 'workflows', 'auto-merge.yml');
+      expect(fs.existsSync(autoMergePath)).toBe(true);
+      const autoMergeYml = fs.readFileSync(autoMergePath, 'utf-8');
+      expect(autoMergeYml).toContain('workflows: ["CI & Deploy Gate"]');
+      expect(autoMergeYml).not.toContain('actions/checkout');
+      expect(autoMergeYml).toContain('/minor-and-patch-');
+      expect(autoMergeYml).toContain('--match-head-commit');
+      expect(autoMergeYml).toContain('--delete-branch');
+    }
+  );
 });

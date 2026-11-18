@@ -36,12 +36,19 @@ dist-ssr/
 *.db-shm
 *.db-wal
 
-# Environment
+# Environment & Secrets
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 **/appsettings.Local.json
 .local/
+*.pem
+*.key
+*.pfx
+*.p12
+*.cert
 
 # Raw Garmin telemetry binaries (use pre-trimmed JSON in repo)
 *.fit

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, FileText, X, Trash2, CheckCircle2 } from 'lucide-react';
 import { ModalDialog } from './ui/ModalDialog';
+import { supabase, getOrInitSupabaseClient } from '../services/supabase';
 
 export type LegalTab = 'privacy' | 'terms';
 
@@ -18,6 +19,18 @@ export const LegalModal: React.FC<LegalModalProps> = ({ initialTab, onClose, onS
     localStorage.clear();
     if (theme === 'light' || theme === 'dark') {
       localStorage.setItem('cap_theme', theme);
+    }
+    try {
+      sessionStorage.removeItem('cap_google_oauth_nonce');
+      sessionStorage.clear();
+    } catch {
+      // ignore sessionStorage errors
+    }
+    try {
+      const client = supabase ?? (typeof getOrInitSupabaseClient === 'function' ? getOrInitSupabaseClient() : null);
+      void client?.auth?.signOut?.()?.catch?.(() => {});
+    } catch {
+      // ignore signOut errors during workspace reset
     }
     setClearedData(true);
     setTimeout(() => {

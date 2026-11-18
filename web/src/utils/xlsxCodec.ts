@@ -2,6 +2,8 @@ import type { CareerEntry } from '../types';
 
 export const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024; // 2 MB
 export const MAX_UNZIPPED_BYTES = 10 * 1024 * 1024; // 10 MB
+export const MAX_XLSX_COL_INDEX = 128;
+export const MAX_XLSX_ROWS = 5_000;
 
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder('utf-8');
@@ -51,7 +53,7 @@ interface ZipWriteEntry {
   offset: number;
 }
 
-function buildZipStore(entries: Array<{ name: string; content: string }>): Uint8Array {
+export function buildZipStore(entries: Array<{ name: string; content: string }>): Uint8Array {
   const prepared: ZipWriteEntry[] = [];
   let totalLength = 22; // End of Central Directory
 
@@ -513,15 +515,17 @@ function resolveFirstSheetPath(files: Map<string, string>): string {
   return fallback;
 }
 
-function colLettersToZeroIndex(cellRef: string): number {
+export function colLettersToZeroIndex(cellRef: string): number {
   const match = /^[A-Za-z]+/.exec(cellRef);
   if (!match) return -1;
   const letters = match[0].toUpperCase();
+  if (letters.length > 3) return -1;
   let col = 0;
   for (let i = 0; i < letters.length; i++) {
     col = col * 26 + (letters.charCodeAt(i) - 64);
   }
-  return col - 1;
+  const zeroIdx = col - 1;
+  return zeroIdx >= 0 && zeroIdx <= MAX_XLSX_COL_INDEX ? zeroIdx : -1;
 }
 
 export function excelSerialToIsoDate(serial: number): string | null {
@@ -553,14 +557,29 @@ export async function readXlsxRows(buffer: ArrayBuffer): Promise<unknown[][]> {
   const rows: unknown[][] = [];
 
   for (const rowEl of rowElements) {
+    if (rows.length >= MAX_XLSX_ROWS) {
+      break;
+    }
+
     const cellElements = getElementsByLocalName(rowEl, 'c');
     const rowValues: unknown[] = [];
     let nextSequentialCol = 0;
 
     for (const cellEl of cellElements) {
       const refAttr = cellEl.getAttribute('r') ?? '';
-      const parsedCol = colLettersToZeroIndex(refAttr);
-      const colIdx = parsedCol >= 0 ? parsedCol : nextSequentialCol;
+      const hasColRef = /^[A-Za-z]+/.test(refAttr);
+      let colIdx: number;
+      if (hasColRef) {
+        colIdx = colLettersToZeroIndex(refAttr);
+        if (colIdx < 0) {
+          continue;
+        }
+      } else {
+        colIdx = nextSequentialCol;
+        if (colIdx > MAX_XLSX_COL_INDEX) {
+          continue;
+        }
+      }
       nextSequentialCol = colIdx + 1;
 
       while (rowValues.length <= colIdx) {

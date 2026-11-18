@@ -1,0 +1,43 @@
+name: Weekly Full Supply-Chain Security Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-full-audit:
+    name: Full npm Dependency Audit (Runtime + Dev/Build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm --prefix web ci
+      - name: Audit all npm dependencies (including dev/build)
+        run: npm --prefix web audit --audit-level=high
+
+  nuget-full-audit:
+    name: Full NuGet Transitive Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore solution
+        run: dotnet restore CareerPlatform.sln
+      - name: Check for vulnerable NuGet packages
+        run: |
+          VULN_OUTPUT=$(dotnet list CareerPlatform.sln package --vulnerable --include-transitive)
+          echo "$VULN_OUTPUT"
+          if echo "$VULN_OUTPUT" | grep -q "has the following vulnerable packages"; then
+            exit 1
+          fi

@@ -14,8 +14,8 @@ jobs:
     name: Frontend Lint, Vitest, Build & Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: 'npm'
@@ -24,15 +24,17 @@ jobs:
         run: npm --prefix web ci
       - name: Verify lint, tests, TypeScript & Vite production build
         run: npm --prefix web run verify
-      - name: Audit npm dependencies
-        run: npm --prefix web audit --audit-level=high
+      - name: Typecheck Netlify serverless functions
+        run: ./web/node_modules/.bin/tsc -p tsconfig.json --noEmit
+      - name: Audit runtime npm dependencies
+        run: npm --prefix web audit --omit=dev --audit-level=high
 
   backend:
     name: .NET 10 Microservices Build, xUnit & NuGet Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: '10.0.x'
       - name: Restore solution

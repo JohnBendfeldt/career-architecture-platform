@@ -257,6 +257,122 @@ public class ApiServicesAndAuthTests : IClassFixture<IsolatedApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await adminClient.DeleteAsync($"/api/goals/{createdId}")).StatusCode);
     }
 
+    [Fact]
+    public void TokenService_RejectsShortJwtSecrets_AndClampsExpiryHours()
+    {
+        var shortConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Secret"] = "too-short-secret-under-32b"
+            })
+            .Build();
+        var devEnv = new FakeHostEnvironment { EnvironmentName = Environments.Development };
+        var shortService = new TokenService(shortConfig, devEnv);
+
+        Assert.Throws<InvalidOperationException>(() => shortService.GenerateGuestToken());
+
+        var longExpiryConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Secret"] = "CustomProductionJwtSigningKeyWithAtLeast32Bytes!!",
+                ["Jwt:ExpiryHours"] = "99999"
+            })
+            .Build();
+        var clampedService = new TokenService(longExpiryConfig, devEnv);
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(clampedService.GenerateGuestToken());
+        Assert.True(jwt.ValidTo <= DateTime.UtcNow.AddHours(168).AddMinutes(2));
+    }
+
+    [Fact]
+    public async Task LearningResourceService_SendsYouTubeApiKeyViaHeader_NeverInUrlQueryString()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            var ytJson = """
+            {
+              "items": [{
+                "id": { "videoId": "vid999" },
+                "snippet": {
+                  "title": "Secure HttpClient Patterns",
+                  "channelTitle": "Security Channel",
+                  "thumbnails": { "high": { "url": "https://i.ytimg.com/vi/vid999/hqdefault.jpg" } }
+                }
+              }]
+            }
+            """;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(ytJson, Encoding.UTF8, "application/json")
+            };
+        });
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["YouTube:ApiKey"] = "yt-super-secret-api-key" })
+            .Build();
+        using var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 512 });
+        var service = new LearningResourceService(
+            new HttpClient(handler),
+            config,
+            cache,
+            NullLogger<LearningResourceService>.Instance);
+
+        var results = await service.GetResourcesAsync("Zero Trust");
+        Assert.Single(results);
+        Assert.NotNull(captured);
+        Assert.DoesNotContain("yt-super-secret-api-key", captured!.RequestUri!.ToString());
+        Assert.DoesNotContain("key=", captured.RequestUri!.Query);
+        Assert.Equal("yt-super-secret-api-key", captured.Headers.GetValues("X-Goog-Api-Key").Single());
+    }
+
+    [Fact]
+    public async Task RequireWriteAccess_RejectsNonAdminAuthenticatedTokens_AndValidatesStrictGoalEnums()
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(DevJwtSecret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var nonAdminToken = new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(
+            issuer: "CareerPlatform.Api",
+            audience: "CareerPlatform.Web",
+            claims: new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "recruiter-1"),
+                new Claim(ClaimTypes.Email, "recruiter@example.com"),
+                new Claim("role", "authenticated")
+            },
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: creds));
+
+        var nonAdminClient = _factory.CreateClient();
+        nonAdminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", nonAdminToken);
+
+        var forbiddenGoalRes = await nonAdminClient.PostAsJsonAsync(
+            "/api/goals",
+            new CreateGoalRequest("Attempt Write", "Desc", "Technical", 10, "2026", "InProgress", new List<string>()));
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenGoalRes.StatusCode);
+
+        var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", MintAdminJwt());
+
+        // Null/whitespace or invalid Category, TargetDate, and Status must return 400 BadRequest
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await adminClient.PostAsJsonAsync("/api/goals", new CreateGoalRequest("Valid", "Desc", "InvalidCat", 10, "2026", "InProgress", new List<string>()))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await adminClient.PostAsJsonAsync("/api/goals", new CreateGoalRequest("Valid", "Desc", "   ", 10, "2026", "InProgress", new List<string>()))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await adminClient.PostAsJsonAsync("/api/goals", new CreateGoalRequest("Valid", "Desc", "Technical", 10, "   ", "InProgress", new List<string>()))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await adminClient.PostAsJsonAsync("/api/goals", new CreateGoalRequest("Valid", "Desc", "Technical", 10, "2026", "Archived", new List<string>()))).StatusCode);
+
+        // Expanded CSV formula injection neutralization
+        Assert.StartsWith("'", AdvancementSpreadsheetService.SanitizeCsvCell("|calc"));
+        Assert.StartsWith("\"'", AdvancementSpreadsheetService.SanitizeCsvCell("\n=SUM(A1:A2)"));
+    }
+
     private sealed class FakeHostEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = Environments.Development;

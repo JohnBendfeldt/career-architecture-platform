@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     linkedin_url TEXT NOT NULL CHECK (char_length(linkedin_url) <= 2000),
     website_url TEXT NOT NULL DEFAULT 'https://johnbendfeldt.com' CHECK (char_length(website_url) <= 2000),
     live_project_url TEXT NOT NULL DEFAULT 'https://basiclanguage.school' CHECK (char_length(live_project_url) <= 2000),
-    skills JSONB NOT NULL DEFAULT '[]'::jsonb,
+    skills JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(skills) = 'array' AND jsonb_array_length(skills) <= 100),
     experience_years INTEGER NOT NULL DEFAULT 9 CHECK (experience_years BETWEEN 0 AND 80),
     annual_goal_hours NUMERIC(5,2) NOT NULL DEFAULT 55.00 CHECK (annual_goal_hours BETWEEN 1 AND 2000),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.goals (
     target_hours NUMERIC(6,2) NULL CHECK (target_hours IS NULL OR (target_hours > 0 AND target_hours <= 9999)),
     target_date TEXT NOT NULL CHECK (char_length(target_date) <= 60),
     status TEXT NOT NULL CHECK (status IN ('InProgress', 'Completed', 'Upcoming')),
-    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(tags) = 'array' AND jsonb_array_length(tags) <= 20 AND pg_column_size(tags) <= 4096),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -173,7 +173,17 @@ DROP POLICY IF EXISTS "Allow authenticated insert to career_entries" ON public.c
 CREATE POLICY "Allow authenticated insert to career_entries"
     ON public.career_entries FOR INSERT
     TO authenticated
-    WITH CHECK (auth.uid() IS NOT NULL AND auth.uid() = user_id);
+    WITH CHECK (
+        auth.uid() IS NOT NULL
+        AND auth.uid() = user_id
+        AND (
+            goal_id IS NULL
+            OR EXISTS (
+                SELECT 1 FROM public.goals g
+                WHERE g.id = goal_id AND (g.user_id IS NULL OR g.user_id = auth.uid())
+            )
+        )
+    );
 
 DROP POLICY IF EXISTS "Allow authenticated update to career_entries" ON public.career_entries;
 DROP POLICY IF EXISTS "Allow authenticated update own career_entries" ON public.career_entries;
@@ -181,7 +191,16 @@ CREATE POLICY "Allow authenticated update own career_entries"
     ON public.career_entries FOR UPDATE
     TO authenticated
     USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (
+        auth.uid() = user_id
+        AND (
+            goal_id IS NULL
+            OR EXISTS (
+                SELECT 1 FROM public.goals g
+                WHERE g.id = goal_id AND (g.user_id IS NULL OR g.user_id = auth.uid())
+            )
+        )
+    );
 
 DROP POLICY IF EXISTS "Allow authenticated delete to career_entries" ON public.career_entries;
 DROP POLICY IF EXISTS "Allow authenticated delete own career_entries" ON public.career_entries;

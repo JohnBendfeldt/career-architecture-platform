@@ -30,14 +30,22 @@ stages:
     - script: dotnet build CareerPlatform.sln --configuration $(buildConfiguration) --no-restore
       displayName: 'Build Solution'
 
-    - script: dotnet test tests/Api.Tests/CareerPlatform.Api.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=test_results.trx"
+    - script: dotnet test CareerPlatform.sln --configuration $(buildConfiguration) --no-build --logger trx
       displayName: 'Execute Automated Tests'
+
+    - script: |
+        VULN_OUTPUT=$(dotnet list CareerPlatform.sln package --vulnerable --include-transitive)
+        echo "$VULN_OUTPUT"
+        if echo "$VULN_OUTPUT" | grep -q "has the following vulnerable packages"; then
+          exit 1
+        fi
+      displayName: 'Check Vulnerable NuGet Packages'
 
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
         testResultsFormat: 'VSTest'
-        testResultsFiles: '**/test_results.trx'
+        testResultsFiles: '**/*.trx'
 
   - job: BuildFrontend
     displayName: 'Build React Vite Frontend'
@@ -48,12 +56,13 @@ stages:
       displayName: 'Install Node.js'
 
     - script: |
-        cd web
-        npm ci
-        npm run lint
-        npm test
-        npm run build
-      displayName: 'Lint, Test & Build SPA'
+        npm --prefix web ci
+        npm --prefix web run lint
+        npm --prefix web test
+        npm --prefix web run build
+        ./web/node_modules/.bin/tsc -p tsconfig.json --noEmit
+        npm --prefix web audit --omit=dev --audit-level=high
+      displayName: 'Lint, Test, Typecheck, Audit & Build SPA'
 
 - stage: DockerContainers
   displayName: 'Docker Build & Registry Push'

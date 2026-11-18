@@ -31,9 +31,15 @@ public class TokenService : ITokenService
         var secret = string.IsNullOrWhiteSpace(configuredSecret)
             ? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256"
             : configuredSecret;
+        if (Encoding.UTF8.GetByteCount(secret) < 32)
+        {
+            throw new InvalidOperationException("Jwt:Secret must be at least 32 bytes (256 bits) for HMAC-SHA256.");
+        }
         var issuer = _config["Jwt:Issuer"] ?? "CareerPlatform.Api";
         var audience = _config["Jwt:Audience"] ?? "CareerPlatform.Web";
-        var expiryHours = int.TryParse(_config["Jwt:ExpiryHours"], out var hours) ? hours : 24;
+        var expiryHours = int.TryParse(_config["Jwt:ExpiryHours"], out var hours)
+            ? Math.Clamp(hours, 1, 168)
+            : 24;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
