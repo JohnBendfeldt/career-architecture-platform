@@ -38,16 +38,18 @@ public static class AdvancementSpreadsheetService
         return sb.ToString();
     }
 
+    private static bool IsFormulaTriggerChar(char ch) =>
+        ch is '=' or '+' or '-' or '@' or '\t' or '\r' or '\n' or '|';
+
     public static string SanitizeCsvCell(string? value)
     {
         var raw = value ?? string.Empty;
         if (raw.Length > 0)
         {
-            var trimmedStart = raw.TrimStart(' ');
+            var trimmed = raw.TrimStart();
             var firstRaw = raw[0];
-            var firstNonSpace = trimmedStart.Length > 0 ? trimmedStart[0] : '\0';
-            if (firstRaw == '\t' || firstRaw == '\r' ||
-                firstNonSpace is '=' or '+' or '-' or '@' or '\t' or '\r')
+            var firstTrimmed = trimmed.Length > 0 ? trimmed[0] : '\0';
+            if (IsFormulaTriggerChar(firstRaw) || IsFormulaTriggerChar(firstTrimmed))
             {
                 raw = "'" + raw;
             }

@@ -50,7 +50,12 @@ public class LearningResourceService : ILearningResourceService
                 var liveResources = await FetchYouTubeApiResourcesAsync(normalized, apiKey, ct);
                 if (liveResources.Count > 0)
                 {
-                    _cache.Set(cacheKey, liveResources, TimeSpan.FromHours(24));
+                    _cache.Set(
+                        cacheKey,
+                        liveResources,
+                        new MemoryCacheEntryOptions()
+                            .SetAbsoluteExpiration(TimeSpan.FromHours(24))
+                            .SetSize(1));
                     return liveResources;
                 }
             }
@@ -61,16 +66,24 @@ public class LearningResourceService : ILearningResourceService
         }
 
         var curated = GetCuratedResources(normalized);
-        _cache.Set(cacheKey, curated, TimeSpan.FromHours(24));
+        _cache.Set(
+            cacheKey,
+            curated,
+            new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromHours(24))
+                .SetSize(1));
         return curated;
     }
 
     private async Task<List<LearningResource>> FetchYouTubeApiResourcesAsync(string skill, string apiKey, CancellationToken ct)
     {
         var query = Uri.EscapeDataString($"{skill} tutorial architecture deep dive");
-        var url = $"https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=3&q={query}&key={apiKey}";
+        var url = $"https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=3&q={query}";
 
-        var response = await _httpClient.GetAsync(url, ct);
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Add("X-Goog-Api-Key", apiKey);
+
+        using var response = await _httpClient.SendAsync(req, ct);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("YouTube API returned HTTP {StatusCode}", response.StatusCode);

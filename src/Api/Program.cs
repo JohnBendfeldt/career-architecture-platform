@@ -22,9 +22,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Token service & AI / Learning services
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient<IAiSkillExtractor, AiSkillExtractor>();
-builder.Services.AddHttpClient<ILearningResourceService, LearningResourceService>();
+builder.Services.AddMemoryCache(options => options.SizeLimit = 512);
+builder.Services.AddHttpClient<IAiSkillExtractor, AiSkillExtractor>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<ILearningResourceService, LearningResourceService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // JWT Authentication configuration
 var configuredJwtSecret = builder.Configuration["Jwt:Secret"];
@@ -35,6 +41,10 @@ if (string.IsNullOrWhiteSpace(configuredJwtSecret) && !builder.Environment.IsDev
 var jwtSecret = string.IsNullOrWhiteSpace(configuredJwtSecret)
     ? "SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256"
     : configuredJwtSecret;
+if (Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+{
+    throw new InvalidOperationException("Jwt:Secret must be at least 32 bytes (256 bits) for HMAC-SHA256.");
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CareerPlatform.Api";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CareerPlatform.Web";
 
@@ -46,11 +56,12 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-    options.SaveToken = true;
+    options.SaveToken = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
         ValidateIssuer = true,
         ValidIssuer = jwtIssuer,
         ValidateAudience = true,
@@ -61,7 +72,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Authorization policies: Guest accounts are strictly read-only
+// Authorization policies: Write access requires an authenticated non-guest admin user
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireWriteAccess", policy =>
@@ -69,25 +80,34 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireAssertion(ctx =>
         {
-            var isGuestRole = ctx.User.IsInRole("guest") || 
+            var isGuestRole = ctx.User.IsInRole("guest") ||
                               ctx.User.HasClaim("role", "guest") ||
                               ctx.User.HasClaim("guest_mode", "true");
-            return !isGuestRole;
+            var isAdminRole = ctx.User.IsInRole("admin") ||
+                              ctx.User.HasClaim("role", "admin") ||
+                              ctx.User.HasClaim(ClaimTypes.Role, "admin");
+            return !isGuestRole && isAdminRole;
         });
     });
 });
 
 // CORS
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[]
-    {
-        "https://johnbendfeldt.com",
-        "https://www.johnbendfeldt.com",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5050",
-        "http://localhost:3000"
-    };
+    ?? (builder.Environment.IsDevelopment()
+        ? new[]
+        {
+            "https://johnbendfeldt.com",
+            "https://www.johnbendfeldt.com",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5050",
+            "http://localhost:3000"
+        }
+        : new[]
+        {
+            "https://johnbendfeldt.com",
+            "https://www.johnbendfeldt.com"
+        });
 
 builder.Services.AddCors(options =>
 {
@@ -118,38 +138,51 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("10.0.0.0"), 8));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("172.16.0.0"), 12));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("192.168.0.0"), 16));
 });
 
 var app = builder.Build();
 
-// Ensure DB is created and seeded (recreate if local dev schema changed)
+// Ensure DB is created and seeded (recreate only in Development if local dev schema changed)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
-    try
+    if (app.Environment.IsDevelopment())
     {
-        _ = db.Categories.Any();
-        _ = db.CareerDevelopmentEntries.Any();
-        _ = db.Goals.Select(g => g.TargetHours).FirstOrDefault();
-        _ = db.Profiles.Select(p => p.AnnualGoalHours).FirstOrDefault();
-    }
-    catch (Microsoft.Data.Sqlite.SqliteException)
-    {
-        db.Database.EnsureDeleted();
-        db.Database.EnsureCreated();
+        try
+        {
+            _ = db.Categories.Any();
+            _ = db.CareerDevelopmentEntries.Any();
+            _ = db.Goals.Select(g => g.TargetHours).FirstOrDefault();
+            _ = db.Profiles.Select(p => p.AnnualGoalHours).FirstOrDefault();
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            db.Database.EnsureDeleted();
+            db.Database.EnsureCreated();
+        }
     }
 }
 
 app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["X-XSS-Protection"] = "0";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=(), payment=()";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
     await next();
 });
 
@@ -304,19 +337,21 @@ static IResult? ValidateGoalRequest(CreateGoalRequest request)
         return Results.BadRequest(new { error = "Description must be 2,000 characters or fewer." });
     }
 
-    if (request.Category?.Length > 50)
+    if (string.IsNullOrWhiteSpace(request.Category) || request.Category.Length > 50 ||
+        (request.Category != "Technical" && request.Category != "Personal"))
     {
-        return Results.BadRequest(new { error = "Category must be 50 characters or fewer." });
+        return Results.BadRequest(new { error = "Category must be either 'Technical' or 'Personal'." });
     }
 
-    if (request.TargetDate?.Length > 60)
+    if (string.IsNullOrWhiteSpace(request.TargetDate) || request.TargetDate.Length > 60)
     {
-        return Results.BadRequest(new { error = "TargetDate must be 60 characters or fewer." });
+        return Results.BadRequest(new { error = "TargetDate is required and must be 60 characters or fewer." });
     }
 
-    if (request.Status?.Length > 30)
+    if (string.IsNullOrWhiteSpace(request.Status) || request.Status.Length > 30 ||
+        (request.Status != "InProgress" && request.Status != "Completed" && request.Status != "Upcoming"))
     {
-        return Results.BadRequest(new { error = "Status must be 30 characters or fewer." });
+        return Results.BadRequest(new { error = "Status must be 'InProgress', 'Completed', or 'Upcoming'." });
     }
 
     if (request.Tags is { Count: > 20 } || (request.Tags != null && request.Tags.Any(t => t == null || t.Length > 50)))
@@ -895,22 +930,22 @@ app.MapGet("/api/advancement/export", async (int? year, string? format, AppDbCon
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         $"CareerDevelopment{yearSuffix}_{dateStamp}.xlsx"
     );
-});
+}).RequireRateLimiting("PublicApiLimit");
 
 // AI Skill Extraction
-app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkillExtractor extractor) =>
+app.MapPost("/api/skills/extract", async (ExtractSkillsRequest request, IAiSkillExtractor extractor, CancellationToken ct) =>
 {
     if (request?.Text?.Length > 10000)
     {
         return Results.BadRequest(new { error = "Input text exceeds maximum length of 10,000 characters." });
     }
 
-    var skills = await extractor.ExtractSkillsAsync(request?.Text ?? "");
+    var skills = await extractor.ExtractSkillsAsync(request?.Text ?? "", ct);
     return Results.Ok(new ExtractSkillsResponse(skills));
 }).RequireRateLimiting("PublicApiLimit");
 
 // Dynamic Learning Resources (YouTube Data API v3 + Curated Pathways)
-app.MapGet("/api/resources", async (string? skill, ILearningResourceService resourceService) =>
+app.MapGet("/api/resources", async (string? skill, ILearningResourceService resourceService, CancellationToken ct) =>
 {
     if (skill?.Length > 200)
     {
@@ -918,7 +953,7 @@ app.MapGet("/api/resources", async (string? skill, ILearningResourceService reso
     }
 
     var term = string.IsNullOrWhiteSpace(skill) ? "C# .NET 10 Minimal APIs" : skill;
-    var resources = await resourceService.GetResourcesAsync(term);
+    var resources = await resourceService.GetResourcesAsync(term, ct);
     return Results.Ok(new LearningResourcesResponse(term, resources));
 }).RequireRateLimiting("PublicApiLimit");
 

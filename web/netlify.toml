@@ -5,18 +5,25 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Netlify Serverless Function for AI Skill Extraction
+[[redirects]]
+  from = "/api/skills/extract"
+  to = "/.netlify/functions/extract-skills"
+  status = 200
+  force = true
+
 # Proxy API traffic through YARP Gateway / Azure App Service
 [[redirects]]
   from = "/api/*"
   to = "https://gateway-careerplatform.azurewebsites.net/api/:splat"
   status = 200
-  force = false
+  force = true
 
 [[redirects]]
   from = "/geo/*"
   to = "https://gateway-careerplatform.azurewebsites.net/geo/:splat"
   status = 200
-  force = false
+  force = true
 
 # SPA Routing Fallback
 [[redirects]]

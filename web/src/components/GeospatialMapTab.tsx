@@ -149,6 +149,16 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       return;
     }
 
+    if (lowerName.endsWith('.gpx') && file.size > 15 * 1024 * 1024) {
+      alert('GPX file exceeds the 15 MB maximum upload size.');
+      return;
+    }
+
+    if (lowerName.endsWith('.fit') && file.size > 50 * 1024 * 1024) {
+      alert('Garmin FIT file exceeds the 50 MB maximum upload size.');
+      return;
+    }
+
     setUploading(true);
     setUploadMessage(null);
     try {

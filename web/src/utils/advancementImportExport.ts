@@ -400,22 +400,15 @@ export function prepareEntriesForImport(
   });
 }
 
+const FORMULA_TRIGGER_CHARS = new Set(['=', '+', '-', '@', '\t', '\r', '\n', '|']);
+
 export function sanitizeCsvCell(value: string | number | null | undefined): string {
   let raw = value == null ? '' : String(value);
   if (raw.length > 0) {
-    const trimmedStart = raw.replace(/^ +/, '');
+    const trimmed = raw.trimStart();
     const firstRaw = raw[0];
-    const firstNonSpace = trimmedStart[0] ?? '';
-    if (
-      firstRaw === '\t' ||
-      firstRaw === '\r' ||
-      firstNonSpace === '=' ||
-      firstNonSpace === '+' ||
-      firstNonSpace === '-' ||
-      firstNonSpace === '@' ||
-      firstNonSpace === '\t' ||
-      firstNonSpace === '\r'
-    ) {
+    const firstTrimmed = trimmed[0] ?? '';
+    if (FORMULA_TRIGGER_CHARS.has(firstRaw) || FORMULA_TRIGGER_CHARS.has(firstTrimmed)) {
       raw = `'${raw}`;
     }
   }

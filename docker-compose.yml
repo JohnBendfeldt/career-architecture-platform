@@ -6,9 +6,9 @@ services:
       context: .
       dockerfile: src/Gateway/Dockerfile
     ports:
-      - "5000:8080"
+      - "127.0.0.1:5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ReverseProxy__Clusters__apiCluster__Destinations__api1__Address=http://api:8080
       - ReverseProxy__Clusters__geoCluster__Destinations__geo1__Address=http://geo:8080
     depends_on:
@@ -19,11 +19,11 @@ services:
     build:
       context: .
       dockerfile: src/Api/Dockerfile
-    ports:
-      - "5100:8080"
+    expose:
+      - "8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - Jwt__Secret=${JWT_SECRET:-SuperSecretCareerArchitectureDemoJwtSigningKey2026!LongEnoughForSha256}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Secret=${JWT_SECRET:?JWT_SECRET must be set}
       - ConnectionStrings__DefaultConnection=Data Source=/data/careerplatform.db
     volumes:
       - api_data:/data
@@ -32,17 +32,17 @@ services:
     build:
       context: .
       dockerfile: src/Geo/Dockerfile
-    ports:
-      - "5200:8080"
+    expose:
+      - "8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:8080"
     depends_on:
       - gateway
 

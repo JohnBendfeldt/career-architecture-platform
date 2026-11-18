@@ -167,12 +167,45 @@ export class ApiService {
     }
   }
 
+  static readonly MAX_GPX_FILE_BYTES = 15 * 1024 * 1024; // 15 MB
+  static readonly MAX_FIT_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+  static readonly MAX_GPX_RENDER_POINTS = 1_500;
+
   static getToken(): string | null {
     try {
       return localStorage.getItem(this.TOKEN_KEY);
     } catch {
       return null;
     }
+  }
+
+  static isDotNetApiToken(token: string | null | undefined): boolean {
+    if (!token || typeof token !== 'string') return false;
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    try {
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+      const json = atob(padded);
+      const payload = JSON.parse(json) as { iss?: unknown };
+      return payload?.iss === 'CareerPlatform.Api';
+    } catch {
+      return false;
+    }
+  }
+
+  private static buildDotNetHeaders(
+    token: string | null | undefined,
+    includeJsonContentType = true
+  ): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (includeJsonContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (token && this.isDotNetApiToken(token)) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 
   static getUser(): User | null {
@@ -845,10 +878,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/goals`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token),
         body: JSON.stringify({
           title: newGoal.title,
           description: newGoal.description,
@@ -1100,10 +1130,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token),
         body: JSON.stringify({
           ...input,
           goalId: apiGoalId,
@@ -1171,10 +1198,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token),
         body: JSON.stringify({
           ...input,
           goalId: apiGoalId,
@@ -1245,9 +1269,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token, false),
       });
       if (res.status === 403) {
         return {
@@ -1332,10 +1354,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/advancement/entries/import`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token),
         body: JSON.stringify({
           entries: normalizedPayload,
           clientUtcOffsetMinutes: new Date().getTimezoneOffset(),
@@ -1643,10 +1662,7 @@ export class ApiService {
     try {
       const res = await fetch(`${API_BASE}/api/profile/goal-hours`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
+        headers: this.buildDotNetHeaders(token),
         body: JSON.stringify({ annualGoalHours: rounded }),
       });
       if (res.status === 400 || res.status === 403) {
@@ -1721,63 +1737,143 @@ export class ApiService {
   }
 
   static async uploadFitFile(file: File): Promise<RouteData> {
-    const formData = new FormData();
-    formData.append('file', file);
+    const lowerName = file.name.toLowerCase();
+    const isGpx = lowerName.endsWith('.gpx');
+    const isFit = lowerName.endsWith('.fit');
 
-    try {
-      const res = await fetch(`${API_BASE}/geo/activities`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (isJson(res)) {
-        return await res.json();
-      }
-    } catch {
-      // Fallback to client-side GPX / FIT parser below
+    if (!isGpx && !isFit) {
+      throw new Error('Invalid file format. Please upload a .fit or .gpx telemetry file.');
     }
 
-    const cleanName = file.name.replace(/\.(fit|gpx)$/i, '').replace(/[-_]/g, ' ');
-    if (file.name.toLowerCase().endsWith('.gpx')) {
-      const text = await file.text();
+    if (isGpx && file.size > this.MAX_GPX_FILE_BYTES) {
+      throw new Error('GPX file exceeds the 15 MB maximum upload size.');
+    }
+
+    if (isFit && file.size > this.MAX_FIT_FILE_BYTES) {
+      throw new Error('Garmin FIT file exceeds the 50 MB maximum upload size.');
+    }
+
+    if (isFit) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`${API_BASE}/geo/activities`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (isJson(res)) {
+          return await res.json();
+        }
+      } catch {
+        // Fallback to client-side FIT summary below
+      }
+    }
+
+    const cleanName = file.name
+      .replace(/\.(fit|gpx)$/i, '')
+      .replace(/[-_]/g, ' ')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .trim()
+      .slice(0, 120);
+
+    if (isGpx) {
+      const text =
+        typeof file.text === 'function'
+          ? await file.text()
+          : await new Response(file).text();
       const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'text/xml');
-      const trkpts = Array.from(xml.querySelectorAll('trkpt'));
-      if (trkpts.length > 1) {
-        const points = trkpts.map(pt => ({
-          lat: parseFloat(pt.getAttribute('lat') || '30.2672'),
-          lon: parseFloat(pt.getAttribute('lon') || '-97.7431'),
-          elevation: parseFloat(pt.querySelector('ele')?.textContent || '200'),
-          timestamp: pt.querySelector('time')?.textContent || new Date().toISOString()
-        }));
-        let distKm = 0;
-        let elevGain = 0;
-        for (let i = 1; i < points.length; i++) {
-          const dLat = (points[i].lat - points[i - 1].lat) * (Math.PI / 180);
-          const dLon = (points[i].lon - points[i - 1].lon) * (Math.PI / 180);
-          const a = Math.sin(dLat / 2) ** 2 + Math.cos(points[i - 1].lat * (Math.PI / 180)) * Math.cos(points[i].lat * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
-          distKm += 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          if (points[i].elevation > points[i - 1].elevation) {
-            elevGain += points[i].elevation - points[i - 1].elevation;
+      const xml = parser.parseFromString(text, 'application/xml');
+      const trkpts = Array.from(xml.getElementsByTagName('trkpt'));
+
+      const validPoints: RouteData['points'] = [];
+      for (const pt of trkpts) {
+        const latAttr = pt.getAttribute('lat');
+        const lonAttr = pt.getAttribute('lon');
+        if (latAttr == null || lonAttr == null || latAttr.trim() === '' || lonAttr.trim() === '') {
+          continue;
+        }
+        const lat = Number(latAttr);
+        const lon = Number(lonAttr);
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lon) ||
+          lat < -90 ||
+          lat > 90 ||
+          lon < -180 ||
+          lon > 180
+        ) {
+          continue;
+        }
+        const eleText = pt.getElementsByTagName('ele')[0]?.textContent;
+        const parsedEle = eleText != null && eleText.trim() !== '' ? Number(eleText) : 200;
+        const elevation = Number.isFinite(parsedEle) ? parsedEle : 200;
+        const timestamp = pt.getElementsByTagName('time')[0]?.textContent?.trim() || new Date().toISOString();
+
+        validPoints.push({
+          lat: Math.round(lat * 100_000) / 100_000,
+          lon: Math.round(lon * 100_000) / 100_000,
+          elevation: Math.round(elevation * 10) / 10,
+          timestamp,
+        });
+      }
+
+      if (validPoints.length < 2) {
+        throw new Error('GPX file must contain at least 2 valid WGS84 trackpoints.');
+      }
+
+      let distKm = 0;
+      let elevGain = 0;
+      for (let i = 1; i < validPoints.length; i++) {
+        const dLat = (validPoints[i].lat - validPoints[i - 1].lat) * (Math.PI / 180);
+        const dLon = (validPoints[i].lon - validPoints[i - 1].lon) * (Math.PI / 180);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(validPoints[i - 1].lat * (Math.PI / 180)) *
+            Math.cos(validPoints[i].lat * (Math.PI / 180)) *
+            Math.sin(dLon / 2) ** 2;
+        distKm += 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        if (validPoints[i].elevation > validPoints[i - 1].elevation) {
+          elevGain += validPoints[i].elevation - validPoints[i - 1].elevation;
+        }
+      }
+
+      let points = validPoints;
+      if (validPoints.length > this.MAX_GPX_RENDER_POINTS) {
+        const step = Math.ceil(validPoints.length / (this.MAX_GPX_RENDER_POINTS - 1));
+        const sampled: RouteData['points'] = [];
+        for (let i = 0; i < validPoints.length; i += step) {
+          sampled.push(validPoints[i]);
+        }
+        const lastRaw = validPoints[validPoints.length - 1];
+        if (sampled[sampled.length - 1] !== lastRaw) {
+          if (sampled.length >= this.MAX_GPX_RENDER_POINTS) {
+            sampled[sampled.length - 1] = lastRaw;
+          } else {
+            sampled.push(lastRaw);
           }
         }
-        const first = points[0];
-        const mid = points[Math.floor(points.length / 2)];
-        const last = points[points.length - 1];
-        return {
-          activityName: cleanName || 'Uploaded GPX Activity',
-          recordedDevice: 'Custom GPX Telemetry Upload',
-          distanceKm: Number(distKm.toFixed(1)) || 12.4,
-          elevationGainM: Math.round(elevGain) || 140,
-          durationMinutes: Math.max(15, Math.round(distKm * 2.4)),
-          points,
-          annotations: [
-            { id: 1, lat: first.lat, lon: first.lon, title: 'Route Start', text: `Uploaded from ${file.name}`, type: 'start' },
-            { id: 2, lat: mid.lat, lon: mid.lon, title: 'Midpoint Split', text: `Elevation ${mid.elevation.toFixed(0)}m`, type: 'checkpoint' },
-            { id: 3, lat: last.lat, lon: last.lon, title: 'Route Finish', text: `Completed ${distKm.toFixed(1)} km`, type: 'finish' },
-          ]
-        };
+        points = sampled;
       }
+
+      const first = points[0];
+      const mid = points[Math.floor(points.length / 2)];
+      const last = points[points.length - 1];
+      return {
+        activityName: cleanName || 'Uploaded GPX Activity',
+        recordedDevice: 'Custom GPX Telemetry Upload',
+        distanceKm: Number(distKm.toFixed(1)) || 12.4,
+        elevationGainM: Math.round(elevGain) || 140,
+        durationMinutes: Math.max(15, Math.round(distKm * 2.4)),
+        points,
+        annotations: [
+          { id: 1, lat: first.lat, lon: first.lon, title: 'Route Start', text: `Uploaded from ${file.name}`, type: 'start' },
+          { id: 2, lat: mid.lat, lon: mid.lon, title: 'Midpoint Split', text: `Elevation ${mid.elevation.toFixed(0)}m`, type: 'checkpoint' },
+          { id: 3, lat: last.lat, lon: last.lon, title: 'Route Finish', text: `Completed ${distKm.toFixed(1)} km`, type: 'finish' },
+        ],
+      };
     }
 
     // Client-side binary .FIT telemetry decoder fallback

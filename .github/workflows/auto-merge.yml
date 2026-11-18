@@ -1,0 +1,54 @@
+name: Auto-Merge Minor & Patch Updates
+
+on:
+  workflow_run:
+    workflows: ["CI & Deploy Gate"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-Merge Verified Minor & Patch PR
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Auto-merge eligible minor/patch Dependabot or labeled PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PR_JSON="$(gh api "repos/$REPO/pulls?state=open&per_page=30")"
+
+          ELIGIBLE_PRS="$(echo "$PR_JSON" | jq -r --arg sha "$HEAD_SHA" '
+            .[]
+            | select(.head.sha == $sha and .base.ref == "main" and .draft == false)
+            | select(
+                (
+                  .user.login == "dependabot[bot]"
+                  and (.head.ref | startswith("dependabot/"))
+                  and (.head.ref | contains("/minor-and-patch-"))
+                  and ((.head.ref | contains("/major-")) | not)
+                )
+                or (
+                  .user.login != "dependabot[bot]"
+                  and (([.labels[].name] | index("automerge")) != null)
+                )
+              )
+            | .number
+          ')"
+
+          if [ -z "$ELIGIBLE_PRS" ]; then
+            echo "No eligible minor/patch Dependabot or automerge-labeled PR found for SHA $HEAD_SHA."
+            exit 0
+          fi
+
+          for PR_NUMBER in $ELIGIBLE_PRS; do
+            echo "Squash-merging PR #$PR_NUMBER matching verified commit $HEAD_SHA..."
+            gh pr merge "$PR_NUMBER" -R "$REPO" --squash --delete-branch --match-head-commit "$HEAD_SHA"
+          done

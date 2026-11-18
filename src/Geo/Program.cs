@@ -46,15 +46,21 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 builder.Services.AddScoped<IFitParserService, FitParserService>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[]
-    {
-        "https://johnbendfeldt.com",
-        "https://www.johnbendfeldt.com",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5050",
-        "http://localhost:3000"
-    };
+    ?? (builder.Environment.IsDevelopment()
+        ? new[]
+        {
+            "https://johnbendfeldt.com",
+            "https://www.johnbendfeldt.com",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5050",
+            "http://localhost:3000"
+        }
+        : new[]
+        {
+            "https://johnbendfeldt.com",
+            "https://www.johnbendfeldt.com"
+        });
 
 builder.Services.AddCors(options =>
 {
@@ -91,19 +97,29 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("10.0.0.0"), 8));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("172.16.0.0"), 12));
+    options.KnownIPNetworks.Add(new System.Net.IPNetwork(System.Net.IPAddress.Parse("192.168.0.0"), 16));
 });
 
 var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["X-XSS-Protection"] = "0";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
     await next();
 });
 
@@ -147,14 +163,20 @@ app.MapGet("/geo/sample-route", (IFitParserService fitParser) =>
 });
 
 // Multipart FIT file upload endpoint
-app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fitParser) =>
+app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fitParser, CancellationToken ct) =>
 {
+    var bodySizeFeature = request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>();
+    if (bodySizeFeature is { IsReadOnly: false })
+    {
+        bodySizeFeature.MaxRequestBodySize = 52_428_800;
+    }
+
     if (!request.HasFormContentType)
     {
         return Results.BadRequest(new { error = "Request must be multipart/form-data" });
     }
 
-    var form = await request.ReadFormAsync();
+    var form = await request.ReadFormAsync(ct);
     var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
 
     if (file == null || file.Length < 14 || file.Length > 52_428_800)
@@ -169,7 +191,7 @@ app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fit
 
     using var stream = file.OpenReadStream();
     var header = new byte[12];
-    var bytesRead = await stream.ReadAsync(header.AsMemory(0, 12));
+    var bytesRead = await stream.ReadAsync(header.AsMemory(0, 12), ct);
     if (bytesRead < 12 ||
         (header[0] != 12 && header[0] != 14) ||
         header[8] != (byte)'.' ||
@@ -184,7 +206,9 @@ app.MapPost("/geo/activities", async (HttpRequest request, IFitParserService fit
     var result = fitParser.ParseFitStream(stream, Path.GetFileName(file.FileName));
 
     return Results.Ok(result);
-}).RequireRateLimiting("GeoUploadLimit");
+})
+.WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(52_428_800))
+.RequireRateLimiting("GeoUploadLimit");
 
 app.Run();
 
