@@ -614,7 +614,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 220px), 1fr))',
               gap: '10px',
             }}
           >
@@ -714,7 +714,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
           gap: '14px',
           marginBottom: '18px',
           transition: 'opacity 0.2s',
@@ -940,7 +940,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       <div className="glass-panel" style={{ padding: '14px', position: 'relative' }}>
         <div
           style={{
-            height: '520px',
+            height: 'clamp(320px, 55vh, 520px)',
             borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
             position: 'relative',

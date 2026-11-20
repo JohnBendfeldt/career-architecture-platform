@@ -224,7 +224,7 @@ export const FocusStudyTimer: React.FC<FocusStudyTimerProps> = ({
           gap: '14px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', flex: '1 1 320px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', flex: '1 1 min(100%, 300px)', minWidth: 0 }}>
           <div
             aria-live="off"
             style={{
@@ -237,14 +237,14 @@ export const FocusStudyTimer: React.FC<FocusStudyTimerProps> = ({
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md)',
               padding: '6px 14px',
-              minWidth: '132px',
+              minWidth: '124px',
               textAlign: 'center',
             }}
           >
             {formatClockDuration(displaySec)}
           </div>
 
-          <div style={{ flex: 1, minWidth: '200px' }}>
+          <div style={{ flex: '1 1 180px', minWidth: 0 }}>
             <label htmlFor="focus-timer-topic" className="sr-only">
               Study session topic
             </label>

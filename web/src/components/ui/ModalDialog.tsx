@@ -48,13 +48,20 @@ export const ModalDialog: React.FC<ModalDialogProps> = ({
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const dialogEl = dialogRef.current;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     if (dialogEl && !dialogEl.contains(document.activeElement)) {
       const firstInput = dialogEl.querySelector<HTMLElement>(
         'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled])'
       );
       const firstFocusable = dialogEl.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      (firstInput || firstFocusable || dialogEl).focus();
+      const target = firstInput || firstFocusable || dialogEl;
+      try {
+        target.focus({ preventScroll: true });
+      } catch {
+        target.focus();
+      }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -88,6 +95,7 @@ export const ModalDialog: React.FC<ModalDialogProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = prevBodyOverflow;
       if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
         previouslyFocused.focus();
       }
@@ -95,6 +103,8 @@ export const ModalDialog: React.FC<ModalDialogProps> = ({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const isFlush = padding === '0' || padding === '0px';
 
   return (
     <div
@@ -113,7 +123,7 @@ export const ModalDialog: React.FC<ModalDialogProps> = ({
         aria-labelledby={labelledBy}
         aria-label={labelledBy ? undefined : ariaLabel}
         tabIndex={-1}
-        className="modal-dialog"
+        className={`modal-dialog${isFlush ? ' modal-dialog-flush' : ''}`}
         style={{
           maxWidth,
           padding,

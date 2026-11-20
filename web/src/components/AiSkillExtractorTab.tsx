@@ -479,7 +479,10 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
-                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      textAlign: 'left',
+                      whiteSpace: 'normal',
+                      overflowWrap: 'break-word',
                       transition: 'background-color 0.15s ease, border-color 0.15s ease',
                     }}
                   >

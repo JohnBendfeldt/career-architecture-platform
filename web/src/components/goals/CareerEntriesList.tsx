@@ -85,9 +85,9 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
           gap: '12px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flex: '1 1 360px' }}>
-          <Filter size={15} aria-hidden="true" style={{ color: 'var(--text-muted)' }} />
-          <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: '240px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flex: '1 1 min(100%, 340px)', minWidth: 0 }}>
+          <Filter size={15} aria-hidden="true" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 0, maxWidth: '260px' }}>
             <Search
               size={14}
               aria-hidden="true"
@@ -123,6 +123,7 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
             className="form-select"
             style={{
               width: 'auto',
+              maxWidth: '100%',
               padding: '7px 12px',
               fontSize: '0.84rem',
             }}
@@ -142,9 +143,9 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
             className="form-select"
             style={{
               width: 'auto',
+              maxWidth: '100%',
               padding: '7px 12px',
               fontSize: '0.84rem',
-              maxWidth: '260px',
             }}
           >
             <option value="all">All Linked Goals</option>

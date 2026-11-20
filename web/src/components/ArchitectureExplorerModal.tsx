@@ -225,13 +225,13 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
       maxWidth="920px"
       padding="26px"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
-        <div>
-          <div className="section-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Layers size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '18px' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="section-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <Layers size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} />
             <span>Interactive System Topology • johnbendfeldt.com</span>
           </div>
-          <h2 id="arch-explorer-title" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', margin: '2px 0 4px' }}>
+          <h2 id="arch-explorer-title" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', margin: '2px 0 4px', overflowWrap: 'break-word' }}>
             Live Multi-Service Architecture Explorer
           </h2>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -243,6 +243,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
           onClick={onClose}
           className="icon-btn"
           aria-label="Close architecture explorer"
+          style={{ flexShrink: 0 }}
         >
           <X size={18} aria-hidden="true" />
         </button>
@@ -256,10 +257,11 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
           background: 'var(--bg-inset)',
           border: '1px solid var(--border-subtle)',
           marginBottom: '18px',
+          minWidth: 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-          <div className="segmented-control" role="group" aria-label="Request trace scenarios">
+          <div className="segmented-control" role="group" aria-label="Request trace scenarios" style={{ maxWidth: '100%' }}>
             {TRACE_SCENARIOS.map((scenario) => (
               <button
                 key={scenario.id}
@@ -286,7 +288,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
           </button>
         </div>
 
-        <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+        <div style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', overflowWrap: 'anywhere' }}>
           {activeScenario.summary}
         </div>
 
@@ -297,7 +299,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
             style={{
               marginTop: '12px',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
               gap: '8px',
             }}
           >
@@ -316,6 +318,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
                       : '1px solid var(--border-subtle)',
                     opacity: isDone ? 1 : 0.5,
                     transition: 'all 0.2s ease',
+                    minWidth: 0,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -326,7 +329,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
                       {step.latency}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4, overflowWrap: 'break-word' }}>
                     {step.detail}
                   </div>
                 </div>
@@ -341,9 +344,10 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))',
             gap: '10px',
             alignContent: 'start',
+            minWidth: 0,
           }}
         >
           {ARCHITECTURE_NODES.map((node, index) => {
@@ -368,10 +372,10 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
                     0{index + 1}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.25, marginBottom: '3px' }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.25, marginBottom: '3px', overflowWrap: 'break-word' }}>
                   {node.title}
                 </div>
-                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>
                   {node.subtitle}
                 </div>
               </button>
@@ -382,7 +386,7 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
         {/* Selected Node Detail Dossier */}
         <div
           style={{
-            padding: '20px',
+            padding: '18px',
             borderRadius: 'var(--radius-md)',
             background: 'var(--bg-inset)',
             border: '1px solid var(--border-subtle)',
@@ -390,19 +394,20 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
             flexDirection: 'column',
             justifyContent: 'space-between',
             gap: '16px',
+            minWidth: 0,
           }}
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{ color: 'var(--accent-crimson)', display: 'inline-flex' }}>{selectedNode.icon}</span>
-              <span className="section-eyebrow" style={{ marginBottom: 0 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--accent-crimson)', display: 'inline-flex', flexShrink: 0 }}>{selectedNode.icon}</span>
+              <span className="section-eyebrow" style={{ marginBottom: 0, overflowWrap: 'anywhere' }}>
                 {selectedNode.subtitle}
               </span>
             </div>
-            <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '6px', overflowWrap: 'break-word' }}>
               {selectedNode.title}
             </h3>
-            <div style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-crimson)', fontWeight: 600, marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-crimson)', fontWeight: 600, marginBottom: '12px', overflowWrap: 'anywhere' }}>
               {selectedNode.runtime}
             </div>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: '14px' }}>
@@ -411,14 +416,14 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
 
             <div style={{ marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                <ShieldCheck size={14} aria-hidden="true" style={{ color: 'var(--status-success)' }} />
+                <ShieldCheck size={14} aria-hidden="true" style={{ color: 'var(--status-success)', flexShrink: 0 }} />
                 <span>Security &amp; Reliability Controls</span>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '7px' }}>
                 {selectedNode.security.map((ctrl) => (
-                  <li key={ctrl} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  <li key={ctrl} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45, minWidth: 0 }}>
                     <CheckCircle2 size={14} aria-hidden="true" style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: '3px' }} />
-                    <span>{ctrl}</span>
+                    <span style={{ minWidth: 0, overflowWrap: 'break-word' }}>{ctrl}</span>
                   </li>
                 ))}
               </ul>
@@ -430,7 +435,17 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {selectedNode.artifacts.map((art) => (
-                  <span key={art} className="tag-chip" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                  <span
+                    key={art}
+                    className="tag-chip"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      maxWidth: '100%',
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
+                    }}
+                  >
                     {art}
                   </span>
                 ))}
