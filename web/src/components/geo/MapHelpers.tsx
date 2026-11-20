@@ -30,6 +30,22 @@ export const createCustomIcon = (type: string) => {
   });
 };
 
+export const createTelemetryCursorIcon = () => {
+  return L.divIcon({
+    className: 'telemetry-cursor-marker',
+    html: `<div style="
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #c40010;
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 0 4px rgba(196, 0, 16, 0.28), 0 3px 10px rgba(0, 0, 0, 0.55);
+    "></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+};
+
 export const MapUpdater: React.FC<{ points: { lat: number; lon: number }[] }> = ({ points }) => {
   const map = useMap();
   useEffect(() => {

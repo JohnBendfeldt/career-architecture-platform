@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Calendar, Check, Download, Edit2, Plus, Target, Upload, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Calendar, Check, Download, Edit2, Plus, Target, Timer, Upload, X } from 'lucide-react';
 import type { AnnualProgress } from '../../types';
 import { formatEntryHours } from '../../utils/advancementUtils';
+import { computeWeeklyPaceInsight } from '../../utils/advancementReportExport';
 
 interface AnnualProgressBannerProps {
   progress: AnnualProgress;
@@ -13,6 +14,8 @@ interface AnnualProgressBannerProps {
   onLogHoursClick: () => void;
   onImportClick?: () => void;
   onExportClick?: () => void;
+  showStudyTimer?: boolean;
+  onToggleStudyTimer?: () => void;
 }
 
 export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
@@ -25,6 +28,8 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
   onLogHoursClick,
   onImportClick,
   onExportClick,
+  showStudyTimer = false,
+  onToggleStudyTimer,
 }) => {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalHoursInput, setGoalHoursInput] = useState(String(progress.annualGoalHours));
@@ -47,10 +52,8 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
     }
   };
 
-  const remainingHours = Math.max(
-    0,
-    Math.round((progress.annualGoalHours - progress.completedHours) * 100) / 100
-  );
+  const paceInsight = useMemo(() => computeWeeklyPaceInsight(progress), [progress]);
+  const remainingHours = paceInsight.remainingHours;
   const clampedPercent = Math.min(100, Math.max(0, Math.round(progress.percentComplete)));
   const fillWidth = `${Math.min(100, Math.max(0, progress.percentComplete))}%`;
   const fillColor = progress.isOnTrack ? 'var(--status-success)' : 'var(--accent-crimson)';
@@ -60,7 +63,7 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
       className="glass-panel"
       style={{
         padding: '22px 24px',
-        marginBottom: '26px',
+        marginBottom: '20px',
       }}
     >
       <div
@@ -111,6 +114,25 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               ))}
             </select>
           </div>
+
+          {onToggleStudyTimer && (
+            <button
+              id="btn-toggle-study-timer"
+              type="button"
+              aria-pressed={showStudyTimer}
+              onClick={onToggleStudyTimer}
+              className="btn-secondary"
+              style={{
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                borderColor: showStudyTimer ? 'var(--accent-crimson)' : undefined,
+              }}
+              title="Toggle live Focus Study Session Timer"
+            >
+              <Timer size={14} aria-hidden="true" style={{ color: showStudyTimer ? 'var(--accent-crimson)' : undefined }} />
+              <span>Study Timer</span>
+            </button>
+          )}
 
           {onImportClick && (
             <button
@@ -199,11 +221,15 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
           <span>
             {remainingHours > 0
               ? `${formatEntryHours(remainingHours)} hrs remaining`
               : 'Annual target reached!'}
+          </span>
+          <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            {paceInsight.statusSummary}
           </span>
 
           {canEdit && !isEditingGoal && (
@@ -278,23 +304,60 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
         </div>
       </div>
 
-      <div
-        className="progress-track"
-        role="progressbar"
-        aria-valuenow={clampedPercent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Annual career advancement progress"
-        style={{ height: '8px' }}
-      >
+      {/* Progress Track with Q1-Q3 Checkpoint Markers */}
+      <div style={{ position: 'relative' }}>
         <div
-          className="progress-fill"
+          className="progress-track"
+          role="progressbar"
+          aria-valuenow={clampedPercent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Annual career advancement progress"
+          style={{ height: '10px' }}
+        >
+          <div
+            className="progress-fill"
+            style={{
+              width: fillWidth,
+              background: fillColor,
+            }}
+          />
+          {[25, 50, 75].map((pct) => (
+            <span
+              key={pct}
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: `${pct}%`,
+                top: 0,
+                bottom: 0,
+                width: '1.5px',
+                background: 'var(--bg-surface)',
+                opacity: 0.9,
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
+        </div>
+        <div
+          aria-hidden="true"
           style={{
-            width: fillWidth,
-            background: fillColor,
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '5px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
           }}
-        />
+        >
+          <span>Q1</span>
+          <span>Q2 (25%)</span>
+          <span>Q3 (50%)</span>
+          <span>Q4 (75%)</span>
+          <span>100%</span>
+        </div>
       </div>
     </div>
   );
 };
+

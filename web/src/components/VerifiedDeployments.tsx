@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Globe, Plus, Trash2, X } from 'lucide-react';
+import { ExternalLink, Globe, Plus, Trash2, X, Layers, ArrowUpRight } from 'lucide-react';
 import { GithubIcon } from './Icons';
 import { ModalDialog } from './ui/ModalDialog';
 import { isSafeHttpsUrl, safeParseStorageArray, sanitizeExternalUrl } from '../utils/security';
@@ -7,6 +7,7 @@ import { isSafeHttpsUrl, safeParseStorageArray, sanitizeExternalUrl } from '../u
 interface VerifiedDeploymentsProps {
   workspaceMode?: 'portfolio' | 'personal';
   userName?: string;
+  onOpenArchitecture?: () => void;
 }
 
 interface DeploymentItem {
@@ -81,7 +82,8 @@ const STARTER_PERSONAL_PROJECTS: DeploymentItem[] = [
 
 export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
   workspaceMode = 'portfolio',
-  userName = 'My'
+  userName = 'My',
+  onOpenArchitecture
 }) => {
   const [personalProjects, setPersonalProjects] = useState<DeploymentItem[]>(() => {
     const parsed = safeParseStorageArray<DeploymentItem>(
@@ -255,7 +257,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         {activeDeployments.map((item) => (
           <article
             key={item.id}
-            className="glass-panel"
+            className="glass-panel interactive-card"
             style={{
               padding: '24px',
               display: 'flex',
@@ -348,6 +350,23 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                     <span>{item.linkText}</span>
                     <ExternalLink size={13} aria-hidden="true" style={{ opacity: 0.8 }} />
                   </a>
+                ) : item.id === 'career-platform' && onOpenArchitecture ? (
+                  <button
+                    type="button"
+                    id="btn-inspect-architecture"
+                    onClick={onOpenArchitecture}
+                    className="btn-primary"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '9px 16px',
+                      fontSize: '0.84rem'
+                    }}
+                  >
+                    <Layers size={15} aria-hidden="true" />
+                    <span>Inspect Live Architecture</span>
+                    <ArrowUpRight size={14} aria-hidden="true" />
+                  </button>
                 ) : (
                   <div
                     style={{

@@ -23,6 +23,9 @@ interface AiSkillExtractorTabProps {
   onNavigateToGoals?: () => void;
   onOpenLogin?: () => void;
   onSwitchToPersonal?: () => void;
+  onHighlightOnResume?: (matchedSkills: string[]) => void;
+  recruiterPresetSignal?: number;
+  onNotify?: (message: string, tone?: 'success' | 'info' | 'error') => void;
 }
 
 const PORTFOLIO_BIO = `Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.`;
@@ -56,7 +59,10 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
   onEntryLogged,
   onNavigateToGoals,
   onOpenLogin,
-  onSwitchToPersonal
+  onSwitchToPersonal,
+  onHighlightOnResume,
+  recruiterPresetSignal,
+  onNotify
 }) => {
   const currentUser = ApiService.getUser();
   const canEdit = Boolean(
@@ -118,6 +124,21 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
       setActiveSkill(PORTFOLIO_SKILLS[0]);
     }
   }, [workspaceMode]);
+
+  useEffect(() => {
+    if (recruiterPresetSignal && recruiterPresetSignal > 0) {
+      const presetSkills = [
+        'C# & .NET 10',
+        'React & TypeScript',
+        'SQL Server & PostgreSQL',
+        'CI/CD & Azure DevOps',
+        'Docker & Automated Testing',
+      ];
+      setInputText(SAMPLE_DOTNET_REACT_JOB);
+      setExtractedSkills(presetSkills);
+      setActiveSkill(presetSkills[0]);
+    }
+  }, [recruiterPresetSignal]);
 
   // Load categories and fallback workspace goals/entries for standalone mounts
   useEffect(() => {
@@ -415,7 +436,11 @@ export const AiSkillExtractorTab: React.FC<AiSkillExtractorTabProps> = ({
           </div>
 
           {workspaceMode === 'portfolio' && (
-            <RecruiterScorecard extractedSkills={extractedSkills} />
+            <RecruiterScorecard
+              extractedSkills={extractedSkills}
+              onHighlightOnResume={onHighlightOnResume}
+              onNotify={onNotify}
+            />
           )}
 
           <div>

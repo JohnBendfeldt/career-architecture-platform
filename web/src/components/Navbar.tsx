@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn } from 'lucide-react';
+import { ShieldCheck, LogOut, Compass, Sun, Moon, LogIn, Search } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from './Icons';
 import type { User, Profile } from '../types';
 import { isSafeImageUrl, sanitizeExternalUrl } from '../utils/security';
@@ -13,6 +13,7 @@ interface NavbarProps {
   onStartTour: () => void;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,7 +24,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLogin,
   onStartTour,
   theme = 'light',
-  onToggleTheme
+  onToggleTheme,
+  onOpenCommandPalette
 }) => {
   const [avatarError, setAvatarError] = React.useState(false);
 
@@ -122,6 +124,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               flexShrink: 0
             }}
           />
+
+          {/* Quick Command Palette Trigger (Cmd/Ctrl+K) */}
+          {onOpenCommandPalette && (
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className="btn-secondary"
+              id="btn-command-palette"
+              style={{ padding: '6px 11px', fontSize: '0.8125rem', gap: '6px' }}
+              title="Open Quick Command Palette (Ctrl+K or ⌘K)"
+              aria-label="Open quick command palette"
+            >
+              <Search size={14} aria-hidden="true" />
+              <span>Quick Jump</span>
+              <kbd className="kbd-pill">⌘K</kbd>
+            </button>
+          )}
 
           {/* Theme Toggle Button */}
           {onToggleTheme && (

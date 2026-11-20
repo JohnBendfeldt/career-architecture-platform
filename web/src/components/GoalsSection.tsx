@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { CareerEntry, Category, Goal } from '../types';
+import type { CareerEntry, CareerEntryPrefill, Category, Goal } from '../types';
 import { ApiService } from '../services/api';
 import { Calendar, Plus, ShieldAlert, X, Trash2, TrendingUp, Clock, List, LayoutGrid, LogIn, UserCheck } from 'lucide-react';
 import {
@@ -8,6 +8,8 @@ import {
   formatEntryHours,
 } from '../utils/advancementUtils';
 import { AnnualProgressBanner } from './goals/AnnualProgressBanner';
+import { AdvancementInsightsPanel } from './goals/AdvancementInsightsPanel';
+import { FocusStudyTimer } from './goals/FocusStudyTimer';
 import { CareerEntryModal } from './goals/CareerEntryModal';
 import { CareerEntriesList } from './goals/CareerEntriesList';
 import { ImportCareerEntriesModal } from './goals/ImportCareerEntriesModal';
@@ -24,6 +26,8 @@ interface GoalsSectionProps {
   onAnnualGoalHoursChange?: (hours: number) => Promise<void> | void;
   onOpenLogin?: () => void;
   onSwitchToPersonal?: () => void;
+  openStudyTimerSignal?: number;
+  onNotify?: (message: string, tone?: 'success' | 'info' | 'error') => void;
 }
 
 export const GoalsSection: React.FC<GoalsSectionProps> = ({
@@ -36,6 +40,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
   onAnnualGoalHoursChange,
   onOpenLogin,
   onSwitchToPersonal,
+  openStudyTimerSignal,
+  onNotify,
 }) => {
   const currentUser = ApiService.getUser();
   const isAuthenticated = currentUser?.role === 'admin';
@@ -45,6 +51,8 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
 
   const [filter, setFilter] = useState<'All' | 'Technical' | 'Personal'>('All');
   const [viewMode, setViewMode] = useState<'board' | 'log'>('board');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [showStudyTimer, setShowStudyTimer] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [readOnlyNotice, setReadOnlyNotice] = useState<string | null>(null);
@@ -61,12 +69,20 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     mode: 'add' | 'edit' | 'duplicate';
     initialEntry: CareerEntry | null;
     preselectedGoalId: number | null;
+    prefill: CareerEntryPrefill | null;
   }>({
     isOpen: false,
     mode: 'add',
     initialEntry: null,
     preselectedGoalId: null,
+    prefill: null,
   });
+
+  useEffect(() => {
+    if (openStudyTimerSignal && openStudyTimerSignal > 0) {
+      setShowStudyTimer(true);
+    }
+  }, [openStudyTimerSignal]);
 
   // Modal form state
   const [newTitle, setNewTitle] = useState('');
@@ -221,13 +237,14 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     await refreshWorkspace();
   };
 
-  const openLogHoursModal = (preselectedGoalId: number | null = null) => {
+  const openLogHoursModal = (preselectedGoalId: number | null = null, prefill: CareerEntryPrefill | null = null) => {
     setActivityNotice(null);
     setEntryModalState({
       isOpen: true,
       mode: 'add',
       initialEntry: null,
       preselectedGoalId,
+      prefill,
     });
   };
 
@@ -283,6 +300,28 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
         onLogHoursClick={() => openLogHoursModal(null)}
         onImportClick={() => setIsImportModalOpen(true)}
         onExportClick={() => void handleExportEntries('xlsx', false)}
+        showStudyTimer={showStudyTimer}
+        onToggleStudyTimer={() => setShowStudyTimer((prev) => !prev)}
+      />
+
+      {showStudyTimer && (
+        <FocusStudyTimer
+          onLogSession={(prefill) => openLogHoursModal(null, prefill)}
+          onClose={() => setShowStudyTimer(false)}
+        />
+      )}
+
+      <AdvancementInsightsPanel
+        entries={activeEntries}
+        goals={goals}
+        progress={annualProgress}
+        selectedYear={selectedYear}
+        profileName={profileName || 'John F. Bendfeldt'}
+        onSelectCategoryFilter={(catId) => {
+          setSelectedCategoryFilter(catId != null ? String(catId) : 'all');
+          setViewMode('log');
+        }}
+        onNotify={onNotify}
       />
 
       {/* Section Header & Filters */}
@@ -401,12 +440,14 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
           goals={goals}
           selectedYear={selectedYear}
           canEdit={canEdit}
+          initialCategoryFilter={selectedCategoryFilter}
           onEdit={(entry) =>
             setEntryModalState({
               isOpen: true,
               mode: 'edit',
               initialEntry: entry,
               preselectedGoalId: entry.goalId ?? null,
+              prefill: null,
             })
           }
           onDuplicate={(entry) =>
@@ -415,6 +456,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
               mode: 'duplicate',
               initialEntry: entry,
               preselectedGoalId: entry.goalId ?? null,
+              prefill: null,
             })
           }
           onDelete={handleDeleteEntry}
@@ -792,6 +834,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
         mode={entryModalState.mode}
         initialEntry={entryModalState.initialEntry}
         preselectedGoalId={entryModalState.preselectedGoalId}
+        prefill={entryModalState.prefill}
         categories={categories}
         goals={goals}
         canEdit={canEdit}
@@ -804,6 +847,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
             isOpen: false,
             initialEntry: null,
             preselectedGoalId: null,
+            prefill: null,
           }))
         }
         onSaved={refreshWorkspace}

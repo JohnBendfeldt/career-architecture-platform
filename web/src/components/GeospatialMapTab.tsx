@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { RouteData, RideSummary } from '../types';
 import { ApiService } from '../services/api';
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
@@ -15,16 +15,33 @@ import {
   Check,
   SlidersHorizontal,
   LayoutGrid,
-  Loader2
+  Loader2,
+  Play,
+  Pause,
+  RotateCcw,
+  Gauge,
+  AlertTriangle,
+  Layers,
 } from 'lucide-react';
 import { exportRouteToGpx } from './geo/gpxExport';
-import { createCustomIcon, MapUpdater } from './geo/MapHelpers';
+import { createCustomIcon, createTelemetryCursorIcon, MapUpdater } from './geo/MapHelpers';
 import { ElevationProfileChart } from './geo/ElevationProfileChart';
+import {
+  analyzeRouteTelemetry,
+  formatDistance,
+  formatElevation,
+  formatSpeed,
+  type DistanceUnit,
+} from './geo/telemetryAnalytics';
 
 interface GeospatialMapTabProps {
   workspaceMode?: 'portfolio' | 'personal';
   userName?: string;
+  theme?: 'light' | 'dark';
+  onNotify?: (message: string, tone?: 'success' | 'info' | 'error') => void;
 }
+
+type BasemapMode = 'auto' | 'light' | 'dark' | 'osm';
 
 const PERSONAL_SAMPLE_RIDE: RideSummary = {
   id: 'sample-demo-route',
@@ -32,12 +49,29 @@ const PERSONAL_SAMPLE_RIDE: RideSummary = {
   distanceKm: 83.9,
   elevationGainM: 723,
   durationMinutes: 274,
-  date: 'Starter Route'
+  date: 'Starter Route',
+};
+
+const BASEMAP_CONFIG: Record<Exclude<BasemapMode, 'auto'>, { url: string; attribution: string }> = {
+  light: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
 };
 
 export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   workspaceMode = 'portfolio',
-  userName = 'My'
+  userName = 'My',
+  theme = 'light',
+  onNotify,
 }) => {
   const [route, setRoute] = useState<RouteData | null>(null);
   const [rides, setRides] = useState<RideSummary[]>([]);
@@ -47,10 +81,21 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   const [switchingRide, setSwitchingRide] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [useDropdown, setUseDropdown] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Interactive telemetry controls
+  const [unit, setUnit] = useState<DistanceUnit>('metric');
+  const [basemapMode, setBasemapMode] = useState<BasemapMode>('auto');
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replaySpeed, setReplaySpeed] = useState<1 | 4 | 10>(4);
+  const [showSplits, setShowSplits] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const cursorIcon = useMemo(() => createTelemetryCursorIcon(), []);
 
   // Close route dropdown on click outside
   useEffect(() => {
@@ -67,6 +112,12 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
     };
   }, [isDropdownOpen]);
 
+  // Reset replay cursor whenever route changes
+  useEffect(() => {
+    setIsReplaying(false);
+    setActivePointIndex(null);
+  }, [route]);
+
   // Load available rides based on workspaceMode
   useEffect(() => {
     let mounted = true;
@@ -76,14 +127,16 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         const sampleRouteData: RouteData = {
           ...sample,
           activityName: 'Sample Route (Upload Your Own .FIT or .GPX Above)',
-          recordedDevice: 'Sample GPS Telemetry Stream'
+          recordedDevice: 'Sample GPS Telemetry Stream',
         };
         setRides([PERSONAL_SAMPLE_RIDE]);
         setSelectedRideId(PERSONAL_SAMPLE_RIDE.id);
         setRoute(sampleRouteData);
         setInitialLoading(false);
       });
-      return () => { mounted = false; };
+      return () => {
+        mounted = false;
+      };
     }
 
     ApiService.getRides().then(async (ridesList) => {
@@ -113,14 +166,44 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         }
       }
     });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [workspaceMode]);
+
+  const telemetry = useMemo(
+    () =>
+      route
+        ? analyzeRouteTelemetry(route.points, route.distanceKm, route.durationMinutes)
+        : null,
+    [route]
+  );
+
+  // Route Replay animation timer
+  useEffect(() => {
+    if (!isReplaying || !route || route.points.length < 2) return;
+    const totalPts = route.points.length;
+    const step = Math.max(1, Math.round((totalPts / 180) * (replaySpeed / 2)));
+    const interval = window.setInterval(() => {
+      setActivePointIndex((prev) => {
+        const start = prev === null ? 0 : prev;
+        const next = start + step;
+        if (next >= totalPts - 1) {
+          setIsReplaying(false);
+          return totalPts - 1;
+        }
+        return next;
+      });
+    }, 60);
+    return () => window.clearInterval(interval);
+  }, [isReplaying, replaySpeed, route]);
 
   const handleSelectRide = async (ride: RideSummary) => {
     if (selectedRideId === ride.id && !switchingRide) return;
     setSelectedRideId(ride.id);
     setSwitchingRide(true);
     setUploadMessage(null);
+    setUploadError(null);
     try {
       if (customRoutesMap[ride.id]) {
         setRoute(customRoutesMap[ride.id]);
@@ -129,7 +212,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         setRoute({
           ...sample,
           activityName: 'Sample Route (Upload Your Own .FIT or .GPX Above)',
-          recordedDevice: 'Sample GPS Telemetry Stream'
+          recordedDevice: 'Sample GPS Telemetry Stream',
         });
       } else {
         const data = await ApiService.getRideById(ride.id);
@@ -137,30 +220,40 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       }
     } catch (e) {
       console.error('Failed to load ride', e);
+      const errMsg = 'Unable to load route telemetry. Please try another ride.';
+      setUploadError(errMsg);
+      onNotify?.(errMsg, 'error');
     } finally {
       setSwitchingRide(false);
     }
   };
 
+  const reportError = (msg: string) => {
+    setUploadError(msg);
+    setUploadMessage(null);
+    onNotify?.(msg, 'error');
+  };
+
   const handleFileUpload = async (file: File) => {
     const lowerName = file.name.toLowerCase();
     if (!lowerName.endsWith('.fit') && !lowerName.endsWith('.gpx')) {
-      alert('Please upload a valid Garmin binary .fit or .gpx file.');
+      reportError('Please upload a valid Garmin binary .fit or .gpx file.');
       return;
     }
 
     if (lowerName.endsWith('.gpx') && file.size > 15 * 1024 * 1024) {
-      alert('GPX file exceeds the 15 MB maximum upload size.');
+      reportError('GPX file exceeds the 15 MB maximum upload size.');
       return;
     }
 
     if (lowerName.endsWith('.fit') && file.size > 50 * 1024 * 1024) {
-      alert('Garmin FIT file exceeds the 50 MB maximum upload size.');
+      reportError('Garmin FIT file exceeds the 50 MB maximum upload size.');
       return;
     }
 
     setUploading(true);
     setUploadMessage(null);
+    setUploadError(null);
     try {
       const parsedRoute = await ApiService.uploadFitFile(file);
       const customId = `custom-${Date.now()}`;
@@ -170,21 +263,24 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         distanceKm: parsedRoute.distanceKm,
         elevationGainM: parsedRoute.elevationGainM,
         durationMinutes: parsedRoute.durationMinutes,
-        date: 'Uploaded Just Now'
+        date: 'Uploaded Just Now',
       };
-      setCustomRoutesMap(prev => ({ ...prev, [customId]: parsedRoute }));
-      setRides(prev => [newSummary, ...prev]);
+      setCustomRoutesMap((prev) => ({ ...prev, [customId]: parsedRoute }));
+      setRides((prev) => [newSummary, ...prev]);
       setRoute(parsedRoute);
       setSelectedRideId(customId);
-      setUploadMessage(`Successfully parsed ${file.name} (${parsedRoute.distanceKm} km, +${parsedRoute.elevationGainM}m)!`);
-    } catch (e: any) {
-      alert(`Error parsing telemetry file: ${e.message || 'Unknown error'}`);
+      const msg = `Successfully parsed ${file.name} (${parsedRoute.distanceKm} km, +${parsedRoute.elevationGainM}m)!`;
+      setUploadMessage(msg);
+      onNotify?.(msg, 'success');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      reportError(`Error parsing telemetry file: ${msg}`);
     } finally {
       setUploading(false);
     }
   };
 
-  if (initialLoading || !route) {
+  if (initialLoading || !route || !telemetry) {
     return (
       <div className="glass-panel" role="status" style={{ padding: '60px', textAlign: 'center' }}>
         <Activity size={32} color="var(--text-primary)" aria-hidden="true" className="animate-spin" style={{ margin: '0 auto 16px' }} />
@@ -193,7 +289,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
     );
   }
 
-  const polylinePositions: [number, number][] = route.points.map(p => [p.lat, p.lon]);
+  const polylinePositions: [number, number][] = route.points.map((p) => [p.lat, p.lon]);
   const centerLat = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lat : 30.5;
   const centerLon = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lon : -97.5;
 
@@ -201,7 +297,36 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   const minutes = route.durationMinutes % 60;
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
-  const activeRide = rides.find(r => r.id === selectedRideId);
+  const activeRide = rides.find((r) => r.id === selectedRideId);
+  const effectiveBasemapKey: Exclude<BasemapMode, 'auto'> =
+    basemapMode === 'auto' ? (theme === 'dark' ? 'dark' : 'light') : basemapMode;
+  const tileConfig = BASEMAP_CONFIG[effectiveBasemapKey];
+
+  const activeTelemetryPoint =
+    activePointIndex !== null && telemetry.points[activePointIndex]
+      ? telemetry.points[activePointIndex]
+      : null;
+
+  const replayProgressPercent =
+    activePointIndex !== null && route.points.length > 1
+      ? Math.round((activePointIndex / (route.points.length - 1)) * 100)
+      : 0;
+
+  const handleToggleReplay = () => {
+    if (isReplaying) {
+      setIsReplaying(false);
+      return;
+    }
+    if (activePointIndex === null || activePointIndex >= route.points.length - 1) {
+      setActivePointIndex(0);
+    }
+    setIsReplaying(true);
+  };
+
+  const handleResetReplay = () => {
+    setIsReplaying(false);
+    setActivePointIndex(null);
+  };
 
   return (
     <div style={{ marginBottom: '36px' }}>
@@ -234,19 +359,39 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           </h2>
           <p className="section-subtitle">
             {workspaceMode === 'personal'
-              ? 'Click "Upload .FIT / .GPX" on the right to plot your own GPS activity files onto the interactive map, or export the sample route below to test.'
-              : <>Binary telemetry decoded directly from John&apos;s <strong>Garmin Forerunner 255 Music</strong> into Leaflet vector polylines, elevation profiles, and GPX streams.</>}
+              ? 'Click "Upload .FIT / .GPX" on the right to plot your own GPS activity files onto the interactive map, or replay the sample route below.'
+              : <>Binary telemetry decoded directly from John&apos;s <strong>Garmin Forerunner 255 Music</strong> with synced elevation scrubbing, route replay, and GPX export.</>}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Metric / Imperial Switch */}
+          <div className="segmented-control" role="group" aria-label="Telemetry measurement units">
+            <button
+              type="button"
+              className="segmented-btn"
+              aria-pressed={unit === 'metric'}
+              onClick={() => setUnit('metric')}
+            >
+              km / m
+            </button>
+            <button
+              type="button"
+              className="segmented-btn"
+              aria-pressed={unit === 'imperial'}
+              onClick={() => setUnit('imperial')}
+            >
+              mi / ft
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="btn-secondary"
             id="btn-upload-fit"
-            style={{ padding: '9px 18px', fontSize: '0.85rem' }}
+            style={{ padding: '8px 14px', fontSize: '0.84rem' }}
           >
             <Upload size={15} aria-hidden="true" />
             <span>{uploading ? 'Parsing Telemetry...' : 'Upload .FIT / .GPX'}</span>
@@ -254,10 +399,13 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
           <button
             type="button"
-            onClick={() => exportRouteToGpx(route)}
+            onClick={() => {
+              exportRouteToGpx(route);
+              onNotify?.(`Exported ${route.activityName} as .GPX`, 'success');
+            }}
             className="btn-primary"
             id="btn-export-gpx"
-            style={{ padding: '9px 18px', fontSize: '0.85rem' }}
+            style={{ padding: '8px 14px', fontSize: '0.84rem' }}
           >
             <Download size={15} aria-hidden="true" />
             <span>Export .GPX</span>
@@ -267,14 +415,16 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
       {/* Favorite Rides Selector Bar */}
       <div className="glass-panel" style={{ padding: '18px 20px', marginBottom: '20px', position: 'relative' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '14px',
-          flexWrap: 'wrap',
-          gap: '10px'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '14px',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               {workspaceMode === 'personal'
@@ -294,7 +444,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                   alignItems: 'center',
                   gap: '5px',
                   fontSize: '0.75rem',
-                  color: 'var(--accent-crimson)'
+                  color: 'var(--accent-crimson)',
                 }}
               >
                 <Loader2 size={13} className="animate-spin" aria-hidden="true" />
@@ -305,7 +455,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Select a route to inspect GPS splits &amp; elevation
+              Select a route to replay GPS splits &amp; climb grades
             </span>
             <button
               type="button"
@@ -348,7 +498,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                 justifyContent: 'space-between',
                 cursor: 'pointer',
                 transition: 'border-color 0.15s ease',
-                textAlign: 'left'
+                textAlign: 'left',
               }}
             >
               <div>
@@ -356,9 +506,9 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                   {activeRide?.title || route.activityName}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
-                  <span>{route.distanceKm} km</span>
+                  <span>{formatDistance(route.distanceKm, unit)}</span>
                   <span aria-hidden="true">•</span>
-                  <span>+{route.elevationGainM}m ascent</span>
+                  <span>+{formatElevation(route.elevationGainM, unit)} ascent</span>
                   <span aria-hidden="true">•</span>
                   <span>{durationText}</span>
                 </div>
@@ -369,7 +519,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                 style={{
                   transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   transition: 'transform 0.2s ease',
-                  color: isDropdownOpen ? 'var(--accent-crimson)' : 'var(--text-muted)'
+                  color: isDropdownOpen ? 'var(--accent-crimson)' : 'var(--text-muted)',
                 }}
               />
             </button>
@@ -390,10 +540,10 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                   boxShadow: 'var(--shadow-lg)',
                   padding: '6px',
                   maxHeight: '340px',
-                  overflowY: 'auto'
+                  overflowY: 'auto',
                 }}
               >
-                {rides.map(r => {
+                {rides.map((r) => {
                   const isSelected = selectedRideId === r.id;
                   return (
                     <button
@@ -418,7 +568,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                         cursor: 'pointer',
                         textAlign: 'left',
                         marginBottom: '3px',
-                        transition: 'background-color 0.15s ease'
+                        transition: 'background-color 0.15s ease',
                       }}
                     >
                       <div>
@@ -426,9 +576,9 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                           {r.title}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
-                          <span>{r.distanceKm} km</span>
+                          <span>{formatDistance(r.distanceKm, unit)}</span>
                           <span aria-hidden="true">•</span>
-                          <span>+{r.elevationGainM}m</span>
+                          <span>+{formatElevation(r.elevationGainM, unit)}</span>
                           <span aria-hidden="true">•</span>
                           <span>{r.durationMinutes} min</span>
                           <span aria-hidden="true">•</span>
@@ -447,7 +597,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            flexShrink: 0
+                            flexShrink: 0,
                           }}
                         >
                           <Check size={12} strokeWidth={3} />
@@ -461,11 +611,13 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           </div>
         ) : (
           /* 2. RESPONSIVE GRID MODE */
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: '10px'
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '10px',
+            }}
+          >
             {rides.map((r) => {
               const isSelected = selectedRideId === r.id;
               return (
@@ -485,30 +637,34 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                     transition: 'border-color 0.15s ease, background-color 0.15s ease',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <div style={{
-                    fontSize: '0.88rem',
-                    fontWeight: isSelected ? 700 : 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: '6px',
-                    lineHeight: 1.3
-                  }}>
+                  <div
+                    style={{
+                      fontSize: '0.88rem',
+                      fontWeight: isSelected ? 700 : 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                      lineHeight: 1.3,
+                    }}
+                  >
                     {r.title}
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '5px',
-                    fontSize: '0.75rem',
-                    color: isSelected ? 'var(--accent-crimson)' : 'var(--text-muted)',
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    <span style={{ fontWeight: 600 }}>{r.distanceKm} km</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '5px',
+                      fontSize: '0.75rem',
+                      color: isSelected ? 'var(--accent-crimson)' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{formatDistance(r.distanceKm, unit)}</span>
                     <span aria-hidden="true">•</span>
-                    <span>+{r.elevationGainM}m</span>
+                    <span>+{formatElevation(r.elevationGainM, unit)}</span>
                     <span aria-hidden="true">•</span>
                     <span>{r.date}</span>
                   </div>
@@ -519,7 +675,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         )}
       </div>
 
-      {/* Upload Notification Message */}
+      {/* Upload Notification or Error Banner */}
       {uploadMessage && (
         <div
           className="callout-success"
@@ -529,7 +685,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            fontSize: '0.88rem'
+            fontSize: '0.88rem',
           }}
         >
           <CheckCircle2 size={18} aria-hidden="true" />
@@ -537,22 +693,41 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         </div>
       )}
 
+      {uploadError && (
+        <div
+          className="callout-danger"
+          role="alert"
+          style={{
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '0.88rem',
+          }}
+        >
+          <AlertTriangle size={18} aria-hidden="true" style={{ color: 'var(--status-danger)', flexShrink: 0 }} />
+          <span>{uploadError}</span>
+        </div>
+      )}
+
       {/* Telemetry HUD Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '14px',
-        marginBottom: '20px',
-        transition: 'opacity 0.2s',
-        opacity: switchingRide ? 0.65 : 1
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+          gap: '14px',
+          marginBottom: '18px',
+          transition: 'opacity 0.2s',
+          opacity: switchingRide ? 0.65 : 1,
+        }}
+      >
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <Navigation size={16} color="var(--accent-crimson)" aria-hidden="true" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Active Distance</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {route.distanceKm} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>km</span>
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+            {formatDistance(route.distanceKm, unit)}
           </div>
         </div>
 
@@ -561,18 +736,21 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             <Mountain size={16} color="var(--text-primary)" aria-hidden="true" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Total Ascent</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            +{route.elevationGainM} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>m</span>
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+            +{formatElevation(route.elevationGainM, unit)}
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <Clock size={16} color="var(--text-primary)" aria-hidden="true" />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Duration</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Duration / Avg</span>
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
             {durationText}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+            Avg {formatSpeed(telemetry.avgSpeedKmh, unit)} • Peak {telemetry.maxGradePercent}%
           </div>
         </div>
 
@@ -581,20 +759,193 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             <Compass size={16} color="var(--status-success)" aria-hidden="true" />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Recording Device</span>
           </div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+          <div style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
             {route.recordedDevice}
+          </div>
+        </div>
+      </div>
+
+      {/* Synchronized Route Replay & Basemap Control Bar */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '14px 18px',
+          marginBottom: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleToggleReplay}
+              className="btn-primary"
+              id="btn-replay-route"
+              style={{ padding: '7px 14px', fontSize: '0.82rem' }}
+            >
+              {isReplaying ? (
+                <>
+                  <Pause size={14} aria-hidden="true" />
+                  <span>Pause Replay</span>
+                </>
+              ) : (
+                <>
+                  <Play size={14} aria-hidden="true" />
+                  <span>{activePointIndex !== null && activePointIndex < route.points.length - 1 ? 'Resume Replay' : 'Replay Route'}</span>
+                </>
+              )}
+            </button>
+
+            <div className="segmented-control" role="group" aria-label="Replay playback speed">
+              {([1, 4, 10] as const).map((spd) => (
+                <button
+                  key={spd}
+                  type="button"
+                  className="segmented-btn"
+                  aria-pressed={replaySpeed === spd}
+                  onClick={() => setReplaySpeed(spd)}
+                >
+                  {spd}x
+                </button>
+              ))}
+            </div>
+
+            {activePointIndex !== null && (
+              <button
+                type="button"
+                onClick={handleResetReplay}
+                className="btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                title="Clear telemetry cursor"
+              >
+                <RotateCcw size={13} aria-hidden="true" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+              <Layers size={13} aria-hidden="true" />
+              <span>Map</span>
+            </span>
+            <div className="segmented-control" role="group" aria-label="Map tile style">
+              {[
+                { id: 'auto' as const, label: 'Auto' },
+                { id: 'light' as const, label: 'Light' },
+                { id: 'dark' as const, label: 'Dark' },
+                { id: 'osm' as const, label: 'OSM' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className="segmented-btn"
+                  aria-pressed={basemapMode === opt.id}
+                  onClick={() => setBasemapMode(opt.id)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Scrubber Slider + Live Cursor Telemetry Readout */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <label htmlFor="route-scrubber-slider" className="sr-only">
+            Scrub GPS route telemetry timeline
+          </label>
+          <input
+            id="route-scrubber-slider"
+            type="range"
+            min={0}
+            max={Math.max(0, route.points.length - 1)}
+            value={activePointIndex ?? 0}
+            onChange={(e) => {
+              setIsReplaying(false);
+              setActivePointIndex(Number(e.target.value));
+            }}
+            className="telemetry-slider"
+            style={{ flex: '1 1 220px' }}
+          />
+          <div
+            aria-live="polite"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.76rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <Gauge size={14} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
+            {activeTelemetryPoint ? (
+              <>
+                <span>
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {formatDistance(activeTelemetryPoint.cumulativeKm, unit)}
+                  </strong>{' '}
+                  ({replayProgressPercent}%)
+                </span>
+                <span aria-hidden="true">•</span>
+                <span>
+                  Ele: <strong style={{ color: 'var(--text-primary)' }}>{formatElevation(activeTelemetryPoint.point.elevation, unit)}</strong>
+                </span>
+                <span aria-hidden="true">•</span>
+                <span>
+                  Grade:{' '}
+                  <strong
+                    style={{
+                      color:
+                        activeTelemetryPoint.gradeCategory === 'steep'
+                          ? 'var(--accent-crimson)'
+                          : activeTelemetryPoint.gradeCategory === 'descent'
+                            ? 'var(--status-success)'
+                            : 'var(--text-primary)',
+                    }}
+                  >
+                    {activeTelemetryPoint.gradePercent > 0
+                      ? `+${activeTelemetryPoint.gradePercent}%`
+                      : `${activeTelemetryPoint.gradePercent}%`}
+                  </strong>
+                </span>
+              </>
+            ) : (
+              <span>Scrub slider or hover elevation chart to track live GPS position</span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Interactive Map Canvas */}
       <div className="glass-panel" style={{ padding: '14px', position: 'relative' }}>
-        <div style={{
-          height: '520px',
-          borderRadius: 'var(--radius-lg)',
-          overflow: 'hidden',
-          position: 'relative'
-        }}>
+        <div
+          style={{
+            height: '520px',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
           {switchingRide && (
             <div
               role="status"
@@ -611,7 +962,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                 fontSize: '0.75rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
               }}
             >
               <Loader2 size={13} className="animate-spin" aria-hidden="true" />
@@ -626,8 +977,9 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              key={effectiveBasemapKey}
+              attribution={tileConfig.attribution}
+              url={tileConfig.url}
             />
 
             <MapUpdater points={route.points} />
@@ -639,9 +991,17 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                 weight: 5,
                 opacity: 0.9,
                 lineCap: 'round',
-                lineJoin: 'round'
+                lineJoin: 'round',
               }}
             />
+
+            {activeTelemetryPoint && (
+              <Marker
+                position={[activeTelemetryPoint.point.lat, activeTelemetryPoint.point.lon]}
+                icon={cursorIcon}
+                zIndexOffset={1000}
+              />
+            )}
 
             {route.annotations.map((ann) => (
               <Marker
@@ -651,13 +1011,15 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               >
                 <Popup>
                   <div style={{ padding: '4px' }}>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      color: 'var(--accent-crimson)',
-                      textTransform: 'uppercase',
-                      marginBottom: '4px'
-                    }}>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-crimson)',
+                        textTransform: 'uppercase',
+                        marginBottom: '4px',
+                      }}
+                    >
                       {ann.type === 'start' && 'Route Departure'}
                       {ann.type === 'checkpoint' && 'Halfway Split'}
                       {ann.type === 'highlight' && 'Peak Elevation Segment'}
@@ -680,25 +1042,27 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         </div>
 
         {/* Map Legend Overlay */}
-        <div style={{
-          position: 'absolute',
-          bottom: '22px',
-          left: '22px',
-          right: '22px',
-          width: 'fit-content',
-          maxWidth: 'calc(100% - 44px)',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          padding: '8px 12px',
-          zIndex: 1000,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '12px',
-          fontSize: '0.75rem',
-          color: 'var(--text-secondary)',
-          boxShadow: 'var(--shadow-md)'
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '22px',
+            left: '22px',
+            right: '22px',
+            width: 'fit-content',
+            maxWidth: 'calc(100% - 44px)',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '8px 12px',
+            zIndex: 1000,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
             <span>Departure</span>
@@ -718,8 +1082,92 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         </div>
       </div>
 
-      {/* Elevation Profile Chart */}
-      <ElevationProfileChart points={route.points} distanceKm={route.distanceKm} />
+      {/* Synced Elevation Profile Chart */}
+      <ElevationProfileChart
+        points={route.points}
+        distanceKm={route.distanceKm}
+        unit={unit}
+        enrichedPoints={telemetry.points}
+        activePointIndex={activePointIndex}
+        onActivePointIndexChange={(idx) => {
+          setIsReplaying(false);
+          setActivePointIndex(idx);
+        }}
+      />
+
+      {/* Interactive Split Telemetry Table */}
+      {telemetry.splits.length > 0 && (
+        <div className="glass-panel" style={{ padding: '16px 20px', marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ fontSize: '0.94rem', margin: 0, color: 'var(--text-primary)' }}>
+                Segment Split Breakdown ({telemetry.splits.length} Segments)
+              </h3>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                Computed directly from GPS coordinates &amp; barometric altitude samples
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSplits((prev) => !prev)}
+              className="btn-secondary"
+              aria-expanded={showSplits}
+              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+            >
+              <span>{showSplits ? 'Hide Splits' : 'Inspect Segment Splits'}</span>
+              <ChevronDown
+                size={14}
+                aria-hidden="true"
+                style={{
+                  transform: showSplits ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.18s ease',
+                }}
+              />
+            </button>
+          </div>
+
+          {showSplits && (
+            <div style={{ overflowX: 'auto', marginTop: '14px' }}>
+              <table className="telemetry-splits-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Split</th>
+                    <th scope="col">Range</th>
+                    <th scope="col">Ascent</th>
+                    <th scope="col">Descent</th>
+                    <th scope="col">Avg Grade</th>
+                    <th scope="col">Peak Elevation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {telemetry.splits.map((sp) => (
+                    <tr key={sp.splitNumber}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                        S{sp.splitNumber}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>
+                        {formatDistance(sp.startKm, unit)} – {formatDistance(sp.endKm, unit)}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-crimson)', fontWeight: 600 }}>
+                        +{formatElevation(sp.elevationGainM, unit)}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--status-success)' }}>
+                        -{formatElevation(sp.elevationLossM, unit)}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>
+                        {sp.avgGradePercent > 0 ? `+${sp.avgGradePercent}%` : `${sp.avgGradePercent}%`}
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>
+                        {formatElevation(sp.maxElevationM, unit)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, ExternalLink, Globe, Plus, Trash2, Download } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { MapPin, ExternalLink, Globe, Plus, Trash2, Download, Sparkles, X } from 'lucide-react';
 import type { Profile } from '../types';
 import {
   PORTFOLIO_EXPERIENCES,
@@ -17,6 +17,14 @@ interface ResumeTimelineProps {
   workspaceMode?: 'portfolio' | 'personal';
   userName?: string;
   profile?: Profile | null;
+  highlightedSkills?: string[];
+  onClearHighlightedSkills?: () => void;
+}
+
+function matchesHighlightedSkill(candidateText: string, highlightTokens: string[]): boolean {
+  if (highlightTokens.length === 0) return false;
+  const hay = candidateText.toLowerCase();
+  return highlightTokens.some((tok) => hay.includes(tok));
 }
 
 const PORTFOLIO_PROJECTS = [
@@ -83,7 +91,9 @@ const PORTFOLIO_SKILLS = [
 export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
   workspaceMode = 'portfolio',
   userName = 'My',
-  profile
+  profile,
+  highlightedSkills = [],
+  onClearHighlightedSkills
 }) => {
   const [personalExperiences, setPersonalExperiences] = useState<ExperienceItem[]>(() => {
     const parsed = safeParseStorageArray<ExperienceItem>(
@@ -94,6 +104,22 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
   });
 
   const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
+
+  const highlightTokens = useMemo(() => {
+    const tokens = new Set<string>();
+    for (const raw of highlightedSkills) {
+      const cleaned = raw.trim().toLowerCase();
+      if (!cleaned) continue;
+      tokens.add(cleaned);
+      for (const piece of cleaned.split(/[&,/|+]+/)) {
+        const trimmed = piece.trim();
+        if (trimmed.length >= 2 && trimmed !== 'and') {
+          tokens.add(trimmed);
+        }
+      }
+    }
+    return Array.from(tokens);
+  }, [highlightedSkills]);
 
   useEffect(() => {
     localStorage.setItem('cap_personal_experiences', JSON.stringify(personalExperiences));
@@ -158,11 +184,48 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
         </div>
       </div>
 
+      {/* Active Recruiter JD Highlight Banner */}
+      {highlightedSkills.length > 0 && workspaceMode !== 'personal' && (
+        <div
+          role="status"
+          className="callout-banner"
+          style={{
+            marginBottom: '22px',
+            borderLeftColor: 'var(--accent-crimson)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
+            <Sparkles size={15} aria-hidden="true" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} />
+            <span>
+              <strong>JD Skill Lens Active:</strong> Highlighting{' '}
+              <strong>{highlightedSkills.length}</strong> matched{' '}
+              {highlightedSkills.length === 1 ? 'skill' : 'skills'} across resume history ({highlightedSkills.join(', ')})
+            </span>
+          </div>
+          {onClearHighlightedSkills && (
+            <button
+              type="button"
+              onClick={onClearHighlightedSkills}
+              className="btn-secondary"
+              style={{ minHeight: '30px', padding: '4px 10px', fontSize: '0.76rem' }}
+            >
+              <X size={13} aria-hidden="true" />
+              <span>Clear Highlight</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Skills Matrix (John's Portfolio Mode) */}
       {workspaceMode !== 'personal' && (
         <section className="glass-panel" style={{ padding: '26px 28px', marginBottom: '32px' }} aria-labelledby="skills-matrix-heading">
           <h3 id="skills-matrix-heading" style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '18px' }}>
-            Technical Skills & Methodologies
+            Technical Skills &amp; Methodologies
           </h3>
           <div style={{
             display: 'grid',
@@ -189,11 +252,18 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                   {group.category}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {group.items.map((skill) => (
-                    <span key={skill} className="tag-chip" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {skill}
-                    </span>
-                  ))}
+                  {group.items.map((skill) => {
+                    const isMatched = matchesHighlightedSkill(skill, highlightTokens);
+                    return (
+                      <span
+                        key={skill}
+                        className={`tag-chip ${isMatched ? 'tag-chip-matched' : ''}`}
+                        style={{ color: isMatched ? 'var(--accent-crimson)' : 'var(--text-primary)', fontWeight: isMatched ? 700 : 500 }}
+                      >
+                        {skill}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -208,97 +278,113 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {activeExperiences.map((exp, idx) => (
-            <article key={exp.id || idx} className="glass-panel timeline-card">
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                flexWrap: 'wrap',
-                gap: '12px',
-                marginBottom: '12px'
-              }}>
-                <div>
-                  <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, letterSpacing: '-0.02em' }}>
-                    {exp.role}
-                  </h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 700 }}>
-                      {exp.company}
+          {activeExperiences.map((exp, idx) => {
+            const matchedBadgesCount = exp.badges.filter((b) =>
+              matchesHighlightedSkill(b, highlightTokens)
+            ).length;
+            return (
+              <article
+                key={exp.id || idx}
+                className={`glass-panel timeline-card ${matchedBadgesCount > 0 ? 'timeline-card-matched' : ''}`}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  marginBottom: '12px'
+                }}>
+                  <div>
+                    <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, letterSpacing: '-0.02em' }}>
+                      {exp.role}
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 700 }}>
+                        {exp.company}
+                      </span>
+                      <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
+                      <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <MapPin size={14} aria-hidden="true" />
+                        <span>{exp.location}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {matchedBadgesCount > 0 && (
+                      <span className="badge badge-emerald">
+                        {matchedBadgesCount} JD {matchedBadgesCount === 1 ? 'match' : 'matches'}
+                      </span>
+                    )}
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      background: 'var(--bg-inset)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '4px 11px',
+                      borderRadius: 'var(--radius-sm)'
+                    }}>
+                      {exp.period}
                     </span>
-                    <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
-                    <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <MapPin size={14} aria-hidden="true" />
-                      <span>{exp.location}</span>
-                    </span>
+                    {workspaceMode === 'personal' && exp.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRole(exp.id)}
+                        className="icon-btn"
+                        title="Delete role"
+                        aria-label={`Delete ${exp.role}`}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    background: 'var(--bg-inset)',
-                    border: '1px solid var(--border-subtle)',
-                    padding: '4px 11px',
-                    borderRadius: 'var(--radius-sm)'
-                  }}>
-                    {exp.period}
-                  </span>
-                  {workspaceMode === 'personal' && exp.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteRole(exp.id)}
-                      className="icon-btn"
-                      title="Delete role"
-                      aria-label={`Delete ${exp.role}`}
-                    >
-                      <Trash2 size={15} aria-hidden="true" />
-                    </button>
-                  )}
+                <p style={{
+                  fontSize: '0.9rem',
+                  color: 'var(--text-primary)',
+                  paddingLeft: '12px',
+                  borderLeft: '2px solid var(--accent-crimson)',
+                  marginBottom: '16px',
+                  fontWeight: 600
+                }}>
+                  {exp.highlight}
+                </p>
+
+                <ul style={{
+                  paddingLeft: '18px',
+                  margin: '0 0 18px 0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  {exp.bullets.map((bullet, bIdx) => (
+                    <li key={bIdx} style={{
+                      fontSize: '0.95rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.65
+                    }}>
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+                  {exp.badges.map((b) => {
+                    const isMatched = matchesHighlightedSkill(b, highlightTokens);
+                    return (
+                      <span key={b} className={`tag-chip ${isMatched ? 'tag-chip-matched' : ''}`}>
+                        {b}
+                      </span>
+                    );
+                  })}
                 </div>
-              </div>
-
-              <p style={{
-                fontSize: '0.9rem',
-                color: 'var(--text-primary)',
-                paddingLeft: '12px',
-                borderLeft: '2px solid var(--accent-crimson)',
-                marginBottom: '16px',
-                fontWeight: 600
-              }}>
-                {exp.highlight}
-              </p>
-
-              <ul style={{
-                paddingLeft: '18px',
-                margin: '0 0 18px 0',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px'
-              }}>
-                {exp.bullets.map((bullet, bIdx) => (
-                  <li key={bIdx} style={{
-                    fontSize: '0.95rem',
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.65
-                  }}>
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-                {exp.badges.map((b) => (
-                  <span key={b} className="tag-chip">
-                    {b}
-                  </span>
-                ))}
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
 

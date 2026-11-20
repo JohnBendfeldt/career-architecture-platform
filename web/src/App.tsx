@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { User, Profile, Goal, CareerEntry } from './types';
 import { ApiService } from './services/api';
 import { getOrInitSupabaseClient, signOutFromSupabase, consumeGoogleIdTokenFromHash } from './services/supabase';
@@ -6,10 +6,11 @@ import { isSafeImageUrl } from './utils/security';
 import { Navbar } from './components/Navbar';
 import { ProfileHero } from './components/ProfileHero';
 import { VerifiedDeployments } from './components/VerifiedDeployments';
-import { ResumeTimeline } from './components/ResumeTimeline';
+import { ResumeTimeline, exportPrintableResume } from './components/ResumeTimeline';
 import { FeatureTabs } from './components/FeatureTabs';
 import type { LegalTab } from './components/LegalModal';
 import { GithubIcon, LinkedinIcon } from './components/Icons';
+import { ToastContainer, type ToastMessage } from './components/ui/ToastContainer';
 
 const GoalsSection = lazy(() =>
   import('./components/GoalsSection').then((m) => ({ default: m.GoalsSection }))
@@ -28,6 +29,12 @@ const MicroTour = lazy(() =>
 );
 const LegalModal = lazy(() =>
   import('./components/LegalModal').then((m) => ({ default: m.LegalModal }))
+);
+const CommandPalette = lazy(() =>
+  import('./components/CommandPalette').then((m) => ({ default: m.CommandPalette }))
+);
+const ArchitectureExplorerModal = lazy(() =>
+  import('./components/ArchitectureExplorerModal').then((m) => ({ default: m.ArchitectureExplorerModal }))
 );
 
 const isExternalOAuthUser = (u: User | null): boolean => {
@@ -73,6 +80,13 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'experience' | 'dashboard' | 'ai' | 'map'>('experience');
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showArchitectureModal, setShowArchitectureModal] = useState(false);
+  const [highlightedSkills, setHighlightedSkills] = useState<string[]>([]);
+  const [studyTimerSignal, setStudyTimerSignal] = useState(0);
+  const [recruiterPresetSignal, setRecruiterPresetSignal] = useState(0);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [legalTab, setLegalTab] = useState<LegalTab | null>(() => {
     const p = window.location.pathname.toLowerCase();
     if (p === '/privacy' || p === '/privacy/') return 'privacy';
@@ -84,10 +98,46 @@ export function App() {
     return stored === 'dark' ? 'dark' : 'light';
   });
 
+  const pushToast = useCallback((message: string, tone: 'success' | 'info' | 'error' = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev.slice(-2), { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('cap_theme', theme);
   }, [theme]);
+
+  // Global Cmd/Ctrl+K shortcut for Command Palette
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Subtle editorial reading progress bar
+  useEffect(() => {
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - doc.clientHeight);
+      const ratio = Math.min(100, Math.max(0, (window.scrollY / maxScroll) * 100));
+      setScrollProgress(ratio);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleToggleWorkspaceMode = (mode: 'portfolio' | 'personal') => {
     setWorkspaceMode(mode);
@@ -344,11 +394,76 @@ export function App() {
     map: 'Garmin Geospatial',
   };
 
+  const canSwitchWorkspace = Boolean(isExternalOAuthUser(user) && customProfile);
+
+  const handleHighlightOnResume = (matchedSkills: string[]) => {
+    setHighlightedSkills(matchedSkills);
+    handleTabSwitch('experience', true);
+    pushToast(
+      `Highlighted ${matchedSkills.length} matched JD ${matchedSkills.length === 1 ? 'skill' : 'skills'} on Experience & Resume.`,
+      'success'
+    );
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        aria-hidden="true"
+        className="reading-progress-bar"
+        style={{ width: `${scrollProgress}%` }}
+      />
+
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
+
+      {/* Quick Command Palette (Cmd/Ctrl+K) */}
+      {showCommandPalette && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={showCommandPalette}
+            onClose={() => setShowCommandPalette(false)}
+            theme={theme}
+            workspaceMode={workspaceMode}
+            canSwitchWorkspace={canSwitchWorkspace}
+            isAuthenticated={Boolean(user && user.role === 'admin')}
+            onSelectTab={(tab) => handleTabSwitch(tab, true)}
+            onToggleTheme={handleToggleTheme}
+            onOpenArchitecture={() => setShowArchitectureModal(true)}
+            onExportResume={() =>
+              exportPrintableResume({
+                workspaceMode,
+                profile: (workspaceMode === 'personal' && customProfile ? customProfile : profile) || undefined,
+              })
+            }
+            onStartTour={handleStartTour}
+            onOpenFocusTimer={() => {
+              setStudyTimerSignal((n) => n + 1);
+              handleTabSwitch('dashboard', true);
+            }}
+            onRunRecruiterMatch={() => {
+              setRecruiterPresetSignal((n) => n + 1);
+              handleTabSwitch('ai', true);
+              pushToast('Loaded Senior .NET / React Job Match preset in AI Skill Pipeline.', 'info');
+            }}
+            onToggleWorkspaceMode={() =>
+              handleToggleWorkspaceMode(workspaceMode === 'portfolio' ? 'personal' : 'portfolio')
+            }
+            onOpenLogin={() => setShowLoginModal(true)}
+          />
+        </Suspense>
+      )}
+
+      {/* Live Multi-Service Architecture Explorer */}
+      {showArchitectureModal && (
+        <Suspense fallback={null}>
+          <ArchitectureExplorerModal
+            isOpen={showArchitectureModal}
+            onClose={() => setShowArchitectureModal(false)}
+            onJumpToTab={(tab) => handleTabSwitch(tab, true)}
+          />
+        </Suspense>
+      )}
 
       {/* Optional On-Demand Sign-In Modal (Never blocks initial page load!) */}
       {showLoginModal && (
@@ -385,6 +500,7 @@ export function App() {
         onStartTour={handleStartTour}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onOpenCommandPalette={() => setShowCommandPalette(true)}
       />
 
       {/* Main App Container */}
@@ -419,6 +535,7 @@ export function App() {
         <VerifiedDeployments
           workspaceMode={workspaceMode}
           userName={activeDisplayName}
+          onOpenArchitecture={() => setShowArchitectureModal(true)}
         />
 
         {/* Feature Tab & Dropdown Navigation */}
@@ -447,6 +564,8 @@ export function App() {
                 workspaceMode={workspaceMode}
                 userName={activeDisplayName}
                 profile={workspaceMode === 'personal' && customProfile ? customProfile : profile}
+                highlightedSkills={highlightedSkills}
+                onClearHighlightedSkills={() => setHighlightedSkills([])}
               />
             )}
 
@@ -469,6 +588,8 @@ export function App() {
                 onRefresh={loadData}
                 onOpenLogin={() => setShowLoginModal(true)}
                 onSwitchToPersonal={externalSwitchToPersonal}
+                openStudyTimerSignal={studyTimerSignal}
+                onNotify={pushToast}
               />
             )}
 
@@ -483,6 +604,9 @@ export function App() {
                 onNavigateToGoals={() => handleTabSwitch('dashboard')}
                 onOpenLogin={() => setShowLoginModal(true)}
                 onSwitchToPersonal={externalSwitchToPersonal}
+                onHighlightOnResume={handleHighlightOnResume}
+                recruiterPresetSignal={recruiterPresetSignal}
+                onNotify={pushToast}
               />
             )}
 
@@ -490,11 +614,16 @@ export function App() {
               <GeospatialMapTab
                 workspaceMode={workspaceMode}
                 userName={activeDisplayName}
+                theme={theme}
+                onNotify={pushToast}
               />
             )}
           </Suspense>
         </div>
       </main>
+
+      {/* Accessible Editorial Toast Stack */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Interactive Micro-Tour Walkthrough */}
       {tourStep !== null && (

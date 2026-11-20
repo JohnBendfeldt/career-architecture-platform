@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Calendar, Clock, Copy, Download, Edit2, Filter, Link2, Plus, Trash2, Upload } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Calendar, Clock, Copy, Download, Edit2, Filter, Link2, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import type { CareerEntry, Category, Goal } from '../../types';
 import { formatEntryHours } from '../../utils/advancementUtils';
 
@@ -9,6 +9,7 @@ interface CareerEntriesListProps {
   goals: Goal[];
   selectedYear: number;
   canEdit: boolean;
+  initialCategoryFilter?: string;
   onEdit: (entry: CareerEntry) => void;
   onDuplicate: (entry: CareerEntry) => void;
   onDelete: (entryId: number) => Promise<void> | void;
@@ -23,6 +24,7 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
   goals,
   selectedYear,
   canEdit,
+  initialCategoryFilter,
   onEdit,
   onDuplicate,
   onDelete,
@@ -30,10 +32,18 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
   onImportClick,
   onExportClick,
 }) => {
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>(initialCategoryFilter || 'all');
   const [goalFilter, setGoalFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    if (initialCategoryFilter !== undefined) {
+      setCategoryFilter(initialCategoryFilter);
+    }
+  }, [initialCategoryFilter]);
 
   const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
     return entries
       .filter((e) => {
         const yearMatch = e.startDate?.slice(0, 4) === String(selectedYear);
@@ -47,10 +57,14 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
         if (goalFilter !== 'all' && goalFilter !== 'unlinked' && String(e.goalId ?? '') !== goalFilter) {
           return false;
         }
+        if (query) {
+          const hay = `${e.title || ''} ${e.description || ''} ${e.category || ''} ${e.goalTitle || ''}`.toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
         return true;
       })
       .sort((a, b) => b.endDate.localeCompare(a.endDate) || b.id - a.id);
-  }, [entries, selectedYear, categoryFilter, goalFilter]);
+  }, [entries, selectedYear, categoryFilter, goalFilter, searchQuery]);
 
   const totalFilteredHours = useMemo(
     () => Math.round(filteredEntries.reduce((sum, item) => sum + Number(item.hours || 0), 0) * 100) / 100,
@@ -71,8 +85,37 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
           gap: '12px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flex: '1 1 360px' }}>
           <Filter size={15} aria-hidden="true" style={{ color: 'var(--text-muted)' }} />
+          <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: '240px' }}>
+            <Search
+              size={14}
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+            <label htmlFor="career-entries-search" className="sr-only">
+              Search career entries
+            </label>
+            <input
+              id="career-entries-search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search entries..."
+              className="form-input"
+              style={{
+                padding: '7px 10px 7px 32px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
           <select
             aria-label="Filter by Category"
             value={categoryFilter}
@@ -101,7 +144,7 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
               width: 'auto',
               padding: '7px 12px',
               fontSize: '0.84rem',
-              maxWidth: '280px',
+              maxWidth: '260px',
             }}
           >
             <option value="all">All Linked Goals</option>
@@ -112,6 +155,22 @@ export const CareerEntriesList: React.FC<CareerEntriesListProps> = ({
               </option>
             ))}
           </select>
+
+          {(categoryFilter !== 'all' || goalFilter !== 'all' || searchQuery.trim() !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryFilter('all');
+                setGoalFilter('all');
+                setSearchQuery('');
+              }}
+              className="btn-secondary"
+              style={{ minHeight: '32px', padding: '4px 10px', fontSize: '0.76rem' }}
+            >
+              <X size={12} aria-hidden="true" />
+              <span>Clear</span>
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
