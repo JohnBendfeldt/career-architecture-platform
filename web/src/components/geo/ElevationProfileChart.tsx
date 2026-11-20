@@ -48,25 +48,32 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
     return out;
   }, [points]);
 
-  if (sampled.length < 2) return null;
+  const chartData = useMemo(() => {
+    if (sampled.length < 2) return null;
+    const elevations = sampled.map((s) => s.pt.elevation);
+    const minEle = Math.min(...elevations);
+    const maxEle = Math.max(...elevations);
+    const eleRange = Math.max(10, maxEle - minEle);
+    const plotW = WIDTH - PAD_X * 2;
+    const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
-  const elevations = sampled.map((s) => s.pt.elevation);
-  const minEle = Math.min(...elevations);
-  const maxEle = Math.max(...elevations);
-  const eleRange = Math.max(10, maxEle - minEle);
-  const plotW = WIDTH - PAD_X * 2;
-  const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM;
+    const coords = sampled.map((item, idx) => {
+      const x = PAD_X + (idx / (sampled.length - 1)) * plotW;
+      const y = PAD_TOP + plotH - ((item.pt.elevation - minEle) / eleRange) * plotH;
+      return { x, y, pt: item.pt, rawIdx: item.rawIdx };
+    });
 
-  const coords = sampled.map((item, idx) => {
-    const x = PAD_X + (idx / (sampled.length - 1)) * plotW;
-    const y = PAD_TOP + plotH - ((item.pt.elevation - minEle) / eleRange) * plotH;
-    return { x, y, pt: item.pt, rawIdx: item.rawIdx };
-  });
+    const linePath = coords
+      .map((c, idx) => `${idx === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
+      .join(' ');
+    const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${(PAD_TOP + plotH).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(PAD_TOP + plotH).toFixed(1)} Z`;
 
-  const linePath = coords
-    .map((c, idx) => `${idx === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
-    .join(' ');
-  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${(PAD_TOP + plotH).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(PAD_TOP + plotH).toFixed(1)} Z`;
+    return { minEle, maxEle, plotW, plotH, coords, linePath, areaPath };
+  }, [sampled]);
+
+  if (!chartData) return null;
+
+  const { minEle, maxEle, plotW, plotH, coords, linePath, areaPath } = chartData;
 
   // Resolve synced sample index if parent controls activePointIndex
   let resolvedSampleIdx = internalHoverIdx;
@@ -148,7 +155,7 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '10px',
+          gap: '8px 12px',
           marginBottom: '10px',
         }}
       >
@@ -162,15 +169,29 @@ export const ElevationProfileChart: React.FC<ElevationProfileChartProps> = ({
           </span>
         </div>
 
-        <div aria-live="polite" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+        <div
+          aria-live="polite"
+          style={{
+            fontSize: '0.75rem',
+            fontFamily: 'var(--font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            color: 'var(--text-secondary)',
+            minHeight: '20px',
+            lineHeight: '20px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '100%',
+          }}
+        >
           {hovered ? (
             <span>
               <strong style={{ color: 'var(--accent-crimson)' }}>{hoveredEleLabel}</strong> @ {hoveredDistLabel}
               {hoveredEnriched && (
                 <span>
-                  {' '}• Grade:{' '}
+                  {' '}•{' '}
                   <strong style={{ color: hoveredEnriched.gradePercent >= 4 ? 'var(--accent-crimson)' : 'var(--text-primary)' }}>
-                    {hoveredEnriched.gradePercent > 0 ? `+${hoveredEnriched.gradePercent}%` : `${hoveredEnriched.gradePercent}%`}
+                    {`${hoveredEnriched.gradePercent > 0 ? '+' : ''}${hoveredEnriched.gradePercent.toFixed(1)}%`}
                   </strong>
                 </span>
               )}

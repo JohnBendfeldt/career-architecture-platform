@@ -41,7 +41,7 @@ interface GeospatialMapTabProps {
   onNotify?: (message: string, tone?: 'success' | 'info' | 'error') => void;
 }
 
-type BasemapMode = 'auto' | 'light' | 'dark' | 'osm';
+type BasemapMode = 'auto' | 'street' | 'muted' | 'dark';
 
 const PERSONAL_SAMPLE_RIDE: RideSummary = {
   id: 'sample-demo-route',
@@ -52,20 +52,8 @@ const PERSONAL_SAMPLE_RIDE: RideSummary = {
   date: 'Starter Route',
 };
 
-const BASEMAP_CONFIG: Record<Exclude<BasemapMode, 'auto'>, { url: string; attribution: string }> = {
-  light: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  osm: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
-};
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   workspaceMode = 'portfolio',
@@ -280,6 +268,56 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
     }
   };
 
+  const polylinePositions = useMemo<[number, number][]>(
+    () => (route ? route.points.map((p) => [p.lat, p.lon]) : []),
+    [route]
+  );
+
+  const routeCenter = useMemo<[number, number]>(() => {
+    if (!route || route.points.length === 0) return [30.5, -97.5];
+    const mid = route.points[Math.floor(route.points.length / 2)];
+    return [mid.lat, mid.lon];
+  }, [route]);
+
+  const annotationMarkers = useMemo(() => {
+    if (!route) return null;
+    return route.annotations.map((ann) => (
+      <Marker
+        key={ann.id}
+        position={[ann.lat, ann.lon]}
+        icon={createCustomIcon(ann.type)}
+      >
+        <Popup>
+          <div style={{ padding: '4px' }}>
+            <div
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: 'var(--accent-crimson)',
+                textTransform: 'uppercase',
+                marginBottom: '4px',
+              }}
+            >
+              {ann.type === 'start' && 'Route Departure'}
+              {ann.type === 'checkpoint' && 'Halfway Split'}
+              {ann.type === 'highlight' && 'Peak Elevation Segment'}
+              {ann.type === 'finish' && 'Ride Finish'}
+            </div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              {ann.title}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              {ann.text}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+              Lat: {ann.lat.toFixed(4)}, Lon: {ann.lon.toFixed(4)}
+            </div>
+          </div>
+        </Popup>
+      </Marker>
+    ));
+  }, [route]);
+
   if (initialLoading || !route || !telemetry) {
     return (
       <div className="glass-panel" role="status" style={{ padding: '60px', textAlign: 'center' }}>
@@ -289,18 +327,13 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
     );
   }
 
-  const polylinePositions: [number, number][] = route.points.map((p) => [p.lat, p.lon]);
-  const centerLat = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lat : 30.5;
-  const centerLon = route.points.length > 0 ? route.points[Math.floor(route.points.length / 2)].lon : -97.5;
-
   const hours = Math.floor(route.durationMinutes / 60);
   const minutes = route.durationMinutes % 60;
   const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
   const activeRide = rides.find((r) => r.id === selectedRideId);
-  const effectiveBasemapKey: Exclude<BasemapMode, 'auto'> =
-    basemapMode === 'auto' ? (theme === 'dark' ? 'dark' : 'light') : basemapMode;
-  const tileConfig = BASEMAP_CONFIG[effectiveBasemapKey];
+  const effectiveBasemapMode: Exclude<BasemapMode, 'auto'> =
+    basemapMode === 'auto' ? (theme === 'dark' ? 'dark' : 'street') : basemapMode;
 
   const activeTelemetryPoint =
     activePointIndex !== null && telemetry.points[activePointIndex]
@@ -785,11 +818,11 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             gap: '10px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="telemetry-playback-row">
             <button
               type="button"
               onClick={handleToggleReplay}
-              className="btn-primary"
+              className="btn-primary telemetry-replay-btn"
               id="btn-replay-route"
               style={{ padding: '7px 14px', fontSize: '0.82rem' }}
             >
@@ -806,7 +839,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               )}
             </button>
 
-            <div className="segmented-control" role="group" aria-label="Replay playback speed">
+            <div className="segmented-control telemetry-speed-control" role="group" aria-label="Replay playback speed">
               {([1, 4, 10] as const).map((spd) => (
                 <button
                   key={spd}
@@ -820,18 +853,18 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               ))}
             </div>
 
-            {activePointIndex !== null && (
-              <button
-                type="button"
-                onClick={handleResetReplay}
-                className="btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '0.78rem' }}
-                title="Clear telemetry cursor"
-              >
-                <RotateCcw size={13} aria-hidden="true" />
-                <span>Reset</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleResetReplay}
+              disabled={activePointIndex === null}
+              className="btn-secondary telemetry-reset-btn"
+              style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+              aria-label="Reset replay cursor"
+              title="Clear telemetry cursor"
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              <span className="telemetry-reset-label">Reset</span>
+            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -842,9 +875,9 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             <div className="segmented-control" role="group" aria-label="Map tile style">
               {[
                 { id: 'auto' as const, label: 'Auto' },
-                { id: 'light' as const, label: 'Light' },
+                { id: 'street' as const, label: 'Street' },
+                { id: 'muted' as const, label: 'Muted' },
                 { id: 'dark' as const, label: 'Dark' },
-                { id: 'osm' as const, label: 'OSM' },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -860,78 +893,69 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           </div>
         </div>
 
-        {/* Scrubber Slider + Live Cursor Telemetry Readout */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <label htmlFor="route-scrubber-slider" className="sr-only">
-            Scrub GPS route telemetry timeline
-          </label>
-          <input
-            id="route-scrubber-slider"
-            type="range"
-            min={0}
-            max={Math.max(0, route.points.length - 1)}
-            value={activePointIndex ?? 0}
-            onChange={(e) => {
-              setIsReplaying(false);
-              setActivePointIndex(Number(e.target.value));
-            }}
-            className="telemetry-slider"
-            style={{ flex: '1 1 220px' }}
-          />
-          <div
-            aria-live="polite"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              flexWrap: 'wrap',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.76rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <Gauge size={14} aria-hidden="true" style={{ color: 'var(--accent-crimson)' }} />
-            {activeTelemetryPoint ? (
-              <>
-                <span>
-                  <strong style={{ color: 'var(--text-primary)' }}>
-                    {formatDistance(activeTelemetryPoint.cumulativeKm, unit)}
-                  </strong>{' '}
-                  ({replayProgressPercent}%)
-                </span>
-                <span aria-hidden="true">•</span>
-                <span>
-                  Ele: <strong style={{ color: 'var(--text-primary)' }}>{formatElevation(activeTelemetryPoint.point.elevation, unit)}</strong>
-                </span>
-                <span aria-hidden="true">•</span>
-                <span>
-                  Grade:{' '}
-                  <strong
-                    style={{
-                      color:
-                        activeTelemetryPoint.gradeCategory === 'steep'
-                          ? 'var(--accent-crimson)'
-                          : activeTelemetryPoint.gradeCategory === 'descent'
-                            ? 'var(--status-success)'
-                            : 'var(--text-primary)',
-                    }}
-                  >
-                    {activeTelemetryPoint.gradePercent > 0
-                      ? `+${activeTelemetryPoint.gradePercent}%`
-                      : `${activeTelemetryPoint.gradePercent}%`}
-                  </strong>
-                </span>
-              </>
-            ) : (
-              <span>Scrub slider or hover elevation chart to track live GPS position</span>
-            )}
+        {/* Scrubber Slider + Fixed-Height Tabular Telemetry Readout (Zero Replay Reflow) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Gauge size={15} aria-hidden="true" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} />
+            <label htmlFor="route-scrubber-slider" className="sr-only">
+              Scrub GPS route telemetry timeline
+            </label>
+            <input
+              id="route-scrubber-slider"
+              type="range"
+              min={0}
+              max={Math.max(0, route.points.length - 1)}
+              value={activePointIndex ?? 0}
+              onChange={(e) => {
+                setIsReplaying(false);
+                setActivePointIndex(Number(e.target.value));
+              }}
+              className="telemetry-slider"
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div className="telemetry-readout-grid" aria-live="polite">
+            <div className="telemetry-readout-cell">
+              <span className="telemetry-readout-label">
+                <span>Distance</span>
+                <span className="telemetry-readout-pct">{activeTelemetryPoint ? `${replayProgressPercent}%` : 'Ready'}</span>
+              </span>
+              <span className="telemetry-readout-value">
+                {activeTelemetryPoint
+                  ? formatDistance(activeTelemetryPoint.cumulativeKm, unit)
+                  : formatDistance(0, unit)}
+              </span>
+            </div>
+
+            <div className="telemetry-readout-cell">
+              <span className="telemetry-readout-label">Elevation</span>
+              <span className="telemetry-readout-value">
+                {activeTelemetryPoint
+                  ? formatElevation(activeTelemetryPoint.point.elevation, unit)
+                  : formatElevation(route.points[0]?.elevation ?? 0, unit)}
+              </span>
+            </div>
+
+            <div className="telemetry-readout-cell">
+              <span className="telemetry-readout-label">Grade</span>
+              <span
+                className="telemetry-readout-value"
+                style={{
+                  color: !activeTelemetryPoint
+                    ? 'var(--text-muted)'
+                    : activeTelemetryPoint.gradeCategory === 'steep'
+                      ? 'var(--accent-crimson)'
+                      : activeTelemetryPoint.gradeCategory === 'descent'
+                        ? 'var(--status-success)'
+                        : 'var(--text-primary)',
+                }}
+              >
+                {activeTelemetryPoint
+                  ? `${activeTelemetryPoint.gradePercent > 0 ? '+' : ''}${activeTelemetryPoint.gradePercent.toFixed(1)}%`
+                  : '0.0%'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -939,9 +963,10 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       {/* Interactive Map Canvas */}
       <div className="glass-panel" style={{ padding: '14px', position: 'relative' }}>
         <div
+          className={`geo-map-frame geo-map-${effectiveBasemapMode}`}
           style={{
             height: 'clamp(320px, 55vh, 520px)',
-            borderRadius: 'var(--radius-lg)',
+            borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
             position: 'relative',
           }}
@@ -971,15 +996,14 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           )}
 
           <MapContainer
-            center={[centerLat, centerLon]}
+            center={routeCenter}
             zoom={11}
             scrollWheelZoom={false}
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer
-              key={effectiveBasemapKey}
-              attribution={tileConfig.attribution}
-              url={tileConfig.url}
+              attribution={OSM_ATTRIBUTION}
+              url={OSM_TILE_URL}
             />
 
             <MapUpdater points={route.points} />
@@ -989,7 +1013,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               pathOptions={{
                 color: '#c40010',
                 weight: 5,
-                opacity: 0.9,
+                opacity: 0.92,
                 lineCap: 'round',
                 lineJoin: 'round',
               }}
@@ -1003,80 +1027,26 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               />
             )}
 
-            {route.annotations.map((ann) => (
-              <Marker
-                key={ann.id}
-                position={[ann.lat, ann.lon]}
-                icon={createCustomIcon(ann.type)}
-              >
-                <Popup>
-                  <div style={{ padding: '4px' }}>
-                    <div
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        color: 'var(--accent-crimson)',
-                        textTransform: 'uppercase',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      {ann.type === 'start' && 'Route Departure'}
-                      {ann.type === 'checkpoint' && 'Halfway Split'}
-                      {ann.type === 'highlight' && 'Peak Elevation Segment'}
-                      {ann.type === 'finish' && 'Ride Finish'}
-                    </div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                      {ann.title}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      {ann.text}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
-                      Lat: {ann.lat.toFixed(4)}, Lon: {ann.lon.toFixed(4)}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {annotationMarkers}
           </MapContainer>
         </div>
 
-        {/* Map Legend Overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '22px',
-            left: '22px',
-            right: '22px',
-            width: 'fit-content',
-            maxWidth: 'calc(100% - 44px)',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            zIndex: 1000,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '12px',
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary)',
-            boxShadow: 'var(--shadow-md)',
-          }}
-        >
+        {/* Non-Overlapping Editorial Legend Footer */}
+        <div className="telemetry-legend-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
+            <span aria-hidden="true" style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
             <span>Departure</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+            <span aria-hidden="true" style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
             <span>Halfway Split</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+            <span aria-hidden="true" style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
             <span>Peak Elevation</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span aria-hidden="true" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
+            <span aria-hidden="true" style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#06b6d4', flexShrink: 0 }} />
             <span>Finish</span>
           </div>
         </div>

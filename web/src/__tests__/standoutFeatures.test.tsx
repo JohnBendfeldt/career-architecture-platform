@@ -345,7 +345,14 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
     fireEvent.click(screen.getByRole('button', { name: /Inspect Segment Splits/i }));
     expect(screen.getByText('S1')).toBeDefined();
 
-    // Start & pause route replay
+    // Start & pause route replay and switch OSM basemap style without API-key tiles
+    expect(document.querySelector('.telemetry-readout-grid')).not.toBeNull();
+    expect(document.querySelector('.telemetry-legend-bar')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Muted' }));
+    expect(document.querySelector('.geo-map-muted')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Street' }));
+    expect(document.querySelector('.geo-map-street')).not.toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: /Replay Route/i }));
     expect(screen.getByRole('button', { name: /Pause Replay/i })).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: /Pause Replay/i }));
