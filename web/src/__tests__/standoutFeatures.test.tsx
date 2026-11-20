@@ -21,6 +21,8 @@ import { RecruiterScorecard, buildRecruiterMatchBrief } from '../components/ai/R
 import { ResumeTimeline } from '../components/ResumeTimeline';
 import { ToastContainer } from '../components/ui/ToastContainer';
 import { GeospatialMapTab } from '../components/GeospatialMapTab';
+import { VerifiedDeployments } from '../components/VerifiedDeployments';
+import { ApiService } from '../services/api';
 import type { AnnualProgress, CareerEntry, Goal } from '../types';
 
 async function expectZeroAxe(container: HTMLElement): Promise<void> {
@@ -354,6 +356,32 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
     fireEvent.change(fileInput, { target: { files: [badFile] } });
     expect(screen.getByRole('alert').textContent).toContain('valid Garmin binary .fit or .gpx');
     expect(onNotify).toHaveBeenCalledWith(expect.stringContaining('valid Garmin binary'), 'error');
+  });
+
+  it('showcases Just Believe Fitness (jbfit.studio) in the 5-card editorial grid and hydrates default profile/goals synchronously', async () => {
+    const onOpenArchitecture = vi.fn();
+    const { container } = render(
+      <main>
+        <VerifiedDeployments workspaceMode="portfolio" onOpenArchitecture={onOpenArchitecture} />
+      </main>
+    );
+
+    await expectZeroAxe(container);
+
+    expect(container.querySelector('.deployments-editorial-grid')).not.toBeNull();
+    expect(screen.getByText('Just Believe Fitness')).toBeDefined();
+    const jbfitLink = screen.getByRole('link', { name: /Visit jbfit\.studio/i }) as HTMLAnchorElement;
+    expect(jbfitLink.href).toBe('https://jbfit.studio/');
+    expect(jbfitLink.getAttribute('rel')).toContain('noopener');
+
+    fireEvent.click(screen.getByRole('button', { name: /Inspect Live Architecture/i }));
+    expect(onOpenArchitecture).toHaveBeenCalledTimes(1);
+
+    // Zero-CLS synchronous default portfolio state
+    const defaultProfile = ApiService.getDefaultPortfolioProfile();
+    const defaultGoals = ApiService.getDefaultPortfolioGoals();
+    expect(defaultProfile.name).toContain('Bendfeldt');
+    expect(defaultGoals.length).toBeGreaterThanOrEqual(6);
   });
 });
 

@@ -116,6 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <span
             aria-hidden="true"
+            className="navbar-divider"
             style={{
               width: '1px',
               height: '18px',
@@ -181,109 +182,115 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* User Badge / Public Sign-In Trigger */}
-          {user && user.role === 'admin' ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '3px 6px 3px 5px',
-              background: 'var(--bg-inset)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-full)'
-            }}>
-              {safeAvatarUrl && !avatarError ? (
-                <img
-                  ref={(img) => {
-                    if (img && img.complete && img.naturalWidth === 0) {
-                      setAvatarError(true);
-                    }
-                  }}
-                  src={safeAvatarUrl}
-                  alt={user.name}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={() => setAvatarError(true)}
+          <div className="navbar-auth-slot">
+            {user && user.role === 'admin' ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '3px 6px 3px 5px',
+                background: 'var(--bg-inset)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-full)',
+                maxWidth: '100%'
+              }}>
+                {safeAvatarUrl && !avatarError ? (
+                  <img
+                    ref={(img) => {
+                      if (img && img.complete && img.naturalWidth === 0) {
+                        setAvatarError(true);
+                      }
+                    }}
+                    src={safeAvatarUrl}
+                    alt={user.name}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarError(true)}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1.5px solid var(--text-primary)'
+                    }}
+                  />
+                ) : (
+                  <div
+                    role="img"
+                    aria-label={user.name}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: 'var(--accent-crimson-solid)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-mono)',
+                      flexShrink: 0
+                    }}
+                  >
+                    {userInitials}
+                  </div>
+                )}
+                <div className="navbar-user-name" style={{ display: 'flex', alignItems: 'center', gap: '5px', paddingRight: '2px', minWidth: 0 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                    {user.name}
+                  </span>
+                  <span
+                    title="Verified OAuth Session"
+                    style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--accent-crimson)', flexShrink: 0 }}
+                  >
+                    <ShieldCheck size={14} aria-hidden="true" />
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onLogout}
                   style={{
-                    width: '26px',
-                    height: '26px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '1.5px solid var(--text-primary)'
-                  }}
-                />
-              ) : (
-                <div
-                  role="img"
-                  aria-label={user.name}
-                  style={{
-                    width: '26px',
-                    height: '26px',
-                    borderRadius: '50%',
-                    background: 'var(--accent-crimson-solid)',
-                    color: '#ffffff',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-control)',
+                    borderRadius: 'var(--radius-full)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    padding: '5px 11px',
+                    minHeight: '32px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-mono)',
+                    gap: '5px',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    fontFamily: 'var(--font-heading)',
+                    transition: 'all 0.15s ease',
                     flexShrink: 0
                   }}
+                  id="btn-logout"
+                  title="Sign Out or Switch Account"
                 >
-                  {userInitials}
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', paddingRight: '2px' }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  {user.name}
-                </span>
-                <span
-                  title="Verified OAuth Session"
-                  style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--accent-crimson)' }}
-                >
-                  <ShieldCheck size={14} aria-hidden="true" />
-                </span>
+                  <LogOut size={13} aria-hidden="true" />
+                  <span>Sign Out</span>
+                </button>
               </div>
-
+            ) : (
               <button
                 type="button"
-                onClick={onLogout}
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-control)',
-                  borderRadius: 'var(--radius-full)',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  padding: '5px 11px',
-                  minHeight: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-heading)',
-                  transition: 'all 0.15s ease'
-                }}
-                id="btn-logout"
-                title="Sign Out or Switch Account"
+                onClick={onOpenLogin}
+                className="btn-primary navbar-signin-btn"
+                id="btn-open-login"
+                style={{ padding: '7px 14px', fontSize: '0.8125rem', gap: '6px' }}
+                aria-label="Sign In / Build Your Own"
+                title="Sign in with GitHub, Google, or Microsoft to create or edit your own profile"
               >
-                <LogOut size={13} aria-hidden="true" />
-                <span>Sign Out</span>
+                <LogIn size={14} aria-hidden="true" />
+                <span className="nav-signin-full">Sign In / Build Your Own</span>
+                <span className="nav-signin-short" aria-hidden="true">Sign In</span>
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenLogin}
-              className="btn-primary"
-              id="btn-open-login"
-              style={{ padding: '7px 14px', fontSize: '0.8125rem', gap: '6px' }}
-              title="Sign in with GitHub, Google, or Microsoft to create or edit your own profile"
-            >
-              <LogIn size={14} aria-hidden="true" />
-              <span>Sign In / Build Your Own</span>
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </header>

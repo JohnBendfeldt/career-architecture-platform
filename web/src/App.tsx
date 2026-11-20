@@ -44,7 +44,7 @@ const isExternalOAuthUser = (u: User | null): boolean => {
 
 export function App() {
   const [user, setUser] = useState<User | null>(ApiService.getUser());
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(() => ApiService.getDefaultPortfolioProfile());
   const [customProfile, setCustomProfile] = useState<Profile | null>(() => {
     const initialUser = ApiService.getUser();
     const pathMatch = window.location.pathname.match(/^\/profile\/([^/]+)/i);
@@ -73,7 +73,7 @@ export function App() {
     }
     return isExternalOAuthUser(initialUser) ? 'personal' : 'portfolio';
   });
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goals, setGoals] = useState<Goal[]>(() => ApiService.getDefaultPortfolioGoals());
   const [personalGoals, setPersonalGoals] = useState<Goal[]>(() => ApiService.getPersonalGoals());
   const [careerEntries, setCareerEntries] = useState<CareerEntry[]>(() => ApiService.getDefaultPortfolioEntries());
   const [personalEntries, setPersonalEntries] = useState<CareerEntry[]>(() => ApiService.getPersonalEntries());

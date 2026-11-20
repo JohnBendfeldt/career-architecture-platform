@@ -85,9 +85,11 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
               {progress.isOnTrack ? 'ON TRACK' : 'BEHIND PACE'}
             </span>
           </div>
-          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
             {progress.quarterLabel} • Checkpoint target: <strong>{progress.expectedProgressPercent}%</strong> •{' '}
-            <strong>{progress.totalEntries}</strong> logged {progress.totalEntries === 1 ? 'entry' : 'entries'} in {selectedYear}
+            <span style={{ whiteSpace: 'nowrap' }}>
+              <strong>{progress.totalEntries}</strong> logged {progress.totalEntries === 1 ? 'entry' : 'entries'} in {selectedYear}
+            </span>
           </p>
         </div>
 
@@ -221,13 +223,13 @@ export const AnnualProgressBanner: React.FC<AnnualProgressBannerProps> = ({
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: '10px', rowGap: '4px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
           <span>
             {remainingHours > 0
               ? `${formatEntryHours(remainingHours)} hrs remaining`
               : 'Annual target reached!'}
           </span>
-          <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
+          <span aria-hidden="true" className="inline-meta-sep" />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
             {paceInsight.statusSummary}
           </span>

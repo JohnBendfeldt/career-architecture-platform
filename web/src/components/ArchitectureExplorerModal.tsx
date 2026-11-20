@@ -227,11 +227,15 @@ export const ArchitectureExplorerModal: React.FC<ArchitectureExplorerModalProps>
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '18px' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="section-eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <Layers size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} />
-            <span>Interactive System Topology • johnbendfeldt.com</span>
+          <div className="section-eyebrow" style={{ display: 'flex', alignItems: 'center', columnGap: '8px', rowGap: '2px', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Layers size={13} aria-hidden="true" style={{ color: 'var(--accent-crimson)', flexShrink: 0 }} />
+              <span>Interactive System Topology</span>
+            </span>
+            <span className="inline-meta-sep" aria-hidden="true" />
+            <span>johnbendfeldt.com</span>
           </div>
-          <h2 id="arch-explorer-title" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', margin: '2px 0 4px', overflowWrap: 'break-word' }}>
+          <h2 id="arch-explorer-title" style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: '1.78rem', lineHeight: 1.12, color: 'var(--text-primary)', margin: '2px 0 6px', overflowWrap: 'break-word' }}>
             Live Multi-Service Architecture Explorer
           </h2>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0 }}>

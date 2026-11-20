@@ -39,6 +39,18 @@ const PORTFOLIO_PROJECTS = [
       'Engineered interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic), phonetic matching, and 1,000+ automated Vitest/Playwright integration tests.'
     ],
     badges: ['PWA', '210 Language Pairs', '14,400+ Audio Assets', 'Supabase Cloud Sync', 'Vitest & Playwright (1,000+ Tests)', 'Custom Keyboards']
+  },
+  {
+    title: 'Just Believe Fitness',
+    domain: 'jbfit.studio',
+    url: 'https://jbfit.studio',
+    role: 'Creator & Builder',
+    description: 'Personal fitness and injury-recovery web application built to structure daily training and rehabilitation.',
+    bullets: [
+      'Designed and shipped a personal fitness web app at jbfit.studio to guide my own training and steady recovery through an injury.',
+      'Focused on clean daily ergonomics, consistent momentum, and practical usability across mobile and desktop.'
+    ],
+    badges: ['Live Production', 'Injury Recovery', 'Fitness Studio', 'Private Repo']
   }
 ];
 
@@ -299,11 +311,11 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, letterSpacing: '-0.02em' }}>
                       {exp.role}
                     </h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <div className="timeline-meta-row">
                       <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 700 }}>
                         {exp.company}
                       </span>
-                      <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>•</span>
+                      <span aria-hidden="true" className="inline-meta-sep" />
                       <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                         <MapPin size={14} aria-hidden="true" />
                         <span>{exp.location}</span>
@@ -407,11 +419,11 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                     gap: '12px',
                     marginBottom: '14px'
                   }}>
-                    <div>
-                      <h4 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', fontWeight: 750, display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <h4 className="project-card-title">
                         <span>{proj.title}</span>
-                        <span aria-hidden="true" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 400 }}>•</span>
-                        <span style={{ fontSize: '1rem', color: 'var(--accent-crimson)', fontWeight: 600 }}>{proj.role}</span>
+                        <span aria-hidden="true" className="inline-meta-sep" />
+                        <span style={{ fontSize: '0.96rem', color: 'var(--accent-crimson)', fontWeight: 600 }}>{proj.role}</span>
                       </h4>
                     </div>
 

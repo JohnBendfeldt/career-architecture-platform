@@ -715,48 +715,7 @@ export class ApiService {
     ];
   }
 
-  static async getGoals(): Promise<Goal[]> {
-    // 1. Try Supabase if configured
-    const sbClient = getOrInitSupabaseClient();
-    if (sbClient) {
-      try {
-        const { data, error } = await sbClient
-          .from('goals')
-          .select('*')
-          .is('user_id', null)
-          .order('id', { ascending: true });
-        if (data && !error && data.length > 0) {
-          const mapped: Goal[] = data.map((g: Record<string, unknown>, idx: number) => ({
-            id: typeof g.id === 'number' ? g.id : idx + 1,
-            title: typeof g.title === 'string' ? g.title : 'Milestone',
-            description: typeof g.description === 'string' ? g.description : '',
-            category: (g.category === 'Personal' ? 'Personal' : 'Technical') as Goal['category'],
-            progress: typeof g.progress === 'number' ? Math.max(0, Math.min(100, g.progress)) : 0,
-            targetHours: g.target_hours != null && Number.isFinite(Number(g.target_hours)) ? Number(g.target_hours) : null,
-            targetDate: typeof g.target_date === 'string' ? g.target_date : 'Active',
-            status: (g.status === 'Completed' || g.status === 'Upcoming' ? g.status : 'InProgress') as Goal['status'],
-            tags: Array.isArray(g.tags)
-              ? g.tags.filter((t): t is string => typeof t === 'string')
-              : (safeParseStorageArray<string>(typeof g.tags === 'string' ? g.tags : null, (t): t is string => typeof t === 'string') || []),
-            createdAt: typeof g.created_at === 'string' ? g.created_at : new Date().toISOString(),
-          }));
-          return this.getOwnerPortfolioGoals(mapped);
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/api/goals`);
-      if (isJson(res)) {
-        const apiGoals = await res.json();
-        return this.getOwnerPortfolioGoals(Array.isArray(apiGoals) ? normalizeGoalList(apiGoals.filter(isValidGoalShape)) : []);
-      }
-    } catch {
-      // Backend unavailable, using pre-seeded goals
-    }
-
+  static getDefaultPortfolioGoals(): Goal[] {
     const defaultGoals: Goal[] = [
       {
         id: 1,
@@ -833,6 +792,54 @@ export class ApiService {
     ];
 
     return this.getOwnerPortfolioGoals(defaultGoals);
+  }
+
+  static async getGoals(): Promise<Goal[]> {
+    // 1. Try Supabase if configured
+    const sbClient = getOrInitSupabaseClient();
+    if (sbClient) {
+      try {
+        const { data, error } = await sbClient
+          .from('goals')
+          .select('*')
+          .is('user_id', null)
+          .order('id', { ascending: true });
+        if (data && !error && data.length > 0) {
+          const mapped: Goal[] = data.map((g: Record<string, unknown>, idx: number) => ({
+            id: typeof g.id === 'number' ? g.id : idx + 1,
+            title: typeof g.title === 'string' ? g.title : 'Milestone',
+            description: typeof g.description === 'string' ? g.description : '',
+            category: (g.category === 'Personal' ? 'Personal' : 'Technical') as Goal['category'],
+            progress: typeof g.progress === 'number' ? Math.max(0, Math.min(100, g.progress)) : 0,
+            targetHours: g.target_hours != null && Number.isFinite(Number(g.target_hours)) ? Number(g.target_hours) : null,
+            targetDate: typeof g.target_date === 'string' ? g.target_date : 'Active',
+            status: (g.status === 'Completed' || g.status === 'Upcoming' ? g.status : 'InProgress') as Goal['status'],
+            tags: Array.isArray(g.tags)
+              ? g.tags.filter((t): t is string => typeof t === 'string')
+              : (safeParseStorageArray<string>(typeof g.tags === 'string' ? g.tags : null, (t): t is string => typeof t === 'string') || []),
+            createdAt: typeof g.created_at === 'string' ? g.created_at : new Date().toISOString(),
+          }));
+          return this.getOwnerPortfolioGoals(mapped);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/goals`);
+      if (isJson(res)) {
+        const apiGoals = await res.json();
+        const valid = Array.isArray(apiGoals) ? normalizeGoalList(apiGoals.filter(isValidGoalShape)) : [];
+        if (valid.length > 0) {
+          return this.getOwnerPortfolioGoals(valid);
+        }
+      }
+    } catch {
+      // Backend unavailable, using pre-seeded goals
+    }
+
+    return this.getDefaultPortfolioGoals();
   }
 
   static async createGoal(goal: Partial<Goal>): Promise<{ success: boolean; message: string; status?: number; goal?: Goal }> {

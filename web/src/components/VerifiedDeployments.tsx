@@ -149,24 +149,6 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
 
   const portfolioDeployments: DeploymentItem[] = [
     {
-      id: 'asi-tracker',
-      category: 'Enterprise Production',
-      title: 'Training Hour Tracker',
-      domain: 'trainingtracker.advsol.com',
-      url: 'https://trainingtracker.advsol.com',
-      organization: 'Advanced Solutions International (ASI)',
-      badgeColor: 'badge-emerald',
-      verificationBadge: 'Verified Author Signature in DOM & Console',
-      description: 'Enterprise staff development and professional hour tracking application deployed at trainingtracker.advsol.com.',
-      verificationDetails: {
-        metaTag: '<meta name="author" content="John Bendfeldt" />',
-        consoleLog: 'Designed and built by John Bendfeldt with Claude Sonnet (Anthropic).'
-      },
-      tags: ['Enterprise B2B', 'Corporate Auth', 'Session Management', 'SPA'],
-      note: 'Protected by ASI staff login. Public landing page includes author metadata and console signature.',
-      linkText: 'Inspect trainingtracker.advsol.com'
-    },
-    {
       id: 'basic-language-school',
       category: 'Production Language SaaS',
       title: 'Basic Language School',
@@ -183,6 +165,42 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       tags: ['PWA', 'TypeScript', 'Vite', 'Supabase', 'Vitest & Playwright'],
       note: 'Live production SaaS supporting 15 languages with offline Service Worker caching and 1,000+ automated tests.',
       linkText: 'Launch basiclanguage.school'
+    },
+    {
+      id: 'asi-tracker',
+      category: 'Enterprise Production',
+      title: 'Training Hour Tracker',
+      domain: 'trainingtracker.advsol.com',
+      url: 'https://trainingtracker.advsol.com',
+      organization: 'Advanced Solutions International (ASI)',
+      badgeColor: 'badge-emerald',
+      verificationBadge: 'Verified Author Signature in DOM & Console',
+      description: 'Enterprise staff development and professional hour tracking application deployed at trainingtracker.advsol.com — architected and delivered using .NET 10, Vite, and pragmatic AI-assisted engineering workflows.',
+      verificationDetails: {
+        metaTag: '<meta name="author" content="John Bendfeldt" />',
+        consoleLog: 'Designed and built by John Bendfeldt with Claude Sonnet (Anthropic).'
+      },
+      tags: ['Enterprise B2B', 'Corporate Auth', 'Session Management', 'SPA'],
+      note: 'Protected by ASI staff login. Public landing page includes author metadata and console signature.',
+      linkText: 'Inspect trainingtracker.advsol.com'
+    },
+    {
+      id: 'just-believe-fitness',
+      category: 'Personal Fitness App',
+      title: 'Just Believe Fitness',
+      domain: 'jbfit.studio',
+      url: 'https://jbfit.studio',
+      organization: 'Personal Recovery & Training Studio',
+      badgeColor: 'badge-emerald',
+      verificationBadge: 'Live Production Web App • Private Repo',
+      description: 'Personal fitness and rehabilitation web application built from scratch to help guide my own training and steady recovery through an injury — crafted for daily focus, consistency, and real-world use.',
+      verificationDetails: {
+        metaTag: 'Live Web App • jbfit.studio (Private Repository)',
+        consoleLog: 'Personal production app built to support real injury recovery and ongoing training.'
+      },
+      tags: ['Live Production', 'Injury Recovery', 'Fitness Studio', 'Private Repo'],
+      note: 'Built for personal training and recovery through an injury; actively live at jbfit.studio.',
+      linkText: 'Visit jbfit.studio'
     },
     {
       id: 'country-province-data',
@@ -223,11 +241,15 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
   ];
 
   const activeDeployments = workspaceMode === 'personal' ? personalProjects : portfolioDeployments;
+  const useEditorialGrid = workspaceMode !== 'personal' && activeDeployments.length === 5;
 
   return (
-    <section aria-labelledby="deployments-heading" style={{ marginBottom: '40px' }}>
+    <section aria-labelledby="deployments-heading" style={{ marginBottom: '44px' }}>
       <div className="section-header">
         <div>
+          <div className="section-eyebrow">
+            {workspaceMode === 'personal' ? 'Workspace Showcase' : 'Selected Production Work'}
+          </div>
           <h2 id="deployments-heading" className="section-title">
             {workspaceMode === 'personal'
               ? `${userName}'s Projects & Live Deployments`
@@ -236,7 +258,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
           <p className="section-subtitle">
             {workspaceMode === 'personal'
               ? 'Production web applications, open-source packages, and active repositories.'
-              : 'Software running in production across corporate and public domains with verifiable authorship.'}
+              : 'Software running in production across enterprise, SaaS, personal craft, and open-source domains.'}
           </p>
         </div>
 
@@ -253,160 +275,137 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         )}
       </div>
 
-      <div className="responsive-card-grid">
-        {activeDeployments.map((item) => (
-          <article
-            key={item.id}
-            className="glass-panel interactive-card"
-            style={{
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              position: 'relative'
-            }}
-          >
-            <div>
-              {/* Category Eyebrow & Optional Delete Control */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
-                <span style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--text-muted)'
-                }}>
-                  {item.category}
-                </span>
-                {workspaceMode === 'personal' && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProject(item.id)}
-                    className="icon-btn"
-                    title="Remove project card"
-                    aria-label={`Remove ${item.title}`}
-                  >
-                    <Trash2 size={14} aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-
-              {/* Title & Domain */}
-              <h3 style={{ fontSize: '1.22rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                {item.title}
-              </h3>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--accent-crimson)', fontFamily: 'var(--font-mono)', fontWeight: 600, marginBottom: '12px' }}>
-                {item.domain}
-              </div>
-
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
-                {item.description}
-              </p>
-
-              {item.tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-                  {item.tags.slice(0, 5).map((tag) => (
-                    <span key={tag} className="tag-chip">
-                      {tag}
-                    </span>
-                  ))}
+      <div className={useEditorialGrid ? 'deployments-editorial-grid' : 'responsive-card-grid'}>
+        {activeDeployments.map((item, idx) => {
+          const isFlagship = useEditorialGrid && idx < 2;
+          const cardIndex = String(idx + 1).padStart(2, '0');
+          return (
+            <article
+              key={item.id}
+              className={`glass-panel interactive-card deployment-card ${isFlagship ? 'deployment-card-flagship' : ''}`}
+            >
+              <div>
+                {/* Editorial Index & Category Eyebrow */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '8px' }}>
+                  <span className="deployment-kicker">
+                    <span className="deployment-index">{cardIndex}</span>
+                    <span className="deployment-kicker-sep" aria-hidden="true" />
+                    <span>{item.category}</span>
+                  </span>
+                  {workspaceMode === 'personal' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProject(item.id)}
+                      className="icon-btn"
+                      title="Remove project card"
+                      aria-label={`Remove ${item.title}`}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
-              <div style={{
-                fontSize: '0.76rem',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--text-secondary)',
-                marginBottom: '6px',
-                overflowWrap: 'break-word'
-              }}>
-                {item.verificationDetails.metaTag}
-              </div>
+                {/* Title & Domain */}
+                <h3 className="deployment-title">
+                  {item.title}
+                </h3>
+                <div className="deployment-domain">
+                  {item.domain}
+                </div>
 
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.45 }}>
-                {item.note}
-              </p>
+                <p className="deployment-desc">
+                  {item.description}
+                </p>
 
-              {/* Outbound Link Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {isSafeHttpsUrl(item.url) ? (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'center',
-                      padding: '9px 16px',
-                      textDecoration: 'none',
-                      fontSize: '0.84rem'
-                    }}
-                  >
-                    <Globe size={15} aria-hidden="true" />
-                    <span>{item.linkText}</span>
-                    <ExternalLink size={13} aria-hidden="true" style={{ opacity: 0.8 }} />
-                  </a>
-                ) : item.id === 'career-platform' && onOpenArchitecture ? (
-                  <button
-                    type="button"
-                    id="btn-inspect-architecture"
-                    onClick={onOpenArchitecture}
-                    className="btn-primary"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'center',
-                      padding: '9px 16px',
-                      fontSize: '0.84rem'
-                    }}
-                  >
-                    <Layers size={15} aria-hidden="true" />
-                    <span>Inspect Live Architecture</span>
-                    <ArrowUpRight size={14} aria-hidden="true" />
-                  </button>
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      textAlign: 'center',
-                      padding: '9px 16px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      background: 'var(--bg-inset)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  >
-                    {workspaceMode === 'personal' ? item.linkText : 'Current live deployment — johnbendfeldt.com'}
+                {item.tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '18px' }}>
+                    {item.tags.slice(0, 5).map((tag) => (
+                      <span key={tag} className="tag-chip">
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
-
-                {item.githubUrl && isSafeHttpsUrl(item.githubUrl) && (
-                  <a
-                    href={item.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="social-link"
-                    style={{
-                      width: '100%',
-                      justifyContent: 'center',
-                      padding: '8px 16px',
-                      fontSize: '0.84rem'
-                    }}
-                  >
-                    <GithubIcon size={15} />
-                    <span>View Repository on GitHub</span>
-                    <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.8 }} />
-                  </a>
-                )}
               </div>
-            </div>
-          </article>
-        ))}
+
+              <div className="deployment-footer">
+                <div className="deployment-meta-tag">
+                  {item.verificationDetails.metaTag}
+                </div>
+
+                <p className="deployment-note">
+                  {item.note}
+                </p>
+
+                {/* Refined Architectural Action Bar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {isSafeHttpsUrl(item.url) ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="deployment-cta"
+                    >
+                      <span className="deployment-cta-label">
+                        <Globe size={15} aria-hidden="true" style={{ flexShrink: 0 }} />
+                        <span>{item.linkText}</span>
+                      </span>
+                      <ArrowUpRight size={15} aria-hidden="true" className="deployment-cta-arrow" />
+                    </a>
+                  ) : item.id === 'career-platform' && onOpenArchitecture ? (
+                    <button
+                      type="button"
+                      id="btn-inspect-architecture"
+                      onClick={onOpenArchitecture}
+                      className="deployment-cta deployment-cta-interactive"
+                    >
+                      <span className="deployment-cta-label">
+                        <Layers size={15} aria-hidden="true" style={{ flexShrink: 0 }} />
+                        <span>Inspect Live Architecture</span>
+                      </span>
+                      <ArrowUpRight size={15} aria-hidden="true" className="deployment-cta-arrow" />
+                    </button>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        padding: '10px 14px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        background: 'var(--bg-inset)',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-subtle)'
+                      }}
+                    >
+                      {workspaceMode === 'personal' ? item.linkText : 'Current live deployment — johnbendfeldt.com'}
+                    </div>
+                  )}
+
+                  {item.githubUrl && isSafeHttpsUrl(item.githubUrl) && (
+                    <a
+                      href={item.githubUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="social-link"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        padding: '8px 16px',
+                        fontSize: '0.84rem'
+                      }}
+                    >
+                      <GithubIcon size={15} />
+                      <span>View Repository on GitHub</span>
+                      <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.8 }} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       {/* Add Personal Project Modal */}
