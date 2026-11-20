@@ -31,6 +31,7 @@ import {
   formatDistance,
   formatElevation,
   formatSpeed,
+  localizeTelemetryText,
   type DistanceUnit,
 } from './geo/telemetryAnalytics';
 
@@ -42,6 +43,8 @@ interface GeospatialMapTabProps {
 }
 
 type BasemapMode = 'auto' | 'street' | 'muted' | 'dark';
+
+const UNIT_STORAGE_KEY = 'cap_telemetry_unit';
 
 const PERSONAL_SAMPLE_RIDE: RideSummary = {
   id: 'sample-demo-route',
@@ -73,8 +76,14 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   const [useDropdown, setUseDropdown] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Interactive telemetry controls
-  const [unit, setUnit] = useState<DistanceUnit>('metric');
+  // Interactive telemetry controls (defaults to metric; remembers user preference)
+  const [unit, setUnit] = useState<DistanceUnit>(() => {
+    try {
+      return localStorage.getItem(UNIT_STORAGE_KEY) === 'imperial' ? 'imperial' : 'metric';
+    } catch {
+      return 'metric';
+    }
+  });
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('auto');
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
@@ -84,6 +93,14 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const cursorIcon = useMemo(() => createTelemetryCursorIcon(), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(UNIT_STORAGE_KEY, unit);
+    } catch {
+      // Ignore storage quota or private-mode restrictions
+    }
+  }, [unit]);
 
   // Close route dropdown on click outside
   useEffect(() => {
@@ -257,7 +274,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
       setRides((prev) => [newSummary, ...prev]);
       setRoute(parsedRoute);
       setSelectedRideId(customId);
-      const msg = `Successfully parsed ${file.name} (${parsedRoute.distanceKm} km, +${parsedRoute.elevationGainM}m)!`;
+      const msg = `Successfully parsed ${file.name} (${formatDistance(parsedRoute.distanceKm, unit)}, +${formatElevation(parsedRoute.elevationGainM, unit)})!`;
       setUploadMessage(msg);
       onNotify?.(msg, 'success');
     } catch (e: unknown) {
@@ -307,7 +324,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
               {ann.title}
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {ann.text}
+              {localizeTelemetryText(ann.text, unit)}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
               Lat: {ann.lat.toFixed(4)}, Lon: {ann.lon.toFixed(4)}
@@ -316,7 +333,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
         </Popup>
       </Marker>
     ));
-  }, [route]);
+  }, [route, unit]);
 
   if (initialLoading || !route || !telemetry) {
     return (
@@ -536,7 +553,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
             >
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                  {activeRide?.title || route.activityName}
+                  {localizeTelemetryText(activeRide?.title || route.activityName, unit)}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
                   <span>{formatDistance(route.distanceKm, unit)}</span>
@@ -606,7 +623,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                     >
                       <div>
                         <div style={{ fontWeight: isSelected ? 700 : 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-                          {r.title}
+                          {localizeTelemetryText(r.title, unit)}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
                           <span>{formatDistance(r.distanceKm, unit)}</span>
@@ -682,7 +699,7 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
                       lineHeight: 1.3,
                     }}
                   >
-                    {r.title}
+                    {localizeTelemetryText(r.title, unit)}
                   </div>
                   <div
                     style={{
@@ -868,27 +885,47 @@ export const GeospatialMapTab: React.FC<GeospatialMapTabProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-              <Layers size={13} aria-hidden="true" />
-              <span>Map</span>
-            </span>
-            <div className="segmented-control" role="group" aria-label="Map tile style">
-              {[
-                { id: 'auto' as const, label: 'Auto' },
-                { id: 'street' as const, label: 'Street' },
-                { id: 'muted' as const, label: 'Muted' },
-                { id: 'dark' as const, label: 'Dark' },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  className="segmented-btn"
-                  aria-pressed={basemapMode === opt.id}
-                  onClick={() => setBasemapMode(opt.id)}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <button
+              type="button"
+              id="btn-quick-unit-toggle"
+              onClick={() => setUnit((prev) => (prev === 'metric' ? 'imperial' : 'metric'))}
+              className="btn-secondary"
+              style={{
+                padding: '6px 10px',
+                minHeight: '34px',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                whiteSpace: 'nowrap',
+              }}
+              aria-label={`Switch units to ${unit === 'metric' ? 'imperial (miles and feet)' : 'metric (kilometers and meters)'}`}
+              title={`Currently ${unit === 'metric' ? 'Metric (km / m)' : 'Imperial (mi / ft)'} — click to switch`}
+            >
+              {unit === 'metric' ? 'Metric · km ⇄ mi' : 'Imperial · mi ⇄ km'}
+            </button>
+
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap', maxWidth: '100%' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 }}>
+                <Layers size={13} aria-hidden="true" />
+                <span>Map</span>
+              </span>
+              <div className="segmented-control" role="group" aria-label="Map tile style">
+                {[
+                  { id: 'auto' as const, label: 'Auto' },
+                  { id: 'street' as const, label: 'Street' },
+                  { id: 'muted' as const, label: 'Muted' },
+                  { id: 'dark' as const, label: 'Dark' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className="segmented-btn"
+                    aria-pressed={basemapMode === opt.id}
+                    onClick={() => setBasemapMode(opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

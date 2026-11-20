@@ -7,6 +7,7 @@ import {
   formatDistance,
   formatElevation,
   formatSpeed,
+  localizeTelemetryText,
 } from '../components/geo/telemetryAnalytics';
 import {
   computeCategoryBreakdown,
@@ -123,6 +124,11 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
     expect(formatDistance(10, 'imperial')).toBe('6.2 mi');
     expect(formatElevation(100, 'imperial')).toContain('ft');
     expect(formatSpeed(25, 'imperial')).toContain('mph');
+    expect(localizeTelemetryText('First Century / 186 km', 'metric')).toBe('First Century / 186 km');
+    expect(localizeTelemetryText('First Century / 186 km', 'imperial')).toBe('First Century / 116 mi');
+    expect(localizeTelemetryText('Starting elevation 217m. Completed 82.2km route.', 'imperial')).toBe(
+      'Starting elevation 712 ft. Completed 51.1 mi route.'
+    );
   });
 
   it('computes monthly cadence, category distribution, and weekly pace insights', () => {
@@ -337,9 +343,17 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
       expect(screen.getByRole('button', { name: /Replay Route/i })).toBeDefined();
     });
 
-    // Switch to Imperial (mi / ft)
+    // Switch to Imperial (mi / ft) and verify persistence + quick replay-bar unit toggle
     fireEvent.click(screen.getByRole('button', { name: 'mi / ft' }));
     expect(screen.getAllByText(/mi\b/i).length).toBeGreaterThan(0);
+    expect(localStorage.getItem('cap_telemetry_unit')).toBe('imperial');
+
+    const quickUnitBtn = document.getElementById('btn-quick-unit-toggle') as HTMLButtonElement;
+    expect(quickUnitBtn).not.toBeNull();
+    fireEvent.click(quickUnitBtn);
+    expect(localStorage.getItem('cap_telemetry_unit')).toBe('metric');
+    fireEvent.click(quickUnitBtn);
+    expect(localStorage.getItem('cap_telemetry_unit')).toBe('imperial');
 
     // Open segment splits table
     fireEvent.click(screen.getByRole('button', { name: /Inspect Segment Splits/i }));

@@ -76,6 +76,22 @@ export function formatSpeed(kmh: number, unit: DistanceUnit): string {
   return `${kmh.toFixed(1)} km/h`;
 }
 
+export function localizeTelemetryText(text: string, unit: DistanceUnit): string {
+  if (unit === 'metric' || !text) return text;
+  return text
+    .replace(/\b(\d+(?:\.\d+)?)\s*km\b/gi, (_match, raw: string) => {
+      const val = Number(raw);
+      if (!Number.isFinite(val)) return _match;
+      const miles = val * KM_TO_MI;
+      return raw.includes('.') ? `${miles.toFixed(1)} mi` : `${Math.round(miles)} mi`;
+    })
+    .replace(/\b(\d+(?:\.\d+)?)\s*m\b(?![a-z])/gi, (_match, raw: string) => {
+      const val = Number(raw);
+      if (!Number.isFinite(val)) return _match;
+      return `${Math.round(val * M_TO_FT).toLocaleString()} ft`;
+    });
+}
+
 export function analyzeRouteTelemetry(
   rawPoints: RoutePoint[],
   reportedDistanceKm: number,
