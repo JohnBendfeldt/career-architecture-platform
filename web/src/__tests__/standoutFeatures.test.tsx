@@ -370,9 +370,10 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
 
     expect(container.querySelector('.deployments-editorial-grid')).not.toBeNull();
     expect(screen.getByText('Just Believe Fitness')).toBeDefined();
-    const jbfitLink = screen.getByRole('link', { name: /Visit jbfit\.studio/i }) as HTMLAnchorElement;
+    const jbfitLink = screen.getByRole('link', { name: /Launch Studio App/i }) as HTMLAnchorElement;
     expect(jbfitLink.href).toBe('https://jbfit.studio/');
     expect(jbfitLink.getAttribute('rel')).toContain('noopener');
+    expect(screen.getAllByText(/jbfit\.studio/i)).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: /Inspect Live Architecture/i }));
     expect(onOpenArchitecture).toHaveBeenCalledTimes(1);

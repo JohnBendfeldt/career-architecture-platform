@@ -159,12 +159,12 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       verificationBadge: 'Live Production Platform & PWA',
       description: 'High-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic), and Supabase cloud sync.',
       verificationDetails: {
-        metaTag: 'Creator: John Bendfeldt • PWA Architecture',
+        metaTag: 'Workbox Offline PWA • 1,000+ Automated Tests',
         consoleLog: 'PWA Ready (Workbox) • 210 Language Pairs • 1,000+ Automated Tests'
       },
       tags: ['PWA', 'TypeScript', 'Vite', 'Supabase', 'Vitest & Playwright'],
-      note: 'Live production SaaS supporting 15 languages with offline Service Worker caching and 1,000+ automated tests.',
-      linkText: 'Launch basiclanguage.school'
+      note: 'Live production platform supporting 15 languages with offline Service Worker caching.',
+      linkText: 'Launch Live App'
     },
     {
       id: 'asi-tracker',
@@ -175,32 +175,32 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       organization: 'Advanced Solutions International (ASI)',
       badgeColor: 'badge-emerald',
       verificationBadge: 'Verified Author Signature in DOM & Console',
-      description: 'Enterprise staff development and professional hour tracking application deployed at trainingtracker.advsol.com — architected and delivered using .NET 10, Vite, and pragmatic AI-assisted engineering workflows.',
+      description: 'Enterprise staff development and professional hour tracking application built for Advanced Solutions International (ASI) — architected and delivered using .NET 10, Vite, and pragmatic AI-assisted engineering workflows.',
       verificationDetails: {
         metaTag: '<meta name="author" content="John Bendfeldt" />',
         consoleLog: 'Designed and built by John Bendfeldt with Claude Sonnet (Anthropic).'
       },
-      tags: ['Enterprise B2B', 'Corporate Auth', 'Session Management', 'SPA'],
-      note: 'Protected by ASI staff login. Public landing page includes author metadata and console signature.',
-      linkText: 'Inspect trainingtracker.advsol.com'
+      tags: ['.NET 10', 'Enterprise B2B', 'Corporate Auth', 'Vite SPA'],
+      note: 'Protected by ASI staff login. Public landing page includes verified author metadata and console signature.',
+      linkText: 'Inspect Live Landing Page'
     },
     {
       id: 'just-believe-fitness',
-      category: 'Personal Fitness App',
+      category: 'Indoor Cycling PWA',
       title: 'Just Believe Fitness',
       domain: 'jbfit.studio',
       url: 'https://jbfit.studio',
       organization: 'Personal Recovery & Training Studio',
       badgeColor: 'badge-emerald',
-      verificationBadge: 'Live Production Web App • Private Repo',
-      description: 'Personal fitness and rehabilitation web application built from scratch to help guide my own training and steady recovery through an injury — crafted for daily focus, consistency, and real-world use.',
+      verificationBadge: 'Direct Echelon EX-3 & Garmin BLE Telemetry',
+      description: 'Orangetheory & Garmin-inspired indoor cycling PWA built from scratch to help guide my recovery through an injury — featuring direct Echelon EX-3 & Garmin BLE telemetry, Picture-in-Picture YouTube workouts, and Strava sync.',
       verificationDetails: {
-        metaTag: 'Live Web App • jbfit.studio (Private Repository)',
-        consoleLog: 'Personal production app built to support real injury recovery and ongoing training.'
+        metaTag: 'Echelon EX-3 & Garmin BLE • PiP YouTube • Strava Sync',
+        consoleLog: 'Orangetheory & Garmin-inspired indoor cycling PWA with Web Bluetooth telemetry.'
       },
-      tags: ['Live Production', 'Injury Recovery', 'Fitness Studio', 'Private Repo'],
-      note: 'Built for personal training and recovery through an injury; actively live at jbfit.studio.',
-      linkText: 'Visit jbfit.studio'
+      tags: ['PWA', 'TypeScript', 'Web Bluetooth', 'Strava Sync', 'Vitest'],
+      note: 'Built for daily rehabilitation and indoor training; private TypeScript codebase with Vitest verification.',
+      linkText: 'Launch Studio App'
     },
     {
       id: 'country-province-data',
@@ -231,11 +231,11 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       verificationBadge: 'YARP Reverse Proxy & .NET 10',
       description: 'Multi-service containerized microservices platform with high-frequency Garmin FIT telemetry parsing and AI curriculum extraction.',
       verificationDetails: {
-        metaTag: 'Architecture: YARP Reverse Proxy + .NET Minimal APIs',
+        metaTag: 'YARP Reverse Proxy + .NET 10 Minimal APIs',
         consoleLog: 'Native AOT readiness, Leaflet polylines, OAuth workspace isolation'
       },
       tags: ['.NET 10', 'YARP Gateway', 'Garmin FIT', 'Leaflet', 'Azure'],
-      note: 'Multi-service C# and React 19 architecture powering this live site.',
+      note: 'Containerized C# microservices and React 19 frontend powering this live portfolio.',
       linkText: 'Current Live Deployment'
     }
   ];

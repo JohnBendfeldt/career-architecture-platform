@@ -44,13 +44,13 @@ const PORTFOLIO_PROJECTS = [
     title: 'Just Believe Fitness',
     domain: 'jbfit.studio',
     url: 'https://jbfit.studio',
-    role: 'Creator & Builder',
-    description: 'Personal fitness and injury-recovery web application built to structure daily training and rehabilitation.',
+    role: 'Creator & Full-Stack Engineer',
+    description: 'Orangetheory & Garmin-inspired indoor cycling PWA with direct Echelon EX-3 & Garmin BLE telemetry, PiP YouTube workouts, and Strava sync.',
     bullets: [
-      'Designed and shipped a personal fitness web app at jbfit.studio to guide my own training and steady recovery through an injury.',
-      'Focused on clean daily ergonomics, consistent momentum, and practical usability across mobile and desktop.'
+      'Built an Orangetheory & Garmin-inspired indoor cycling PWA from scratch to guide daily training and recovery through an injury.',
+      'Implemented direct Web Bluetooth (BLE) telemetry for Echelon EX-3 & Garmin hardware, Picture-in-Picture YouTube workouts, Strava sync, and automated Vitest verification.'
     ],
-    badges: ['Live Production', 'Injury Recovery', 'Fitness Studio', 'Private Repo']
+    badges: ['PWA', 'TypeScript', 'Web Bluetooth (BLE)', 'Echelon EX-3 & Garmin', 'PiP YouTube', 'Strava Sync', 'Vitest']
   }
 ];
 
