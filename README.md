@@ -4,6 +4,8 @@ A high-performance, multi-service web application serving as an interactive prof
 
 Production domain: **[johnbendfeldt.com](https://johnbendfeldt.com)**
 
+> Built with **Gemini** and **Antigravity**.
+
 ## System Architecture
 
 ```mermaid

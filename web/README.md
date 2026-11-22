@@ -2,6 +2,8 @@
 
 React 19.3 + TypeScript 6 + Vite 8 single-page application for **[johnbendfeldt.com](https://johnbendfeldt.com)**.
 
+> Built with **Gemini** and **Antigravity**.
+
 ## Stack
 
 - **UI Runtime**: React `^19.3.1`, TypeScript `~6.0.2`, Vite `^8.3.0`
