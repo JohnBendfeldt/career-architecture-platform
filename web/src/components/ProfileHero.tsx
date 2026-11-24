@@ -122,7 +122,10 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                     }
                   }}
                   src={safeAvatarUrl}
-                  alt={profile.name}
+                  alt={workspaceMode === 'portfolio' ? `${profile.name} — Senior Software Engineer` : profile.name}
+                  width={138}
+                  height={138}
+                  fetchPriority="high"
                   referrerPolicy="no-referrer"
                   onError={() => setImgError(true)}
                   style={{
@@ -233,7 +236,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 <a
                   href={safeLinkedinUrl}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer me"
                   className="btn-primary hero-action-primary"
                   id="hero-linkedin-link"
                   style={{ padding: '9px 18px', fontSize: '0.84rem', textDecoration: 'none' }}
@@ -259,7 +262,7 @@ export const ProfileHero: React.FC<ProfileHeroProps> = ({
                 <a
                   href={safeGithubUrl}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer me"
                   className="social-link hero-action-secondary"
                   id="hero-github-link"
                   aria-label="Visit github.com/JohnBendfeldt"

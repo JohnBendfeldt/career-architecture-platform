@@ -246,11 +246,41 @@ export class ApiService {
     );
   }
 
+  private static readonly DEFAULT_PORTFOLIO_HEADLINE = 'Senior Software Engineer — .NET, React & Cloud';
+  private static readonly DEFAULT_PORTFOLIO_BIO =
+    'Full-stack engineer with 9+ years of experience building features, modernizing legacy codebases, and maintaining large-scale enterprise SaaS applications across .NET (Core, 6, 10), C#, React, and TypeScript. Adept at partnering with cross-functional teams to drive projects from architecture and CI/CD pipelines to production deployment.';
+  private static readonly LEGACY_PORTFOLIO_HEADLINES = new Set([
+    'Software Engineer & Systems Builder',
+    'Senior Software Developer',
+  ]);
+  private static readonly LEGACY_PORTFOLIO_BIO =
+    'Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.';
+
+  private static upgradeLegacyPortfolioProfile(profile: Profile): Profile {
+    const isJohnPortfolio =
+      profile.id === 1 || (profile.name || '').toLowerCase().includes('bendfeldt');
+    if (!isJohnPortfolio) return profile;
+
+    const headline = this.LEGACY_PORTFOLIO_HEADLINES.has((profile.headline || '').trim())
+      ? this.DEFAULT_PORTFOLIO_HEADLINE
+      : profile.headline;
+    const bio =
+      (profile.bio || '').trim() === this.LEGACY_PORTFOLIO_BIO
+        ? this.DEFAULT_PORTFOLIO_BIO
+        : profile.bio;
+
+    return {
+      ...profile,
+      headline,
+      bio,
+    };
+  }
+
   static getDefaultPortfolioProfile(): Profile {
     try {
       const parsed = safeParseStorageObject<Profile>(localStorage.getItem('cap_owner_portfolio_profile'));
       if (parsed && typeof parsed.name === 'string' && parsed.headline !== 'Software Engineer & Systems Builder') {
-        return sanitizeStoredProfile(parsed);
+        return this.upgradeLegacyPortfolioProfile(sanitizeStoredProfile(parsed));
       }
     } catch {
       // ignore
@@ -260,8 +290,8 @@ export class ApiService {
       id: 1,
       name: 'John F. Bendfeldt',
       vanitySlug: 'john-bendfeldt',
-      headline: 'Senior Software Developer',
-      bio: 'Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.',
+      headline: this.DEFAULT_PORTFOLIO_HEADLINE,
+      bio: this.DEFAULT_PORTFOLIO_BIO,
       location: 'Austin, TX',
       email: 'jfbendfeldt@gmail.com',
       avatarUrl: '/john-bendfeldt.jpg',
@@ -535,7 +565,7 @@ export class ApiService {
       try {
         const { data, error } = await sbClient.from('profiles').select('*').limit(1).maybeSingle();
         if (data && !error) {
-          return sanitizeStoredProfile({
+          return this.upgradeLegacyPortfolioProfile(sanitizeStoredProfile({
             id: data.id,
             name: data.name,
             headline: data.headline,
@@ -553,7 +583,7 @@ export class ApiService {
             experienceYears: data.experience_years,
             annualGoalHours: data.annual_goal_hours != null ? Number(data.annual_goal_hours) : 55,
             updatedAt: data.updated_at,
-          });
+          }));
         }
       } catch {
         // Fallback
@@ -564,10 +594,10 @@ export class ApiService {
       const res = await fetch(`${API_BASE}/api/profile`);
       if (isJson(res)) {
         const apiProfile: Profile = await res.json();
-        return sanitizeStoredProfile({
+        return this.upgradeLegacyPortfolioProfile(sanitizeStoredProfile({
           ...apiProfile,
           annualGoalHours: apiProfile.annualGoalHours ?? 55,
-        });
+        }));
       }
     } catch {
       // Backend unavailable, using verified profile data

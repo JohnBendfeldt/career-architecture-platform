@@ -28,7 +28,7 @@ interface AiSkillExtractorTabProps {
   onNotify?: (message: string, tone?: 'success' | 'info' | 'error') => void;
 }
 
-const PORTFOLIO_BIO = `Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.`;
+const PORTFOLIO_BIO = `Senior Software Engineer with 9+ years of experience building features, modernizing legacy codebases, and maintaining large-scale enterprise SaaS applications across .NET (Core, 6, 10), C#, React, and TypeScript. Adept at partnering with cross-functional teams to drive projects from architecture and CI/CD pipelines to production deployment.`;
 
 const SAMPLE_DOTNET_REACT_JOB = `Seeking a Senior Full-Stack Software Engineer to architect and deliver enterprise SaaS features using C#, .NET Core / .NET 10, React, TypeScript, and SQL Server / PostgreSQL. Candidates should have strong experience with CI/CD pipelines in Azure DevOps, Docker containerization, legacy codebase modernization, and automated unit/integration testing.`;
 

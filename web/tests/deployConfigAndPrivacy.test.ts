@@ -183,6 +183,51 @@ describe('Deployment Gates, Security Headers, RLS & Geospatial Privacy', () => {
     expect(touchPng.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(true);
     expect(touchPng.readUInt32BE(16)).toBe(180);
     expect(touchPng.readUInt32BE(20)).toBe(180);
+
+    const rootOgPath = path.join(repoRoot, 'og-image.png');
+    if (fs.existsSync(rootOgPath)) {
+      expect(fs.readFileSync(rootOgPath).equals(ogPng)).toBe(true);
+    }
+  });
+
+  it('enforces Senior Software Engineer SEO metadata, Schema.org Person JSON-LD graph, robots.txt, and sitemap.xml', () => {
+    const indexHtml = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8');
+
+    expect(indexHtml).toContain('<meta name="author" content="John Bendfeldt" />');
+    expect(indexHtml).toContain('<meta name="robots" content="index, follow');
+    expect(indexHtml).toMatch(/<title>[^<]*John Bendfeldt[^<]*Senior Software Engineer[^<]*<\/title>/);
+    expect(indexHtml).toMatch(/<meta name="description" content="[^"]*Senior Software Engineer[^"]*" \/>/);
+    expect(indexHtml).toMatch(/<meta name="keywords" content="[^"]*Senior Software Engineer[^"]*Senior Software Developer[^"]*" \/>/);
+    expect(indexHtml).toContain('rel="me" href="https://github.com/JohnBendfeldt"');
+    expect(indexHtml).toContain('rel="me" href="https://www.linkedin.com/in/johnbendfeldt"');
+    expect(indexHtml).toContain('<noscript>');
+
+    const ldMatch = indexHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    expect(ldMatch, 'Missing JSON-LD structured data block in web/index.html').not.toBeNull();
+    const ldJson = JSON.parse(ldMatch![1]) as { '@graph': Array<Record<string, unknown>> };
+    expect(Array.isArray(ldJson['@graph'])).toBe(true);
+
+    const person = ldJson['@graph'].find((node) => node['@type'] === 'Person');
+    expect(person).toBeDefined();
+    expect(person?.name).toBe('John Bendfeldt');
+    expect(person?.jobTitle).toBe('Senior Software Engineer');
+    const sameAs = (person?.sameAs as string[]) ?? [];
+    expect(sameAs).toContain('https://github.com/JohnBendfeldt');
+    expect(sameAs).toContain('https://www.linkedin.com/in/johnbendfeldt');
+    expect(sameAs).toContain('https://basiclanguage.school/');
+    expect(sameAs).toContain('https://jbfit.studio/');
+
+    const jbfitNode = ldJson['@graph'].find((node) => node.name === 'Just Believe Fitness');
+    expect(jbfitNode).toBeDefined();
+    expect(jbfitNode?.sameAs).toBe('https://github.com/JohnBendfeldt/just-believe-fitness');
+
+    const robotsTxt = fs.readFileSync(path.join(webRoot, 'public', 'robots.txt'), 'utf-8');
+    expect(robotsTxt).toContain('User-agent: *');
+    expect(robotsTxt).toContain('Allow: /');
+    expect(robotsTxt).toContain('Sitemap: https://johnbendfeldt.com/sitemap.xml');
+
+    const sitemapXml = fs.readFileSync(path.join(webRoot, 'public', 'sitemap.xml'), 'utf-8');
+    expect(sitemapXml).toContain('<loc>https://johnbendfeldt.com/</loc>');
   });
 
   it('preserves all security headers inside Nginx child location blocks and disables server_tokens', () => {

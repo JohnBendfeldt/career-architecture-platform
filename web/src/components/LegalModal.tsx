@@ -159,7 +159,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ initialTab, onClose, onS
               </a>{' '}
               or{' '}
               <a
-                href="https://github.com/johnbendfeldt"
+                href="https://github.com/JohnBendfeldt"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'var(--accent-crimson)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '3px' }}

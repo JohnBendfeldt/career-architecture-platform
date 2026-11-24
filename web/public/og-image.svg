@@ -49,13 +49,13 @@
         John F. Bendfeldt
       </text>
       <text y="46" font-family="Menlo-Bold, Courier-Bold, monospace" font-weight="700" font-size="18" fill="#E60012" letter-spacing="1.5">
-        SENIOR SOFTWARE DEVELOPER // .NET 10 &#8226; REACT &#8226; YARP
+        SENIOR SOFTWARE ENGINEER // .NET 10 &#8226; REACT &#8226; YARP
       </text>
       <text y="92" font-family="'Inter', -apple-system, sans-serif" font-weight="500" font-size="19" fill="#4A4A46" letter-spacing="0">
         Career Architecture Platform &#8212; Full-Stack SaaS, AI Skill Extraction &amp; Garmin FIT Telemetry
       </text>
       <text y="124" font-family="'Inter', -apple-system, sans-serif" font-weight="400" font-size="16" fill="#767672">
-        9 years modernizing enterprise systems, CI/CD pipelines, and cloud microservices.
+        9+ years modernizing enterprise systems, CI/CD pipelines, and cloud microservices.
       </text>
     </g>
   </g>
@@ -95,8 +95,8 @@
   <!-- 7. Editorial Footer Hairline -->
   <g transform="translate(84, 518)">
     <line x1="0" y1="0" x2="1032" y2="0" stroke="#E2E1DC" stroke-width="1" />
-    <text y="32" font-family="Menlo-Bold, Courier-Bold, monospace" font-size="12" font-weight="600" fill="#767672" letter-spacing="1.5">
-      VERIFIED PRODUCTION DEPLOYMENTS // BASICLANGUAGE.SCHOOL &#8226; TRAININGTRACKER.ADVSOL.COM
+    <text y="32" font-family="Menlo-Bold, Courier-Bold, monospace" font-size="12" font-weight="600" fill="#767672" letter-spacing="1.2">
+      DEPLOYMENTS // BASICLANGUAGE.SCHOOL &#8226; JBFIT.STUDIO &#8226; TRAININGTRACKER.ADVSOL.COM
     </text>
     <text x="1032" y="32" font-family="Menlo-Bold, Courier-Bold, monospace" font-size="12" font-weight="700" fill="#111111" letter-spacing="1.5" text-anchor="end">
       GITHUB.COM/JOHNBENDFELDT

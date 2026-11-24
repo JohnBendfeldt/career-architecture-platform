@@ -323,7 +323,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess, onClose,
         gap: '12px'
       }}>
         <a
-          href="https://github.com/johnbendfeldt"
+          href="https://github.com/JohnBendfeldt"
           target="_blank"
           rel="noopener noreferrer"
           className="social-link"

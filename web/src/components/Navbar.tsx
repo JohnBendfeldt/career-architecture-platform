@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     : 'BY JOHN BENDFELDT';
   const navGithubUrl = isPersonal
     ? sanitizeExternalUrl(activeProfile.githubUrl, 'https://github.com')
-    : 'https://github.com/johnbendfeldt';
+    : 'https://github.com/JohnBendfeldt';
   const navLinkedinUrl = isPersonal
     ? sanitizeExternalUrl(activeProfile.linkedinUrl, 'https://linkedin.com')
     : 'https://linkedin.com/in/johnbendfeldt';
@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a
             href={navGithubUrl}
             target="_blank"
-            rel="noopener noreferrer"
+            rel={isPersonal ? 'noopener noreferrer' : 'noopener noreferrer me'}
             className="social-link"
             id="btn-nav-github"
             aria-label={`Visit ${navOwnerName} on GitHub`}
@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a
             href={navLinkedinUrl}
             target="_blank"
-            rel="noopener noreferrer"
+            rel={isPersonal ? 'noopener noreferrer' : 'noopener noreferrer me'}
             className="social-link"
             id="btn-nav-linkedin"
             aria-label={`Connect with ${navOwnerName} on LinkedIn`}
