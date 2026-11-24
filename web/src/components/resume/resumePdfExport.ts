@@ -331,11 +331,20 @@ export function exportPrintableResume(options?: {
           <div class="job">
             <div class="job-header">
               <div><span class="job-role">Basic Language School (basiclanguage.school)</span><span class="job-company"> — Creator &amp; Full-Stack Engineer</span></div>
-              <div class="job-meta">Live Production PWA</div>
+              <div class="job-meta">Live Production PWA • Open Source</div>
             </div>
             <ul>
               <li>Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages with 14,400+ neural audio assets, offline caching, and Supabase cloud sync.</li>
               <li>Engineered interactive active-recall quizzes with custom virtual keyboards (Cyrillic, Arabic, Indic) and 1,000+ automated Vitest/Playwright tests.</li>
+            </ul>
+          </div>
+          <div class="job">
+            <div class="job-header">
+              <div><span class="job-role">Just Believe Fitness (jbfit.studio)</span><span class="job-company"> — Creator &amp; Full-Stack Engineer</span></div>
+              <div class="job-meta">Open-Source Indoor Cycling PWA</div>
+            </div>
+            <ul>
+              <li>Built an Orangetheory &amp; Garmin-inspired indoor cycling PWA in TypeScript featuring direct Web Bluetooth (BLE) telemetry for Echelon EX-3 &amp; Garmin devices, Picture-in-Picture YouTube workouts, Strava sync, and Vitest verification (github.com/JohnBendfeldt/just-believe-fitness).</li>
             </ul>
           </div>
           <div class="job">

@@ -68,6 +68,7 @@ public class ApiIntegrationTests : IClassFixture<IsolatedApiFactory>
 
         var profile = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("John F. Bendfeldt", profile.GetProperty("name").GetString());
+        Assert.Contains("Senior Software Engineer", profile.GetProperty("headline").GetString()!, StringComparison.Ordinal);
         Assert.Contains("johnbendfeldt", profile.GetProperty("githubUrl").GetString()!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("linkedin.com/in/johnbendfeldt", profile.GetProperty("linkedinUrl").GetString()!, StringComparison.OrdinalIgnoreCase);
 

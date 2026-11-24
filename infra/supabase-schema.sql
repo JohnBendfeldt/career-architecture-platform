@@ -244,8 +244,8 @@ INSERT INTO public.profiles (
 ) VALUES (
     1,
     'John F. Bendfeldt',
-    'Senior Software Developer',
-    'Software Engineer with a track record of building out features and maintaining large scale SaaS applications. Adept at working with diverse cross-functional teams to drive projects from architecture to deployment. Brings 9 years of expertise in full-stack web development, CI/CD pipelines, and modernizing legacy codebases into scalable .NET and React environments.',
+    'Senior Software Engineer — .NET, React & Cloud',
+    'Full-stack engineer with 9+ years of experience building features, modernizing legacy codebases, and maintaining large-scale enterprise SaaS applications across .NET (Core, 6, 10), C#, React, and TypeScript. Adept at partnering with cross-functional teams to drive projects from architecture and CI/CD pipelines to production deployment.',
     'Austin, TX',
     'jfbendfeldt@gmail.com',
     '/john-bendfeldt.jpg',

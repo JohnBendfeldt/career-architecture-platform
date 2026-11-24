@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { MapPin, ExternalLink, Globe, Plus, Trash2, Download, Sparkles, X } from 'lucide-react';
+import { GithubIcon } from './Icons';
 import type { Profile } from '../types';
 import {
   PORTFOLIO_EXPERIENCES,
@@ -32,6 +33,7 @@ const PORTFOLIO_PROJECTS = [
     title: 'Basic Language School',
     domain: 'basiclanguage.school',
     url: 'https://basiclanguage.school',
+    githubUrl: 'https://github.com/JohnBendfeldt/basic-language-school',
     role: 'Creator & Full-Stack Engineer',
     description: 'Built a high-performance PWA supporting 210 bidirectional language pairs across 15 languages, featuring 14,400+ neural audio assets, offline caching, and Supabase cloud sync.',
     bullets: [
@@ -44,6 +46,7 @@ const PORTFOLIO_PROJECTS = [
     title: 'Just Believe Fitness',
     domain: 'jbfit.studio',
     url: 'https://jbfit.studio',
+    githubUrl: 'https://github.com/JohnBendfeldt/just-believe-fitness',
     role: 'Creator & Full-Stack Engineer',
     description: 'Orangetheory & Garmin-inspired indoor cycling PWA with direct Echelon EX-3 & Garmin BLE telemetry, PiP YouTube workouts, and Strava sync.',
     bullets: [
@@ -161,7 +164,7 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
           <p className="section-subtitle">
             {workspaceMode === 'personal'
               ? 'Build out your own work history and technical achievements below, or switch back to "John\'s Portfolio" at the top.'
-              : 'Nine years building enterprise SaaS applications, full-stack features, and high-reliability accounting and membership platforms.'}
+              : 'Nine+ years as a Senior Software Engineer building enterprise SaaS applications, full-stack features, and high-reliability accounting and membership platforms.'}
           </p>
         </div>
 
@@ -427,17 +430,33 @@ export const ResumeTimeline: React.FC<ResumeTimelineProps> = ({
                       </h4>
                     </div>
 
-                    <a
-                      href={sanitizeExternalUrl(proj.url, 'https://basiclanguage.school')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="social-link"
-                      style={{ padding: '7px 14px', fontSize: '0.84rem' }}
-                    >
-                      <Globe size={14} aria-hidden="true" />
-                      <span>{proj.domain}</span>
-                      <ExternalLink size={12} aria-hidden="true" />
-                    </a>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <a
+                        href={sanitizeExternalUrl(proj.url, 'https://basiclanguage.school')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="social-link"
+                        style={{ padding: '7px 14px', fontSize: '0.84rem' }}
+                      >
+                        <Globe size={14} aria-hidden="true" />
+                        <span>{proj.domain}</span>
+                        <ExternalLink size={12} aria-hidden="true" />
+                      </a>
+                      {proj.githubUrl && (
+                        <a
+                          href={sanitizeExternalUrl(proj.githubUrl, 'https://github.com/JohnBendfeldt')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="social-link"
+                          aria-label={`View ${proj.title} source code on GitHub`}
+                          style={{ padding: '7px 12px', fontSize: '0.84rem' }}
+                        >
+                          <GithubIcon size={14} />
+                          <span>Source</span>
+                          <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   <ul style={{

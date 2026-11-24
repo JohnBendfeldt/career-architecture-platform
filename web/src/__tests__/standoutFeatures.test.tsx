@@ -391,19 +391,45 @@ describe('Standout Features — Telemetry, Command Palette, Architecture Explore
 
     expect(container.querySelector('.deployments-editorial-grid')).not.toBeNull();
     expect(screen.getByText('Just Believe Fitness')).toBeDefined();
+    expect(container.textContent).not.toMatch(/private TypeScript/i);
     const jbfitLink = screen.getByRole('link', { name: /Launch Studio App/i }) as HTMLAnchorElement;
     expect(jbfitLink.href).toBe('https://jbfit.studio/');
     expect(jbfitLink.getAttribute('rel')).toContain('noopener');
     expect(screen.getAllByText(/jbfit\.studio/i)).toHaveLength(1);
 
+    const jbfitRepoLink = screen.getByRole('link', {
+      name: /View Just Believe Fitness source code on GitHub/i,
+    }) as HTMLAnchorElement;
+    expect(jbfitRepoLink.href).toBe('https://github.com/JohnBendfeldt/just-believe-fitness');
+    expect(jbfitRepoLink.getAttribute('rel')).toContain('noopener');
+
+    const blsRepoLink = screen.getByRole('link', {
+      name: /View Basic Language School source code on GitHub/i,
+    }) as HTMLAnchorElement;
+    expect(blsRepoLink.href).toBe('https://github.com/JohnBendfeldt/basic-language-school');
+
     fireEvent.click(screen.getByRole('button', { name: /Inspect Live Architecture/i }));
     expect(onOpenArchitecture).toHaveBeenCalledTimes(1);
 
-    // Zero-CLS synchronous default portfolio state
+    // Zero-CLS synchronous default portfolio state with Senior Software Engineer positioning
     const defaultProfile = ApiService.getDefaultPortfolioProfile();
     const defaultGoals = ApiService.getDefaultPortfolioGoals();
     expect(defaultProfile.name).toContain('Bendfeldt');
+    expect(defaultProfile.headline).toContain('Senior Software Engineer');
     expect(defaultGoals.length).toBeGreaterThanOrEqual(6);
+
+    // Legacy cached headline upgrades automatically while preserving custom owner overrides
+    localStorage.setItem(
+      'cap_owner_portfolio_profile',
+      JSON.stringify({ ...defaultProfile, headline: 'Senior Software Developer' })
+    );
+    expect(ApiService.getDefaultPortfolioProfile().headline).toContain('Senior Software Engineer');
+
+    localStorage.setItem(
+      'cap_owner_portfolio_profile',
+      JSON.stringify({ ...defaultProfile, headline: 'Principal Cloud Architect' })
+    );
+    expect(ApiService.getDefaultPortfolioProfile().headline).toBe('Principal Cloud Architect');
   });
 });
 

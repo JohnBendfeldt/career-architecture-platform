@@ -1151,6 +1151,36 @@ main:focus {
   color: #ffffff;
 }
 
+.deployment-repo-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.deployment-repo-link:hover {
+  border-color: var(--border-control);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+.deployment-repo-link:hover .deployment-cta-arrow {
+  color: var(--text-primary);
+  transform: translate(2px, -2px);
+}
+
 /* Timeline & Project Inline Metadata Rows */
 .timeline-meta-row {
   display: flex;

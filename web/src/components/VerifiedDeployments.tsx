@@ -154,6 +154,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       title: 'Basic Language School',
       domain: 'basiclanguage.school',
       url: 'https://basiclanguage.school',
+      githubUrl: 'https://github.com/JohnBendfeldt/basic-language-school',
       organization: 'Production Language Learning Platform',
       badgeColor: 'badge-cyan',
       verificationBadge: 'Live Production Platform & PWA',
@@ -163,7 +164,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         consoleLog: 'PWA Ready (Workbox) • 210 Language Pairs • 1,000+ Automated Tests'
       },
       tags: ['PWA', 'TypeScript', 'Vite', 'Supabase', 'Vitest & Playwright'],
-      note: 'Live production platform supporting 15 languages with offline Service Worker caching.',
+      note: 'Open-source production PWA supporting 15 languages with offline Service Worker caching.',
       linkText: 'Launch Live App'
     },
     {
@@ -190,6 +191,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       title: 'Just Believe Fitness',
       domain: 'jbfit.studio',
       url: 'https://jbfit.studio',
+      githubUrl: 'https://github.com/JohnBendfeldt/just-believe-fitness',
       organization: 'Personal Recovery & Training Studio',
       badgeColor: 'badge-emerald',
       verificationBadge: 'Direct Echelon EX-3 & Garmin BLE Telemetry',
@@ -199,7 +201,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         consoleLog: 'Orangetheory & Garmin-inspired indoor cycling PWA with Web Bluetooth telemetry.'
       },
       tags: ['PWA', 'TypeScript', 'Web Bluetooth', 'Strava Sync', 'Vitest'],
-      note: 'Built for daily rehabilitation and indoor training; private TypeScript codebase with Vitest verification.',
+      note: 'Open-source TypeScript PWA built for daily rehabilitation and indoor training, verified with Vitest.',
       linkText: 'Launch Studio App'
     },
     {
@@ -208,6 +210,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       title: 'country-province-data',
       domain: 'npmjs.com/package/country-province-data',
       url: 'https://www.npmjs.com/package/country-province-data',
+      githubUrl: 'https://github.com/JohnBendfeldt/country-province-data',
       organization: 'Published npm Package • 8 Years Active',
       badgeColor: 'badge-amber',
       verificationBadge: 'Hundreds of Downloads/Week • 0 Bugs',
@@ -226,6 +229,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
       title: 'Career & Skill Architecture',
       domain: 'johnbendfeldt.com',
       url: '#',
+      githubUrl: 'https://github.com/JohnBendfeldt/career-architecture-platform',
       organization: 'Live Portfolio Architecture',
       badgeColor: 'badge-indigo',
       verificationBadge: 'YARP Reverse Proxy & .NET 10',
@@ -235,7 +239,7 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
         consoleLog: 'Native AOT readiness, Leaflet polylines, OAuth workspace isolation'
       },
       tags: ['.NET 10', 'YARP Gateway', 'Garmin FIT', 'Leaflet', 'Azure'],
-      note: 'Containerized C# microservices and React 19 frontend powering this live portfolio.',
+      note: 'Open-source C# microservices and React 19 frontend powering this live portfolio.',
       linkText: 'Current Live Deployment'
     }
   ];
@@ -383,24 +387,27 @@ export const VerifiedDeployments: React.FC<VerifiedDeploymentsProps> = ({
                     </div>
                   )}
 
-                  {item.githubUrl && isSafeHttpsUrl(item.githubUrl) && (
-                    <a
-                      href={item.githubUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="social-link"
-                      style={{
-                        width: '100%',
-                        justifyContent: 'center',
-                        padding: '8px 16px',
-                        fontSize: '0.84rem'
-                      }}
-                    >
-                      <GithubIcon size={15} />
-                      <span>View Repository on GitHub</span>
-                      <ExternalLink size={12} aria-hidden="true" style={{ opacity: 0.8 }} />
-                    </a>
-                  )}
+                  {item.githubUrl && isSafeHttpsUrl(item.githubUrl) && (() => {
+                    const repoSlug = item.githubUrl
+                      .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
+                      .replace(/\/+$/, '');
+                    const repoName = repoSlug.split('/').pop() || 'GitHub';
+                    return (
+                      <a
+                        href={item.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="deployment-repo-link"
+                        aria-label={`View ${item.title} source code on GitHub (${repoSlug})`}
+                      >
+                        <span className="deployment-cta-label">
+                          <GithubIcon size={14} />
+                          <span>GitHub · {repoName}</span>
+                        </span>
+                        <ExternalLink size={12} aria-hidden="true" className="deployment-cta-arrow" />
+                      </a>
+                    );
+                  })()}
                 </div>
               </div>
             </article>

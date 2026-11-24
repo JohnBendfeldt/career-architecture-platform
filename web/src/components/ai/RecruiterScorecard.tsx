@@ -18,7 +18,7 @@ export function evaluatePortfolioSkillMatch(skill: string): SkillMatchResult {
   if (s.includes('react') || s.includes('typescript') || s.includes('javascript') || s.includes('vite') || s.includes('html') || s.includes('css') || s.includes('frontend') || s.includes('node')) {
     return {
       matched: true,
-      evidence: 'Verified in Production (9+ yrs): React 19, TypeScript, Vite & ES6+ across enterprise SaaS, Basic Language School PWA (basiclanguage.school), and the country-province-data npm package.'
+      evidence: 'Verified in Production (9+ yrs): React 19, TypeScript, Vite & ES6+ across enterprise SaaS, Basic Language School PWA (basiclanguage.school), Just Believe Fitness PWA (jbfit.studio), and the country-province-data npm package.'
     };
   }
   if (s.includes('sql') || s.includes('postgres') || s.includes('database') || s.includes('supabase') || s.includes('sqlite')) {
@@ -62,9 +62,9 @@ export function buildRecruiterMatchBrief(extractedSkills: string[]): string {
   const pct = extractedSkills.length > 0 ? Math.round((matched.length / extractedSkills.length) * 100) : 0;
 
   const lines = [
-    `# Candidate Technical Match Brief — John Bendfeldt`,
+    `# Candidate Technical Match Brief — John Bendfeldt (Senior Software Engineer)`,
     `Stack Alignment: ${pct}% (${matched.length}/${extractedSkills.length} verified in production)`,
-    `Portfolio: https://johnbendfeldt.com | LinkedIn: https://linkedin.com/in/johnbendfeldt | GitHub: https://github.com/johnbendfeldt`,
+    `Portfolio: https://johnbendfeldt.com | LinkedIn: https://linkedin.com/in/johnbendfeldt | GitHub: https://github.com/JohnBendfeldt`,
     '',
     '## Verified Production Evidence',
     ...(matched.length > 0

@@ -38,8 +38,9 @@ flowchart LR
 
 ### 4. Verified Production Deployments & Printable Executive Resume
 - **Training Hour Tracker (`trainingtracker.advsol.com`)**: Enterprise staff development and hour tracking application on corporate Advanced Solutions International (ASI) domain, verified by DOM author metadata (`<meta name="author" content="John Bendfeldt" />`) and DevTools console signature.
-- **Basic Language School (`basiclanguage.school`)**: Live public language learning PWA supporting 210 bidirectional language pairs across 15 languages with interactive active-recall quizzes and custom virtual keyboards (Cyrillic, Arabic, Indic).
-- **country-province-data (npm)**: Open-source international address data package with **hundreds of weekly downloads** (thousands of times a year), zero open bugs, and 8 years in continuous production use.
+- **Basic Language School (`basiclanguage.school`)**: Open-source live language learning PWA supporting 210 bidirectional language pairs across 15 languages with interactive active-recall quizzes and custom virtual keyboards (Cyrillic, Arabic, Indic) ([`JohnBendfeldt/basic-language-school`](https://github.com/JohnBendfeldt/basic-language-school)).
+- **Just Believe Fitness (`jbfit.studio`)**: Open-source indoor cycling PWA built in TypeScript with direct Echelon EX-3 & Garmin Web Bluetooth (BLE) telemetry, Picture-in-Picture YouTube workouts, Strava sync, and Vitest verification ([`JohnBendfeldt/just-believe-fitness`](https://github.com/JohnBendfeldt/just-believe-fitness)).
+- **country-province-data (npm)**: Open-source international address data package with **hundreds of weekly downloads** (thousands of times a year), zero open bugs, and 8 years in continuous production use ([`JohnBendfeldt/country-province-data`](https://github.com/JohnBendfeldt/country-province-data)).
 - **Career Timeline & Print/PDF Resume**: Interactive engineering timeline with CSP-safe printable executive resume export (`resumePdfExport.ts`).
 
 ### 5. Geospatial Garmin FIT Microservice

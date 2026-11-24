@@ -164,7 +164,7 @@ export function App() {
     if (workspaceMode === 'personal' && customProfile) {
       document.title = `${customProfile.name} | ${customProfile.headline} — Career Architecture`;
     } else {
-      document.title = 'John Bendfeldt | Senior Software Developer — .NET 10, React & Cloud Architecture';
+      document.title = 'John Bendfeldt | Senior Software Engineer — .NET 10, React & Cloud Architecture';
     }
 
     if (!user) return;
@@ -664,9 +664,9 @@ export function App() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <a
-              href="https://github.com/johnbendfeldt"
+              href="https://github.com/JohnBendfeldt"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener noreferrer me"
               className="social-link"
             >
               <GithubIcon size={15} />
@@ -675,7 +675,7 @@ export function App() {
             <a
               href="https://linkedin.com/in/johnbendfeldt"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener noreferrer me"
               className="social-link"
             >
               <LinkedinIcon size={15} />
